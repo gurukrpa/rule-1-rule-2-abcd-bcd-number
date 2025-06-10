@@ -6,6 +6,7 @@ import { supabase } from '../supabaseClient';
 import * as XLSX from 'xlsx';
 import IndexPage from './IndexPage';
 import Rule2Page from './Rule2Page';
+import Rule2CompactPage from './Rule2CompactPage';
 import AddDateModal from './modals/AddDateModal';
 import HourEntryModal from './modals/HourEntryModal';
 
@@ -573,11 +574,16 @@ function ABCDBCDNumber() {
   };
 
   // Handle extract numbers navigation
-  const handleExtractNumbers = () => {
-    // Navigate to extract numbers page or perform extract numbers logic
-    console.log('Extract numbers clicked');
-    // You can add navigation logic here if needed
-    // navigate('/extract-numbers');
+  const handleExtractNumbers = (date, activeHR) => {
+    console.log('Extract numbers clicked with date:', date, 'activeHR:', activeHR);
+    
+    // Store the activeHR in the rule2PageData
+    setRule2PageData({
+      date,
+      selectedUser,
+      activeHR
+    });
+    setShowRule2Page(true);
   };
 
   // Auto-select user from URL
@@ -623,12 +629,13 @@ function ABCDBCDNumber() {
   // Conditional render for Rule2Page
   if (showRule2Page && rule2PageData) {
     return (
-      <Rule2Page
+      <Rule2CompactPage
         key={`rule2-${selectedUser}-${datesList.length}-${JSON.stringify(datesList)}`}
         date={rule2PageData.date}
         selectedUser={rule2PageData.selectedUser}
         datesList={datesList}
         onBack={handleBackFromRule2}
+        activeHR={rule2PageData.activeHR}
       />
     );
   }
