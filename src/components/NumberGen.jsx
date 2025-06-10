@@ -110,7 +110,7 @@ const NumberGen = () => {
           // Apply the saved settings if they exist
           if (result.settings.valueRange) setValueRange(Number(result.settings.valueRange));
           if (result.settings.minSum) setMinSum(Number(result.settings.minSum));
-          if (result.settings.maxSum) setMaxSum(Number(result.settings.maxMax));
+          if (result.settings.maxSum) setMaxSum(Number(result.settings.maxSum));
           if (result.settings.planetCount) setPlanetCount(Number(result.settings.planetCount));
           // Load range filters if they exist
           if (result.settings.rangeFilters) {
