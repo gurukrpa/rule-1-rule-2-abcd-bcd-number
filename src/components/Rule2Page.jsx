@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { DataService } from '../services/dataService';
+import ProgressBar from './ProgressBar';
 
 /**
  * Rule2Page - Correct ABCD-BCD Logic Implementation
@@ -14,10 +16,15 @@ const Rule2Page = ({ date, selectedUser, datesList, onBack }) => {
   const [abcdNumbers, setAbcdNumbers] = useState([]);
   const [bcdNumbers, setBcdNumbers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingMessage, setLoadingMessage] = useState('Initializing...');
   const [error, setError] = useState('');
   const [extractedFromDDay, setExtractedFromDDay] = useState([]);
   const [analysisInfo, setAnalysisInfo] = useState({});
   const [detailedAnalysis, setDetailedAnalysis] = useState({});
+
+  // Initialize DataService for localStorage fallback during migration
+  const dataService = new DataService();
 
   // Extract the FIRST number after element prefix, e.g. "as-7/su-..." → 7
   const extractElementNumber = (str) => {
@@ -29,22 +36,18 @@ const Rule2Page = ({ date, selectedUser, datesList, onBack }) => {
   };
 
   // Extract numbers from Excel + Hour Entry data for a specific date
-  const extractFromDateData = (targetDate) => {
+  const extractFromDateData = async (targetDate) => {
     console.log(`🔍 Extracting element numbers for ${targetDate}...`);
     
-    const excelKey = `abcd_excel_${userId}_${targetDate}`;
-    const hourKey = `abcd_hourEntry_${userId}_${targetDate}`;
-    const rawExcel = localStorage.getItem(excelKey);
-    const rawHour = localStorage.getItem(hourKey);
-    
-    if (!rawExcel || !rawHour) {
-      console.log(`❌ Missing data for ${targetDate}: Excel(${!!rawExcel}) Hour(${!!rawHour})`);
-      return [];
-    }
-    
     try {
-      const excelData = JSON.parse(rawExcel);
-      const hourData = JSON.parse(rawHour);
+      const excelData = await dataService.getExcelData(userId, targetDate);
+      const hourData = await dataService.getHourEntry(userId, targetDate);
+      
+      if (!excelData || !hourData) {
+        console.log(`❌ Missing data for ${targetDate}: Excel(${!!excelData}) Hour(${!!hourData})`);
+        return [];
+      }
+      
       const sets = excelData.data?.sets || {};
       const planetSelections = hourData.planetSelections || {};
       
@@ -123,81 +126,108 @@ const Rule2Page = ({ date, selectedUser, datesList, onBack }) => {
   };
 
   useEffect(() => {
-    if (!datesList?.length) {
-      setError('Date list is empty or invalid.');
-      setLoading(false);
-      return;
-    }
-
-    if (datesList.length < 4) {
-      setError('Need at least 4 dates to perform ABCD-BCD number extraction');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      // Sort dates in ascending order (oldest to newest)
-      const sortedDates = [...datesList].sort((a, b) => new Date(a) - new Date(b));
+    const performAnalysis = async () => {
+      setLoadingProgress(0);
+      setLoadingMessage('Initializing analysis...');
       
-      // Find the clicked date position
-      const clickedIndex = sortedDates.findIndex(d => d === date);
-      
-      if (clickedIndex < 4) {
-        setError(`Rule-2 can only be triggered from the 5th date onwards. Current position: ${clickedIndex + 1}`);
+      if (!datesList?.length) {
+        setError('Date list is empty or invalid.');
         setLoading(false);
         return;
       }
-      
-      // Take the 4 dates BEFORE the clicked date as ABCD sequence
-      const aDay = sortedDates[clickedIndex - 4]; // 4 days before clicked date
-      const bDay = sortedDates[clickedIndex - 3]; // 3 days before clicked date
-      const cDay = sortedDates[clickedIndex - 2]; // 2 days before clicked date  
-      const dDay = sortedDates[clickedIndex - 1]; // 1 day before clicked date (D-day source)
 
-      console.log('🎯 Rule2Page - Correct ABCD Sequence:');
-      console.log('Clicked date (Rule-2 trigger):', date);
-      console.log('A-day (oldest in sequence):', aDay);
-      console.log('B-day:', bDay);
-      console.log('C-day:', cDay);
-      console.log('D-day (analysis day):', dDay);
-
-      // Extract numbers from each day - try real data first, fallback to samples
-      let dDayNumbers = extractFromDateData(dDay);
-      let cDayNumbers = extractFromDateData(cDay);
-      let bDayNumbers = extractFromDateData(bDay);
-      let aDayNumbers = extractFromDateData(aDay);
-      
-      // Use samples if no real data found
-      if (dDayNumbers.length === 0) {
-        console.log('🎲 Using sample numbers for D-day');
-        dDayNumbers = generateSampleNumbers(dDay);
-      }
-      if (cDayNumbers.length === 0) {
-        console.log('🎲 Using sample numbers for C-day');
-        cDayNumbers = generateSampleNumbers(cDay);
-      }
-      if (bDayNumbers.length === 0) {
-        console.log('🎲 Using sample numbers for B-day');
-        bDayNumbers = generateSampleNumbers(bDay);
-      }
-      if (aDayNumbers.length === 0) {
-        console.log('🎲 Using sample numbers for A-day');
-        aDayNumbers = generateSampleNumbers(aDay);
+      if (datesList.length < 4) {
+        setError('Need at least 4 dates to perform ABCD-BCD number extraction');
+        setLoading(false);
+        return;
       }
 
-      console.log('📊 Final Numbers Summary:');
-      console.log(`D-day (${dDay}):`, dDayNumbers);
-      console.log(`C-day (${cDay}):`, cDayNumbers);
-      console.log(`B-day (${bDay}):`, bDayNumbers);
-      console.log(`A-day (${aDay}):`, aDayNumbers);
+      try {
+        setLoadingProgress(10);
+        setLoadingMessage('Sorting dates...');
+        
+        // Sort dates in ascending order (oldest to newest)
+        const sortedDates = [...datesList].sort((a, b) => new Date(a) - new Date(b));
+        
+        // Find the clicked date position
+        const clickedIndex = sortedDates.findIndex(d => d === date);
+        
+        if (clickedIndex < 4) {
+          setError(`Rule-2 can only be triggered from the 5th date onwards. Current position: ${clickedIndex + 1}`);
+          setLoading(false);
+          return;
+        }
+        
+        setLoadingProgress(20);
+        setLoadingMessage('Determining ABCD sequence...');
+        
+        // Take the 4 dates BEFORE the clicked date as ABCD sequence
+        const aDay = sortedDates[clickedIndex - 4]; // 4 days before clicked date
+        const bDay = sortedDates[clickedIndex - 3]; // 3 days before clicked date
+        const cDay = sortedDates[clickedIndex - 2]; // 2 days before clicked date  
+        const dDay = sortedDates[clickedIndex - 1]; // 1 day before clicked date (D-day source)
 
-      setExtractedFromDDay(dDayNumbers);
-      
-      // ABCD Analysis: D-day numbers appearing in ≥2 of A, B, C days (NOT counting D-day)
-      const abcdAnalysis = {};
-      const abcd = dDayNumbers.filter(num => {
-        let count = 0;
-        const occurrences = [];
+        console.log('🎯 Rule2Page - Correct ABCD Sequence:');
+        console.log('Clicked date (Rule-2 trigger):', date);
+        console.log('A-day (oldest in sequence):', aDay);
+        console.log('B-day:', bDay);
+        console.log('C-day:', cDay);
+        console.log('D-day (analysis day):', dDay);
+
+        // Extract numbers from each day - try real data first, fallback to samples
+        setLoadingProgress(30);
+        setLoadingMessage('Extracting D-day numbers...');
+        let dDayNumbers = await extractFromDateData(dDay);
+        
+        setLoadingProgress(45);
+        setLoadingMessage('Extracting C-day numbers...');
+        let cDayNumbers = await extractFromDateData(cDay);
+        
+        setLoadingProgress(60);
+        setLoadingMessage('Extracting B-day numbers...');
+        let bDayNumbers = await extractFromDateData(bDay);
+        
+        setLoadingProgress(75);
+        setLoadingMessage('Extracting A-day numbers...');
+        let aDayNumbers = await extractFromDateData(aDay);
+        
+        setLoadingProgress(80);
+        setLoadingMessage('Processing extracted data...');
+        
+        // Use samples if no real data found
+        if (dDayNumbers.length === 0) {
+          console.log('🎲 Using sample numbers for D-day');
+          dDayNumbers = generateSampleNumbers(dDay);
+        }
+        if (cDayNumbers.length === 0) {
+          console.log('🎲 Using sample numbers for C-day');
+          cDayNumbers = generateSampleNumbers(cDay);
+        }
+        if (bDayNumbers.length === 0) {
+          console.log('🎲 Using sample numbers for B-day');
+          bDayNumbers = generateSampleNumbers(bDay);
+        }
+        if (aDayNumbers.length === 0) {
+          console.log('🎲 Using sample numbers for A-day');
+          aDayNumbers = generateSampleNumbers(aDay);
+        }
+
+        console.log('📊 Final Numbers Summary:');
+        console.log(`D-day (${dDay}):`, dDayNumbers);
+        console.log(`C-day (${cDay}):`, cDayNumbers);
+        console.log(`B-day (${bDay}):`, bDayNumbers);
+        console.log(`A-day (${aDay}):`, aDayNumbers);
+
+        setExtractedFromDDay(dDayNumbers);
+        
+        setLoadingProgress(90);
+        setLoadingMessage('Performing ABCD-BCD analysis...');
+        
+        // ABCD Analysis: D-day numbers appearing in ≥2 of A, B, C days (NOT counting D-day)
+        const abcdAnalysis = {};
+        const abcd = dDayNumbers.filter(num => {
+          let count = 0;
+          const occurrences = [];
         
         if (aDayNumbers.includes(num)) {
           count++;
@@ -248,36 +278,64 @@ const Rule2Page = ({ date, selectedUser, datesList, onBack }) => {
         return qualified;
       }).sort((a, b) => a - b);
 
-      console.log('🎉 Final Results:');
-      console.log('ABCD Numbers:', abcd);
-      console.log('BCD Numbers:', bcd);
+        console.log('🎉 Final Results:');
+        console.log('ABCD Numbers:', abcd);
+        console.log('BCD Numbers:', bcd);
 
-      setAbcdNumbers(abcd);
-      setBcdNumbers(bcd);
-      setAnalysisInfo({
-        aDay, bDay, cDay, dDay,
-        aDayNumbers, bDayNumbers, cDayNumbers, dDayNumbers,
-        triggerDate: date
-      });
-      setDetailedAnalysis({
-        abcdAnalysis,
-        bcdAnalysis
-      });
-      setLoading(false);
+        setLoadingProgress(100);
+        setLoadingMessage('Analysis complete!');
 
-    } catch (error) {
-      console.error('Error in Rule2Page analysis:', error);
-      setError('Error performing ABCD-BCD analysis: ' + error.message);
-      setLoading(false);
-    }
+        setAbcdNumbers(abcd);
+        setBcdNumbers(bcd);
+        setAnalysisInfo({
+          aDay, bDay, cDay, dDay,
+          aDayNumbers, bDayNumbers, cDayNumbers, dDayNumbers,
+          triggerDate: date
+        });
+        setDetailedAnalysis({
+          abcdAnalysis,
+          bcdAnalysis
+        });
+        
+        // Small delay to show completion
+        setTimeout(() => {
+          setLoading(false);
+        }, 300);
+
+      } catch (error) {
+        console.error('Error in Rule2Page analysis:', error);
+        setError('Error performing ABCD-BCD analysis: ' + error.message);
+        setLoading(false);
+      }
+    };
+
+    performAnalysis();
   }, [userId, date, datesList]);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin h-10 w-10 border-4 border-purple-600 border-t-transparent rounded-full mx-auto mb-3" />
-          <p className="text-gray-600">Analyzing ABCD-BCD patterns from matrix data…</p>
+        <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
+          <div className="text-center mb-6">
+            <div className="animate-spin h-10 w-10 border-4 border-purple-600 border-t-transparent rounded-full mx-auto mb-3" />
+            <h3 className="text-lg font-semibold text-gray-800">Analyzing ABCD-BCD Patterns</h3>
+            <p className="text-sm text-gray-600 mt-1">Processing matrix data...</p>
+          </div>
+          
+          <ProgressBar 
+            progress={loadingProgress}
+            message={loadingMessage}
+            color="purple"
+            className="mb-4"
+          />
+          
+          {loadingProgress > 80 && (
+            <div className="text-center">
+              <p className="text-xs text-gray-500">
+                ⚡ Supabase free tier - slower than localStorage but synced across devices
+              </p>
+            </div>
+          )}
         </div>
       </div>
     );

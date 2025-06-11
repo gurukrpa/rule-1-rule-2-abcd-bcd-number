@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { DataService } from '../services/dataService';
+import ProgressBar from './ProgressBar';
 
 /**
  * Rule2CompactPage - Compact 30-Topic ABCD-BCD Analysis
@@ -12,10 +14,15 @@ const Rule2CompactPage = ({ date, selectedUser, datesList, onBack, activeHR }) =
   const userId = selectedUser;
   const [topicResults, setTopicResults] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingMessage, setLoadingMessage] = useState('Initializing...');
   const [error, setError] = useState('');
   const [analysisInfo, setAnalysisInfo] = useState({});
   const [selectedHR, setSelectedHR] = useState(activeHR || '1');
   const [availableHRs, setAvailableHRs] = useState([]);
+
+  // Initialize DataService for localStorage fallback during migration
+  const dataService = new DataService();
 
   // Extract the FIRST number after element prefix, e.g. "as-7/su-..." → 7
   const extractElementNumber = (str) => {
@@ -27,19 +34,15 @@ const Rule2CompactPage = ({ date, selectedUser, datesList, onBack, activeHR }) =
   };
 
   // Extract numbers from a specific set for a specific date using selected HR
-  const extractFromDateAndSet = (targetDate, setName) => {
-    const excelKey = `abcd_excel_${userId}_${targetDate}`;
-    const hourKey = `abcd_hourEntry_${userId}_${targetDate}`;
-    const rawExcel = localStorage.getItem(excelKey);
-    const rawHour = localStorage.getItem(hourKey);
-    
-    if (!rawExcel || !rawHour) {
-      return [];
-    }
-    
+  const extractFromDateAndSet = async (targetDate, setName) => {
     try {
-      const excelData = JSON.parse(rawExcel);
-      const hourData = JSON.parse(rawHour);
+      const excelData = await dataService.getExcelData(userId, targetDate);
+      const hourData = await dataService.getHourEntry(userId, targetDate);
+      
+      if (!excelData || !hourData) {
+        return [];
+      }
+      
       const sets = excelData.data?.sets || {};
       const planetSelections = hourData.planetSelections || {};
       
@@ -72,17 +75,18 @@ const Rule2CompactPage = ({ date, selectedUser, datesList, onBack, activeHR }) =
       return Array.from(allNumbers).sort((a, b) => a - b);
       
     } catch (e) {
+      console.error(`Error extracting from ${targetDate} and ${setName}:`, e);
       return [];
     }
   };
 
   // Process ABCD-BCD analysis for a specific set
-  const processSetAnalysis = (setName, aDay, bDay, cDay, dDay) => {
+  const processSetAnalysis = async (setName, aDay, bDay, cDay, dDay) => {
     // Extract numbers from each day for this specific set
-    const dDayNumbers = extractFromDateAndSet(dDay, setName);
-    const cDayNumbers = extractFromDateAndSet(cDay, setName);
-    const bDayNumbers = extractFromDateAndSet(bDay, setName);
-    const aDayNumbers = extractFromDateAndSet(aDay, setName);
+    const dDayNumbers = await extractFromDateAndSet(dDay, setName);
+    const cDayNumbers = await extractFromDateAndSet(cDay, setName);
+    const bDayNumbers = await extractFromDateAndSet(bDay, setName);
+    const aDayNumbers = await extractFromDateAndSet(aDay, setName);
     
     if (dDayNumbers.length === 0) {
       return {
@@ -112,7 +116,7 @@ const Rule2CompactPage = ({ date, selectedUser, datesList, onBack, activeHR }) =
       // BCD qualification: (B-D pair only) OR (C-D pair only) - exclude if in both B and C
       const bdPairOnly = inB && inD && !inC; // B-D pair but NOT in C
       const cdPairOnly = inC && inD && !inB; // C-D pair but NOT in B
-      return bdPairOnly || cdPairOnly;
+            return bdPairOnly || cdPairOnly;
     });
 
     // Step 3: Apply mutual exclusivity - ABCD takes priority over BCD
@@ -175,122 +179,180 @@ const Rule2CompactPage = ({ date, selectedUser, datesList, onBack, activeHR }) =
   ];
 
   // Get all available sets from D-day data in the specified order
-  const getAllAvailableSets = (dDay) => {
-    const excelKey = `abcd_excel_${userId}_${dDay}`;
-    const rawExcel = localStorage.getItem(excelKey);
-    
-    if (!rawExcel) return [];
-    
+  const getAllAvailableSets = async (dDay) => {
     try {
-      const excelData = JSON.parse(rawExcel);
+      const excelData = await dataService.getExcelData(userId, dDay);
+      
+      if (!excelData) return [];
+      
       const sets = excelData.data?.sets || {};
       const availableSetNames = Object.keys(sets);
       
       // Return sets in the predefined order, only including those that actually exist
       return TOPIC_ORDER.filter(topicName => availableSetNames.includes(topicName));
     } catch (e) {
+      console.error('Error getting available sets:', e);
       return [];
     }
   };
 
   // Get available HRs from D-day data
-  const getAvailableHRs = (dDay) => {
-    const hourKey = `abcd_hourEntry_${userId}_${dDay}`;
-    const rawHour = localStorage.getItem(hourKey);
-    
-    if (!rawHour) return [];
-    
+  const getAvailableHRs = async (dDay) => {
     try {
-      const hourData = JSON.parse(rawHour);
+      const hourData = await dataService.getHourEntry(userId, dDay);
+      
+      if (!hourData) return [];
+      
       const planetSelections = hourData.planetSelections || {};
       return Object.keys(planetSelections).sort((a, b) => parseInt(a) - parseInt(b));
     } catch (e) {
+      console.error('Error getting available HRs:', e);
       return [];
     }
   };
 
   useEffect(() => {
-    if (!datesList?.length) {
-      setError('Date list is empty or invalid.');
-      setLoading(false);
-      return;
-    }
-
-    if (datesList.length < 4) {
-      setError('Need at least 4 dates to perform ABCD-BCD number extraction');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      // Sort dates in ascending order (oldest to newest)
-      const sortedDates = [...datesList].sort((a, b) => new Date(a) - new Date(b));
+    const performAnalysis = async () => {
+      setLoadingProgress(0);
+      setLoadingMessage('Initializing analysis...');
       
-      // Find the clicked date position
-      const clickedIndex = sortedDates.findIndex(d => d === date);
-      
-      if (clickedIndex < 4) {
-        setError(`Rule-2 can only be triggered from the 5th date onwards. Current position: ${clickedIndex + 1}`);
+      if (!datesList?.length) {
+        setError('Date list is empty or invalid.');
         setLoading(false);
         return;
       }
-      
-      // Take the 4 dates BEFORE the clicked date as ABCD sequence
-      const aDay = sortedDates[clickedIndex - 4]; // 4 days before clicked date
-      const bDay = sortedDates[clickedIndex - 3]; // 3 days before clicked date
-      const cDay = sortedDates[clickedIndex - 2]; // 2 days before clicked date
-      const dDay = sortedDates[clickedIndex - 1]; // 1 day before clicked date (D-day source)
 
-      // Get available HRs from D-day and set the first one if selectedHR not valid
-      const hrOptions = getAvailableHRs(dDay);
-      setAvailableHRs(hrOptions);
-      
-      if (hrOptions.length > 0 && !hrOptions.includes(selectedHR)) {
-        setSelectedHR(hrOptions[0]);
+      if (datesList.length < 4) {
+        setError('Need at least 4 dates to perform ABCD-BCD number extraction');
+        setLoading(false);
+        return;
       }
 
-      console.log('🎯 Rule2CompactPage - Processing all sets:');
-      console.log('Clicked date (Rule-2 trigger):', date);
-      console.log('A-day (oldest in sequence):', aDay);
-      console.log('B-day:', bDay);
-      console.log('C-day:', cDay);
-      console.log('D-day (analysis day):', dDay);
-      console.log('🪐 Available HRs:', hrOptions, 'Selected HR:', selectedHR);
+      try {
+        setLoadingProgress(10);
+        setLoadingMessage('Sorting dates...');
+        
+        // Sort dates in ascending order (oldest to newest)
+        const sortedDates = [...datesList].sort((a, b) => new Date(a) - new Date(b));
+        
+        // Find the clicked date position
+        const clickedIndex = sortedDates.findIndex(d => d === date);
+        
+        if (clickedIndex < 4) {
+          setError(`Rule-2 can only be triggered from the 5th date onwards. Current position: ${clickedIndex + 1}`);
+          setLoading(false);
+          return;
+        }
+        
+        setLoadingProgress(20);
+        setLoadingMessage('Determining ABCD sequence...');
+        
+        // Take the 4 dates BEFORE the clicked date as ABCD sequence
+        const aDay = sortedDates[clickedIndex - 4]; // 4 days before clicked date
+        const bDay = sortedDates[clickedIndex - 3]; // 3 days before clicked date
+        const cDay = sortedDates[clickedIndex - 2]; // 2 days before clicked date
+        const dDay = sortedDates[clickedIndex - 1]; // 1 day before clicked date (D-day source)
 
-      // Get all available sets from D-day
-      const availableSets = getAllAvailableSets(dDay);
-      console.log('📊 Available sets:', availableSets);
+        setLoadingProgress(30);
+        setLoadingMessage('Getting available HRs...');
+        
+        // Get available HRs from D-day and set the first one if selectedHR not valid
+        const hrOptions = await getAvailableHRs(dDay);
+        setAvailableHRs(hrOptions);
+        
+        if (hrOptions.length > 0 && !hrOptions.includes(selectedHR)) {
+          setSelectedHR(hrOptions[0]);
+        }
 
-      // Process each set
-      const results = availableSets.map(setName => {
-        const result = processSetAnalysis(setName, aDay, bDay, cDay, dDay);
-        console.log(`📊 ${setName}: ABCD(${result.abcdNumbers.length}) BCD(${result.bcdNumbers.length}) D-day(${result.dDayCount})`);
-        return result;
-      });
+        setLoadingProgress(40);
+        setLoadingMessage('Getting available sets...');
 
-      setTopicResults(results);
-      setAnalysisInfo({
-        aDay, bDay, cDay, dDay,
-        triggerDate: date,
-        totalSets: availableSets.length,
-        selectedHR,
-        availableHRs: hrOptions
-      });
-      setLoading(false);
+        console.log('🎯 Rule2CompactPage - Processing all sets:');
+        console.log('Clicked date (Rule-2 trigger):', date);
+        console.log('A-day (oldest in sequence):', aDay);
+        console.log('B-day:', bDay);
+        console.log('C-day:', cDay);
+        console.log('D-day (analysis day):', dDay);
+        console.log('🪐 Available HRs:', hrOptions, 'Selected HR:', selectedHR);
 
-    } catch (error) {
-      console.error('Error in Rule2CompactPage analysis:', error);
-      setError('Error performing ABCD-BCD analysis: ' + error.message);
-      setLoading(false);
-    }
+        // Get all available sets from D-day
+        const availableSets = await getAllAvailableSets(dDay);
+        console.log('📊 Available sets:', availableSets);
+
+        setLoadingProgress(50);
+        setLoadingMessage(`Analyzing ${availableSets.length} sets...`);
+
+        // Process each set with async calls and progress tracking
+        const results = [];
+        const totalSets = availableSets.length;
+        
+        for (let i = 0; i < availableSets.length; i++) {
+          const setName = availableSets[i];
+          
+          // Update progress for each set (50% to 90% range)
+          const setProgress = 50 + Math.floor((i / totalSets) * 40);
+          setLoadingProgress(setProgress);
+          setLoadingMessage(`Analyzing set ${i + 1}/${totalSets}: ${setName}`);
+          
+          const result = await processSetAnalysis(setName, aDay, bDay, cDay, dDay);
+          console.log(`📊 ${setName}: ABCD(${result.abcdNumbers.length}) BCD(${result.bcdNumbers.length}) D-day(${result.dDayCount})`);
+          results.push(result);
+        }
+
+        setLoadingProgress(90);
+        setLoadingMessage('Finalizing results...');
+
+        setTopicResults(results);
+        setAnalysisInfo({
+          aDay, bDay, cDay, dDay,
+          triggerDate: date,
+          totalSets: availableSets.length,
+          selectedHR,
+          availableHRs: hrOptions
+        });
+
+        setLoadingProgress(100);
+        setLoadingMessage('Analysis complete!');
+        
+        // Small delay to show completion before hiding loading
+        setTimeout(() => {
+          setLoading(false);
+        }, 500);
+
+      } catch (error) {
+        console.error('Error in Rule2CompactPage analysis:', error);
+        setError('Error performing ABCD-BCD analysis: ' + error.message);
+        setLoading(false);
+      }
+    };
+
+    performAnalysis();
   }, [userId, date, datesList, selectedHR]);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin h-10 w-10 border-4 border-purple-600 border-t-transparent rounded-full mx-auto mb-3" />
-          <p className="text-gray-600">Processing 30-topic ABCD-BCD analysis…</p>
+        <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
+          <div className="text-center mb-6">
+            <div className="animate-spin h-10 w-10 border-4 border-purple-600 border-t-transparent rounded-full mx-auto mb-3" />
+            <h3 className="text-lg font-semibold text-gray-800">Processing 30-Topic Analysis</h3>
+            <p className="text-sm text-gray-600 mt-1">Analyzing ABCD-BCD patterns...</p>
+          </div>
+          
+          <ProgressBar 
+            progress={loadingProgress}
+            message={loadingMessage}
+            color="purple"
+            className="mb-4"
+          />
+          
+          {loadingProgress > 80 && (
+            <div className="text-center">
+              <p className="text-xs text-gray-500">
+                ⚡ Supabase free tier - slower than localStorage but synced across devices
+              </p>
+            </div>
+          )}
         </div>
       </div>
     );

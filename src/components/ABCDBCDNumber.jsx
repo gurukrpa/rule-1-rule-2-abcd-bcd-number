@@ -9,6 +9,7 @@ import Rule2Page from './Rule2Page';
 import Rule2CompactPage from './Rule2CompactPage';
 import AddDateModal from './modals/AddDateModal';
 import HourEntryModal from './modals/HourEntryModal';
+import { DataService } from '../services/dataService';
 
 // 9 planets for dropdowns
 const planets = [
@@ -26,6 +27,10 @@ const planets = [
 function ABCDBCDNumber() {
   const navigate = useNavigate();
   const { userId } = useParams();
+  
+  // Initialize DataService for localStorage fallback during migration
+  const dataService = new DataService();
+  
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
@@ -44,6 +49,7 @@ function ABCDBCDNumber() {
   const [indexPageData, setIndexPageData] = useState(null);
   const [showRule2Page, setShowRule2Page] = useState(false);
   const [rule2PageData, setRule2PageData] = useState(null);
+  const [dateStatuses, setDateStatuses] = useState({}); // Track Excel/Hour Entry status for each date
 
   // Fetch users from Supabase or localStorage
   useEffect(() => {
@@ -65,7 +71,7 @@ function ABCDBCDNumber() {
           hr: Number(user.hr) || 1
         }));
       } else {
-        // Fallback to localStorage
+        // Fallback to localStorage - still needed for user data as DataService focuses on dates/excel/hour entries
         let stored = localStorage.getItem('abcd_users_data');
         if (stored) {
           try {
@@ -106,29 +112,27 @@ function ABCDBCDNumber() {
     }
   }, [selectedUser]);
 
-  const loadUserDates = (uid) => {
+  const loadUserDates = async (uid) => {
     try {
-      const cached = localStorage.getItem(`abcd_dates_${uid}`);
-      if (cached) {
-        const arr = JSON.parse(cached);
-        if (Array.isArray(arr) && arr.length > 0) {
-          const sorted = arr.sort((a, b) => new Date(b) - new Date(a));
-          setDatesList(sorted);
-          setSelectedDate(sorted[0]);
-          return;
-        }
+      const dates = await dataService.getDates(uid);
+      if (dates && dates.length > 0) {
+        const sorted = dates.sort((a, b) => new Date(b) - new Date(a));
+        setDatesList(sorted);
+        setSelectedDate(sorted[0]);
+        return;
       }
       setDatesList([]);
       setSelectedDate('');
     } catch (e) {
+      console.error('Error loading user dates:', e);
       setDatesList([]);
       setSelectedDate('');
     }
   };
 
-  const saveDatesToLocalStorage = (uid, dates) => {
+  const saveDatesToLocalStorage = async (uid, dates) => {
     try {
-      localStorage.setItem(`abcd_dates_${uid}`, JSON.stringify(dates));
+      await dataService.saveDates(uid, dates);
     } catch (e) {
       console.error('Error saving dates:', e);
     }
@@ -172,11 +176,11 @@ function ABCDBCDNumber() {
   };
 
   // Remove date
-  const handleRemoveDate = (dateToRemove) => {
+  const handleRemoveDate = async (dateToRemove) => {
     if (datesList.length <= 1) {
       const updated = datesList.filter(d => d !== dateToRemove);
       setDatesList(updated);
-      saveDatesToLocalStorage(selectedUser, updated);
+      await saveDatesToLocalStorage(selectedUser, updated);
       setSelectedDate('');
       setSuccess(`Date ${new Date(dateToRemove).toLocaleDateString()} removed.`);
       setTimeout(() => setSuccess(''), 3000);
@@ -193,16 +197,22 @@ function ABCDBCDNumber() {
     
     const updated = datesList.filter(d => d !== dateToRemove);
     setDatesList(updated);
-    saveDatesToLocalStorage(selectedUser, updated);
+    await saveDatesToLocalStorage(selectedUser, updated);
     
     if (selectedDate === dateToRemove) {
       if (updated.length > 0) setSelectedDate(updated[0]);
       else setSelectedDate('');
     }
     
-    localStorage.removeItem(`abcd_hourEntry_${selectedUser}_${dateToRemove}`);
-    localStorage.removeItem(`abcd_excel_${selectedUser}_${dateToRemove}`);
-    localStorage.removeItem(`abcd_indexData_${selectedUser}_${dateToRemove}`);
+    // Use DataService to delete all data for this date
+    await dataService.deleteDataForDate(selectedUser, dateToRemove);
+    
+    // Remove the date from dateStatuses
+    setDateStatuses(prev => {
+      const updated = { ...prev };
+      delete updated[dateToRemove];
+      return updated;
+    });
     
     const label = dateToRemove === first ? 'Newest' : 'Oldest';
     setSuccess(`${label} date ${new Date(dateToRemove).toLocaleDateString()} removed.`);
@@ -225,12 +235,23 @@ function ABCDBCDNumber() {
 
           const processedData = processSingleDayExcel(jsonData, targetDate);
           
-          const excelKey = `abcd_excel_${selectedUser}_${targetDate}`;
-          localStorage.setItem(excelKey, JSON.stringify({
+          // Use DataService to save Excel data
+          await dataService.saveExcelData(selectedUser, targetDate, {
             date: targetDate,
             fileName: file.name,
             data: processedData,
             uploadedAt: new Date().toISOString()
+          });
+          
+          // Update date status for this specific date
+          const excelUploaded = await dataService.hasExcelData(selectedUser, targetDate);
+          const hourEntryCompleted = await dataService.hasHourEntry(selectedUser, targetDate);
+          setDateStatuses(prev => ({
+            ...prev,
+            [targetDate]: {
+              excelUploaded,
+              hourEntryCompleted
+            }
           }));
           
           setSuccess(`Excel uploaded successfully for ${new Date(targetDate).toLocaleDateString()}`);
@@ -356,14 +377,14 @@ function ABCDBCDNumber() {
   };
 
   // Hour Entry modal - Updated for planet-based format
-  const handleHourEntryClick = (date) => {
+  const handleHourEntryClick = async (date) => {
     if (!selectedUser) {
       setError('Please select a user first.');
       return;
     }
     
-    const excelKey = `abcd_excel_${selectedUser}_${date}`;
-    const excelData = localStorage.getItem(excelKey);
+    // Check if Excel data exists using DataService
+    const excelData = await dataService.getExcelData(selectedUser, date);
     if (!excelData) {
       setError('Upload Excel file for this date first.');
       return;
@@ -382,11 +403,9 @@ function ABCDBCDNumber() {
     }
     
     // Load existing selections if any
-    const existingKey = `abcd_hourEntry_${selectedUser}_${date}`;
-    const existingRaw = localStorage.getItem(existingKey);
-    if (existingRaw) {
-      const existingParsed = JSON.parse(existingRaw);
-      init = { ...existingParsed.planetSelections };
+    const existingHourEntry = await dataService.getHourEntry(selectedUser, date);
+    if (existingHourEntry && existingHourEntry.planetSelections) {
+      init = { ...existingHourEntry.planetSelections };
     }
     
     setHourEntryDate(date);
@@ -402,7 +421,7 @@ function ABCDBCDNumber() {
     }));
   };
 
-  const handleSaveHourEntry = () => {
+  const handleSaveHourEntry = async () => {
     const userObj = users.find(u => u.id.toString() === selectedUser);
     let valid = true;
     for (let hr = 1; hr <= userObj.hr; hr++) {
@@ -416,7 +435,6 @@ function ABCDBCDNumber() {
       return;
     }
     
-    const key = `abcd_hourEntry_${selectedUser}_${hourEntryDate}`;
     const payload = {
       userId: selectedUser,
       date: hourEntryDate,
@@ -425,7 +443,20 @@ function ABCDBCDNumber() {
     };
     
     try {
-      localStorage.setItem(key, JSON.stringify(payload));
+      // Use DataService to save hour entry
+      await dataService.saveHourEntry(selectedUser, hourEntryDate, payload);
+      
+      // Update date status for this specific date
+      const excelUploaded = await dataService.hasExcelData(selectedUser, hourEntryDate);
+      const hourEntryCompleted = await dataService.hasHourEntry(selectedUser, hourEntryDate);
+      setDateStatuses(prev => ({
+        ...prev,
+        [hourEntryDate]: {
+          excelUploaded,
+          hourEntryCompleted
+        }
+      }));
+      
       setShowHourEntryModal(false);
       setSuccess(`Hour entry saved for ${new Date(hourEntryDate).toLocaleDateString()}.`);
       setTimeout(() => setSuccess(''), 3000);
@@ -435,7 +466,7 @@ function ABCDBCDNumber() {
   };
 
   // Index page navigation - Updated for planet-based Excel structure
-  const handleIndexClick = (date) => {
+  const handleIndexClick = async (date) => {
     console.log('🔥 handleIndexClick called with date:', date);
     console.log('🔥 Current datesList:', datesList);
     
@@ -444,11 +475,9 @@ function ABCDBCDNumber() {
       return;
     }
     
-    const excelKey = `abcd_excel_${selectedUser}_${date}`;
-    const hourEntryKey = `abcd_hourEntry_${selectedUser}_${date}`;
-    
-    const excelData = localStorage.getItem(excelKey);
-    const hourEntryData = localStorage.getItem(hourEntryKey);
+    // Check if Excel and Hour Entry data exist using DataService
+    const excelData = await dataService.getExcelData(selectedUser, date);
+    const hourEntryData = await dataService.getHourEntry(selectedUser, date);
     
     if (!excelData) {
       setError('Upload Excel file for this date first.');
@@ -462,11 +491,8 @@ function ABCDBCDNumber() {
     
     // Parse the data to verify structure
     try {
-      const excel = JSON.parse(excelData);
-      const hourEntry = JSON.parse(hourEntryData);
-      
-      console.log('🔍 Excel data structure:', excel.data);
-      console.log('🔍 Hour entry selections:', hourEntry.planetSelections);
+      console.log('🔍 Excel data structure:', excelData.data);
+      console.log('🔍 Hour entry selections:', hourEntryData.planetSelections);
       
       setIndexPageData({
         date,
@@ -484,7 +510,7 @@ function ABCDBCDNumber() {
   };
 
   // Handle Rule-2 page navigation
-  const handleRule2Click = (date) => {
+  const handleRule2Click = async (date) => {
     console.log('🔗 handleRule2Click called with date:', date);
     console.log('🔗 Current datesList:', datesList);
     console.log('🔗 Current selectedUser:', selectedUser);
@@ -530,16 +556,14 @@ function ABCDBCDNumber() {
     const missingData = [];
     
     for (const { label, date: checkDate } of precedingDates) {
-      const excelKey = `abcd_excel_${selectedUser}_${checkDate}`;
-      const hourEntryKey = `abcd_hourEntry_${selectedUser}_${checkDate}`;
+      // Use DataService to check for data existence
+      const hasExcel = await dataService.hasExcelData(selectedUser, checkDate);
+      const hasHourEntry = await dataService.hasHourEntry(selectedUser, checkDate);
       
-      const excelData = localStorage.getItem(excelKey);
-      const hourEntryData = localStorage.getItem(hourEntryKey);
-      
-      if (!excelData) {
+      if (!hasExcel) {
         missingData.push(`${label}-day (${new Date(checkDate).toLocaleDateString()}): Missing Excel file`);
       }
-      if (!hourEntryData) {
+      if (!hasHourEntry) {
         missingData.push(`${label}-day (${new Date(checkDate).toLocaleDateString()}): Missing Hour Entry`);
       }
     }
@@ -595,36 +619,89 @@ function ABCDBCDNumber() {
 
   const selectedUserData = users.find(u => u.id.toString() === selectedUser);
 
-  // Check helper functions
+  // Update date statuses when datesList or selectedUser changes
+  useEffect(() => {
+    const updateDateStatuses = async () => {
+      if (!selectedUser || datesList.length === 0) {
+        setDateStatuses({});
+        return;
+      }
+
+      const statuses = {};
+      for (const date of datesList) {
+        const excelUploaded = await dataService.hasExcelData(selectedUser, date);
+        const hourEntryCompleted = await dataService.hasHourEntry(selectedUser, date);
+        statuses[date] = {
+          excelUploaded,
+          hourEntryCompleted
+        };
+      }
+      setDateStatuses(statuses);
+    };
+
+    updateDateStatuses();
+  }, [datesList, selectedUser]);
+
+  // Check helper functions - now using cached statuses
   const isExcelUploaded = (date) => {
-    return localStorage.getItem(`abcd_excel_${selectedUser}_${date}`) !== null;
+    return dateStatuses[date]?.excelUploaded || false;
   };
 
   const isHourEntryCompleted = (date) => {
-    return localStorage.getItem(`abcd_hourEntry_${selectedUser}_${date}`) !== null;
+    return dateStatuses[date]?.hourEntryCompleted || false;
   };
 
   // Debug: Log when rule2Available changes
   useEffect(() => {
-    if (datesList.length > 0) {
-      console.log('🔍 Rule-2 Debug Info:');
-      console.log('   - Total dates:', datesList.length);
-      console.log('   - Checking Rule-2 availability per date based on chronological position (thisIndex >= 4)');
-      console.log('   - Dates list:', datesList);
-      
-      // Check localStorage for each date
-      datesList.forEach((date, idx) => {
-        const sortedDates = [...datesList].sort((a, b) => new Date(a) - new Date(b));
-        const thisIndex = sortedDates.indexOf(date);
-        const rule2AvailableForDate = thisIndex >= 4;
-        const excelKey = `abcd_excel_${selectedUser}_${date}`;
-        const hourEntryKey = `abcd_hourEntry_${selectedUser}_${date}`;
-        const excelExists = !!localStorage.getItem(excelKey);
-        const hourEntryExists = !!localStorage.getItem(hourEntryKey);
-        console.log(`   - Date ${idx + 1} (${date}): chronoIndex=${thisIndex}, Rule2Available=${rule2AvailableForDate}, Excel=${excelExists}, HourEntry=${hourEntryExists}`);
-      });
-    }
+    const debugRule2Availability = async () => {
+      if (datesList.length > 0 && selectedUser) {
+        console.log('🔍 Rule-2 Debug Info:');
+        console.log('   - Total dates:', datesList.length);
+        console.log('   - Checking Rule-2 availability per date based on chronological position (thisIndex >= 4)');
+        console.log('   - Dates list:', datesList);
+        
+        // Check DataService for each date
+        for (const [idx, date] of datesList.entries()) {
+          const sortedDates = [...datesList].sort((a, b) => new Date(a) - new Date(b));
+          const thisIndex = sortedDates.indexOf(date);
+          const rule2AvailableForDate = thisIndex >= 4;
+          const excelExists = await dataService.hasExcelData(selectedUser, date);
+          const hourEntryExists = await dataService.hasHourEntry(selectedUser, date);
+          console.log(`   - Date ${idx + 1} (${date}): chronoIndex=${thisIndex}, Rule2Available=${rule2AvailableForDate}, Excel=${excelExists}, HourEntry=${hourEntryExists}`);
+        }
+      }
+    };
+    
+    debugRule2Availability();
   }, [datesList, selectedUser]);
+
+  // Debug: Log current data state
+  useEffect(() => {
+    const debugCurrentData = async () => {
+      if (selectedUser) {
+        console.log('🔍 DEBUG: Current user data state for', selectedUser);
+        
+        // Check what dates we have
+        const userDates = await dataService.getDates(selectedUser);
+        console.log('📅 Available dates:', userDates);
+        
+        // Check data for each date
+        for (const date of userDates) {
+          const excelData = await dataService.getExcelData(selectedUser, date);
+          const hourData = await dataService.getHourEntry(selectedUser, date);
+          
+          console.log(`📊 Data for ${date}:`, {
+            hasExcel: !!excelData,
+            hasHour: !!hourData,
+            excelSets: excelData?.data?.sets ? Object.keys(excelData.data.sets) : [],
+            hourPlanets: hourData?.planetSelections ? Object.keys(hourData.planetSelections) : []
+          });
+        }
+      }
+    };
+    
+    debugCurrentData();
+  }, [selectedUser]);
 
   // Conditional render for Rule2Page
   if (showRule2Page && rule2PageData) {

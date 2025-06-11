@@ -2,8 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DataService } from '../services/dataService';
-import ProgressBar from './ProgressBar';
 
 const IndexPage = ({
   date,               // clicked date (e.g. "2025-06-05")
@@ -16,15 +14,8 @@ const IndexPage = ({
   const [activeHR, setActiveHR] = useState(null);
   const [allDaysData, setAllDaysData] = useState({});
   const [loading, setLoading] = useState(true);
-  const [loadingProgress, setLoadingProgress] = useState(0);
-  const [loadingMessage, setLoadingMessage] = useState('Initializing...');
   const [error, setError] = useState('');
   const [abcdBcdAnalysis, setAbcdBcdAnalysis] = useState({});
-  const [analysisProgress, setAnalysisProgress] = useState(0);
-  const [analysisMessage, setAnalysisMessage] = useState('');
-
-  // Initialize DataService for localStorage fallback during migration
-  const dataService = new DataService();
 
   // Abbreviation → exact element name in processedData.sets
   const elementNames = {
@@ -47,25 +38,17 @@ const IndexPage = ({
   };
 
   // Extract numbers from a specific set for a specific date using selected HR
-  const extractFromDateAndSet = async (targetDate, setName, hrNumber) => {
+  const extractFromDateAndSet = (targetDate, setName, hrNumber) => {
+    const excelKey = `abcd_excel_${selectedUser}_${targetDate}`;
+    const hourKey = `abcd_hourEntry_${selectedUser}_${targetDate}`;
+    const rawExcel = localStorage.getItem(excelKey);
+    const rawHour = localStorage.getItem(hourKey);
+    
+    if (!rawExcel || !rawHour) return [];
+    
     try {
-      console.log(`🔍 Extracting from date=${targetDate}, set=${setName}, HR=${hrNumber}`);
-      
-      const excelData = await dataService.getExcelData(selectedUser, targetDate);
-      const hourData = await dataService.getHourEntry(selectedUser, targetDate);
-      
-      console.log(`📊 Data for ${targetDate}:`, { 
-        hasExcel: !!excelData, 
-        hasHour: !!hourData,
-        excelSets: excelData?.data?.sets ? Object.keys(excelData.data.sets) : [],
-        hourPlanets: hourData?.planetSelections ? Object.keys(hourData.planetSelections) : []
-      });
-      
-      if (!excelData || !hourData) {
-        console.log(`❌ Missing data for ${targetDate}`);
-        return [];
-      }
-      
+      const excelData = JSON.parse(rawExcel);
+      const hourData = JSON.parse(rawHour);
       const sets = excelData.data?.sets || {};
       const planetSelections = hourData.planetSelections || {};
       
@@ -73,117 +56,73 @@ const IndexPage = ({
       const setData = sets[setName];
       if (setData) {
         const selectedPlanet = planetSelections[hrNumber];
-        console.log(`🌟 Selected planet for HR${hrNumber}:`, selectedPlanet);
-        
         if (selectedPlanet) {
           Object.entries(setData).forEach(([elementName, planetData]) => {
             const rawString = planetData[selectedPlanet];
             if (rawString) {
               const elementNumber = extractElementNumber(rawString);
-              console.log(`🔢 ${elementName} -> ${rawString} -> ${elementNumber}`);
               if (elementNumber !== null) {
                 allNumbers.add(elementNumber);
               }
             }
           });
         }
-      } else {
-        console.log(`❌ No set data found for "${setName}"`);
       }
-      
-      const result = Array.from(allNumbers).sort((a, b) => a - b);
-      console.log(`✅ Extracted numbers for ${targetDate}/${setName}/HR${hrNumber}:`, result);
-      return result;
+      return Array.from(allNumbers).sort((a, b) => a - b);
     } catch (e) {
-      console.error('Error extracting from date and set:', e);
       return [];
     }
   };
 
   // Perform ABCD-BCD analysis for a specific set
-  const performAbcdBcdAnalysis = async (setName, aDay, bDay, cDay, dDay, hrNumber) => {
-    try {
-      console.log(`🧮 Performing ABCD-BCD analysis for ${setName} with days A=${aDay}, B=${bDay}, C=${cDay}, D=${dDay}, HR=${hrNumber}`);
-      
-      const dDayNumbers = await extractFromDateAndSet(dDay, setName, hrNumber);
-      const cDayNumbers = await extractFromDateAndSet(cDay, setName, hrNumber);
-      const bDayNumbers = await extractFromDateAndSet(bDay, setName, hrNumber);
-      const aDayNumbers = await extractFromDateAndSet(aDay, setName, hrNumber);
-      
-      console.log(`📈 Numbers extracted:`, {
-        A: aDayNumbers,
-        B: bDayNumbers,
-        C: cDayNumbers,
-        D: dDayNumbers
-      });
-      
-      if (dDayNumbers.length === 0) {
-        console.log(`⚠️ No D-day numbers for ${setName}, skipping analysis`);
-        return { abcdNumbers: [], bcdNumbers: [] };
-      }
-
-      // ABCD Analysis: D-day numbers appearing in ≥2 of A, B, C days
-      const abcdCandidates = dDayNumbers.filter(num => {
-        let count = 0;
-        if (aDayNumbers.includes(num)) count++;
-        if (bDayNumbers.includes(num)) count++;
-        if (cDayNumbers.includes(num)) count++;
-        return count >= 2;
-      });
-
-      // BCD Analysis: D-day numbers appearing in exclusive B-D or C-D pairs
-      const bcdCandidates = dDayNumbers.filter(num => {
-        const inB = bDayNumbers.includes(num);
-        const inC = cDayNumbers.includes(num);
-      
-        const bdPairOnly = inB && !inC; // B-D pair but NOT in C
-        const cdPairOnly = inC && !inB; // C-D pair but NOT in B
-        return bdPairOnly || cdPairOnly;
-      });
-
-      // Apply mutual exclusivity - ABCD takes priority over BCD
-      const abcdNumbers = abcdCandidates;
-      const bcdNumbers = bcdCandidates.filter(num => !abcdCandidates.includes(num));
-
-      console.log(`🎯 Analysis results for ${setName}:`, {
-        abcdCandidates,
-        bcdCandidates,
-        finalABCD: abcdNumbers,
-        finalBCD: bcdNumbers
-      });
-
-      return { abcdNumbers, bcdNumbers };
-    } catch (error) {
-      console.error('Error performing ABCD-BCD analysis:', error);
+  const performAbcdBcdAnalysis = (setName, aDay, bDay, cDay, dDay, hrNumber) => {
+    const dDayNumbers = extractFromDateAndSet(dDay, setName, hrNumber);
+    const cDayNumbers = extractFromDateAndSet(cDay, setName, hrNumber);
+    const bDayNumbers = extractFromDateAndSet(bDay, setName, hrNumber);
+    const aDayNumbers = extractFromDateAndSet(aDay, setName, hrNumber);
+    
+    if (dDayNumbers.length === 0) {
       return { abcdNumbers: [], bcdNumbers: [] };
     }
+
+    // ABCD Analysis: D-day numbers appearing in ≥2 of A, B, C days
+    const abcdCandidates = dDayNumbers.filter(num => {
+      let count = 0;
+      if (aDayNumbers.includes(num)) count++;
+      if (bDayNumbers.includes(num)) count++;
+      if (cDayNumbers.includes(num)) count++;
+      return count >= 2;
+    });
+
+    // BCD Analysis: D-day numbers appearing in exclusive B-D or C-D pairs
+    const bcdCandidates = dDayNumbers.filter(num => {
+      const inB = bDayNumbers.includes(num);
+      const inC = cDayNumbers.includes(num);
+      
+      const bdPairOnly = inB && !inC; // B-D pair but NOT in C
+      const cdPairOnly = inC && !inB; // C-D pair but NOT in B
+      return bdPairOnly || cdPairOnly;
+    });
+
+    // Apply mutual exclusivity - ABCD takes priority over BCD
+    const abcdNumbers = abcdCandidates;
+    const bcdNumbers = bcdCandidates.filter(num => !abcdCandidates.includes(num));
+
+    return { abcdNumbers, bcdNumbers };
   };
 
   // Helper to render color-coded D-day numbers
   const renderColorCodedDayNumber = (cellValue, setName, dayLabel) => {
-    console.log(`🎨 renderColorCodedDayNumber called:`, {
-      cellValue,
-      setName,
-      dayLabel,
-      hasAnalysis: !!abcdBcdAnalysis[setName],
-      analysisKeys: Object.keys(abcdBcdAnalysis),
-      analysisForSet: abcdBcdAnalysis[setName]
-    });
-
     if (dayLabel !== 'D' || cellValue === '—' || !abcdBcdAnalysis[setName]) {
-      console.log(`❌ Early return: dayLabel=${dayLabel}, cellValue=${cellValue}, hasAnalysis=${!!abcdBcdAnalysis[setName]}`);
       return cellValue;
     }
 
     const elementNumber = extractElementNumber(cellValue);
-    console.log(`🔢 Extracted element number: ${elementNumber} from ${cellValue}`);
     if (elementNumber === null) return cellValue;
 
     const { abcdNumbers, bcdNumbers } = abcdBcdAnalysis[setName];
-    console.log(`🎯 Checking against analysis:`, { abcdNumbers, bcdNumbers, elementNumber });
     
     if (abcdNumbers.includes(elementNumber)) {
-      console.log(`✅ ABCD match for ${elementNumber}`);
       return (
         <span className="inline-block">
           <span className="bg-green-200 text-green-800 px-1 py-0.5 rounded text-xs font-bold mr-1">
@@ -193,7 +132,6 @@ const IndexPage = ({
         </span>
       );
     } else if (bcdNumbers.includes(elementNumber)) {
-      console.log(`✅ BCD match for ${elementNumber}`);
       return (
         <span className="inline-block">
           <span className="bg-blue-200 text-blue-800 px-1 py-0.5 rounded text-xs font-bold mr-1">
@@ -204,16 +142,13 @@ const IndexPage = ({
       );
     }
     
-    console.log(`🔸 No match for ${elementNumber}`);
     return cellValue;
   };
 
   // Build a sliding four-day window ending at "date"
-  const buildAllDaysData = async () => {
+  const buildAllDaysData = () => {
     try {
       setLoading(true);
-      setLoadingProgress(0);
-      setLoadingMessage('Preparing date window...');
       setError('');
 
       // 1. Sort all dates ascending (oldest → newest)
@@ -231,89 +166,63 @@ const IndexPage = ({
         windowDates  = sortedDates.slice(start, end);
       }
 
-      setLoadingProgress(10);
-      setLoadingMessage(`Loading data for ${windowDates.length} dates...`);
-
       // 3. Label those up to 4 days as A, B, C, D (chronological order)
       const labels   = ['A', 'B', 'C', 'D'];
       const assembled = {};
 
-      // Process each date with async DataService calls
-      for (let idx = 0; idx < windowDates.length; idx++) {
-        const d = windowDates[idx];
-        const label = labels[idx];  // 'A', 'B', 'C', or 'D'
-        
-        const progressPerDate = 70 / windowDates.length; // 70% of progress for data loading
-        const currentProgress = 10 + (idx * progressPerDate);
-        setLoadingProgress(currentProgress);
-        setLoadingMessage(`Loading ${label}-day data (${d})...`);
+      windowDates.forEach((d, idx) => {
+        const label    = labels[idx];  // 'A', 'B', 'C', or 'D'
+        const excelKey = `abcd_excel_${selectedUser}_${d}`;
+        const hourKey  = `abcd_hourEntry_${selectedUser}_${d}`;
+        const excelRaw = localStorage.getItem(excelKey);
+        const hourRaw  = localStorage.getItem(hourKey);
 
-        try {
-          const excelData = await dataService.getExcelData(selectedUser, d);
-          setLoadingProgress(currentProgress + progressPerDate * 0.5);
-          
-          const hourData = await dataService.getHourEntry(selectedUser, d);
-          setLoadingProgress(currentProgress + progressPerDate);
+        if (excelRaw && hourRaw) {
+          const excelData = JSON.parse(excelRaw);
+          const hourData  = JSON.parse(hourRaw);
+          const planetSel = hourData.planetSelections || {};
 
-          if (excelData && hourData) {
-            const planetSel = hourData.planetSelections || {};
-
-            // Build hrData: for each HR, store selectedPlanet + all "sets"
-            const hrData = {};
-            Object.entries(planetSel).forEach(([hr, selectedPlanet]) => {
-              const oneHR = { selectedPlanet, sets: {} };
-              Object.entries(excelData.data.sets || {}).forEach(([setName, elementBlock]) => {
-                const elementsToShow = {};
-                Object.entries(elementBlock).forEach(([elementName, planetMap]) => {
-                  const rawString = planetMap[selectedPlanet];
-                  if (rawString) {
-                    elementsToShow[elementName] = {
-                      rawData: rawString,
-                      selectedPlanet
-                    };
-                  }
-                });
-                oneHR.sets[setName] = elementsToShow;
+          // Build hrData: for each HR, store selectedPlanet + all "sets"
+          const hrData = {};
+          Object.entries(planetSel).forEach(([hr, selectedPlanet]) => {
+            const oneHR = { selectedPlanet, sets: {} };
+            Object.entries(excelData.data.sets || {}).forEach(([setName, elementBlock]) => {
+              const elementsToShow = {};
+              Object.entries(elementBlock).forEach(([elementName, planetMap]) => {
+                const rawString = planetMap[selectedPlanet];
+                if (rawString) {
+                  elementsToShow[elementName] = {
+                    rawData: rawString,
+                    selectedPlanet
+                  };
+                }
               });
-              hrData[hr] = oneHR;
+              oneHR.sets[setName] = elementsToShow;
             });
+            hrData[hr] = oneHR;
+          });
 
-            assembled[label] = {
-              date:      d,
-              hrData,
-              success:   Object.keys(hrData).length > 0,
-              dayLabel:  label
-            };
-          } else {
-            // Missing Excel or HourEntry
-            assembled[label] = {
-              date:     d,
-              hrData:   {},
-              success:  false,
-              error:    !excelData ? 'No Excel data' : 'No Hour Entry data',
-              dayLabel: label
-            };
-          }
-        } catch (dateError) {
-          // Error processing this specific date
+          assembled[label] = {
+            date:      d,
+            hrData,
+            success:   Object.keys(hrData).length > 0,
+            dayLabel:  label
+          };
+        } else {
+          // Missing Excel or HourEntry
           assembled[label] = {
             date:     d,
             hrData:   {},
             success:  false,
-            error:    `Error loading data: ${dateError.message}`,
+            error:    !excelRaw ? 'No Excel data' : 'No Hour Entry data',
             dayLabel: label
           };
         }
-      }
+      });
 
-      setLoadingProgress(80);
-      setLoadingMessage('Processing loaded data...');
       setAllDaysData(assembled);
 
       // Auto-select first available HR from any of A/B/C/D
-      setLoadingProgress(90);
-      setLoadingMessage('Setting up interface...');
-      
       let firstHR = null;
       for (let lbl of ['A', 'B', 'C', 'D']) {
         if (assembled[lbl]?.success) {
@@ -326,14 +235,7 @@ const IndexPage = ({
       }
       if (firstHR) setActiveHR(firstHR);
 
-      setLoadingProgress(100);
-      setLoadingMessage('Complete!');
-      
-      // Small delay to show completion
-      setTimeout(() => {
-        setLoading(false);
-      }, 300);
-      
+      setLoading(false);
     } catch (err) {
       console.error(err);
       setError('Error building index data.');
@@ -341,67 +243,18 @@ const IndexPage = ({
     }
   };
 
-  // Compute ABCD-BCD analysis when activeHR changes or data is ready
+  // Compute ABCD-BCD analysis when activeHR changes
   useEffect(() => {
-    const performAnalysis = async () => {
-      console.log('🔍 Starting ABCD-BCD analysis...', {
-        activeHR,
-        hasA: !!allDaysData.A,
-        hasB: !!allDaysData.B,
-        hasC: !!allDaysData.C,
-        hasD: !!allDaysData.D,
-        allDaysDataKeys: Object.keys(allDaysData),
-        aSuccess: allDaysData.A?.success,
-        bSuccess: allDaysData.B?.success,
-        cSuccess: allDaysData.C?.success,
-        dSuccess: allDaysData.D?.success
-      });
+    if (!activeHR || !allDaysData.A || !allDaysData.B || !allDaysData.C || !allDaysData.D) {
+      setAbcdBcdAnalysis({});
+      return;
+    }
 
-      // Reset analysis progress
-      setAnalysisProgress(0);
-      setAnalysisMessage('');
-
-      if (!activeHR) {
-        console.log('❌ No activeHR, clearing analysis state');
-        setAbcdBcdAnalysis({});
-        return;
-      }
-
-      if (!allDaysData.A || !allDaysData.B || !allDaysData.C || !allDaysData.D) {
-        console.log('❌ Missing day data, clearing analysis state');
-        setAbcdBcdAnalysis({});
-        return;
-      }
-
-      // Check if all days have successful data
-      const availableLabels = ['A', 'B', 'C', 'D'].filter(lbl => allDaysData[lbl]?.success);
-      console.log('📊 Available labels for analysis:', availableLabels);
-      
-      if (availableLabels.length < 4) {
-        console.log(`⚠️ Not enough successful days (${availableLabels.length}/4), clearing analysis`);
-        setAbcdBcdAnalysis({});
-        return;
-      }
-
-      // Check if activeHR exists in all required days
-      const daysWithActiveHR = availableLabels.filter(lbl => 
-        allDaysData[lbl].hrData && allDaysData[lbl].hrData[activeHR]
-      );
-      
-      console.log(`🔑 Days with HR${activeHR}:`, daysWithActiveHR);
-      
-      if (daysWithActiveHR.length < 4) {
-        console.log(`❌ HR${activeHR} not available in all days (${daysWithActiveHR.length}/4)`);
-        setAbcdBcdAnalysis({});
-        return;
-      }
-
-      setAnalysisProgress(10);
-      setAnalysisMessage('Scanning available sets...');
-
-      const analysis = {};
-      
-      // Get all unique set names across all days for the active HR
+    const analysis = {};
+    const availableLabels = ['A', 'B', 'C', 'D'].filter(lbl => allDaysData[lbl]?.success);
+    
+    if (availableLabels.length >= 4) {
+      // Get all unique set names across all days
       const allSets = new Set();
       availableLabels.forEach(lbl => {
         if (allDaysData[lbl].hrData[activeHR]) {
@@ -411,111 +264,36 @@ const IndexPage = ({
         }
       });
 
-      console.log('🎯 Sets to analyze:', Array.from(allSets));
-
-      if (allSets.size === 0) {
-        console.log('❌ No sets found for analysis');
-        setAbcdBcdAnalysis({});
-        return;
-      }
-
-      setAnalysisProgress(20);
-      setAnalysisMessage(`Analyzing ${allSets.size} sets...`);
-
-      // Perform analysis for each set with async calls
-      const setsArray = Array.from(allSets);
-      for (let i = 0; i < setsArray.length; i++) {
-        const setName = setsArray[i];
-        const progressPerSet = 70 / setsArray.length; // 70% for analysis, 10% for final processing
-        const currentProgress = 20 + (i * progressPerSet);
-        
-        setAnalysisProgress(currentProgress);
-        setAnalysisMessage(`Analyzing ${setName} (${i + 1}/${setsArray.length})...`);
-        
+      // Perform analysis for each set
+      Array.from(allSets).forEach(setName => {
         const aDay = allDaysData.A.date;
         const bDay = allDaysData.B.date;
         const cDay = allDaysData.C.date;
         const dDay = allDaysData.D.date;
         
-        console.log(`🔬 Analyzing set "${setName}" for dates:`, { aDay, bDay, cDay, dDay });
-        
-        try {
-          const result = await performAbcdBcdAnalysis(setName, aDay, bDay, cDay, dDay, activeHR);
-          analysis[setName] = result;
-          console.log(`✅ Analysis result for "${setName}":`, result);
-          
-          setAnalysisProgress(currentProgress + progressPerSet);
-        } catch (error) {
-          console.error(`❌ Error analyzing set ${setName}:`, error);
-          analysis[setName] = { abcdNumbers: [], bcdNumbers: [] };
-        }
-      }
+        const result = performAbcdBcdAnalysis(setName, aDay, bDay, cDay, dDay, activeHR);
+        analysis[setName] = result;
+      });
+    }
 
-      setAnalysisProgress(90);
-      setAnalysisMessage('Finalizing analysis...');
-
-      console.log('🎉 Final analysis result:', analysis);
-      setAbcdBcdAnalysis(analysis);
-      
-      setAnalysisProgress(100);
-      setAnalysisMessage('Analysis complete!');
-      
-      // Clear analysis progress after a short delay
-      setTimeout(() => {
-        setAnalysisProgress(0);
-        setAnalysisMessage('');
-      }, 1000);
-    };
-
-    performAnalysis();
-  }, [activeHR, Object.keys(allDaysData).join(','), allDaysData.A?.success, allDaysData.B?.success, allDaysData.C?.success, allDaysData.D?.success]);
-
-  // Debug: Log abcdBcdAnalysis state changes
-  useEffect(() => {
-    console.log('🎪 abcdBcdAnalysis state updated:', abcdBcdAnalysis);
-    console.log('🔑 Analysis keys:', Object.keys(abcdBcdAnalysis));
-    Object.entries(abcdBcdAnalysis).forEach(([setName, analysis]) => {
-      console.log(`📋 Set "${setName}":`, analysis);
-    });
-  }, [abcdBcdAnalysis]);
+    setAbcdBcdAnalysis(analysis);
+  }, [activeHR, allDaysData]);
 
   useEffect(() => {
-    const loadData = async () => {
-      if (selectedUser && Array.isArray(datesList) && datesList.length > 0) {
-        await buildAllDaysData();
-      } else {
-        setError('Missing required user or dates data.');
-        setLoading(false);
-      }
-    };
-
-    loadData();
+    if (selectedUser && Array.isArray(datesList) && datesList.length > 0) {
+      buildAllDaysData();
+    } else {
+      setError('Missing required user or dates data.');
+      setLoading(false);
+    }
   }, [selectedUser, datesList, date]);
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
-          <div className="text-center mb-6">
-            <div className="animate-spin h-10 w-10 border-4 border-purple-600 border-t-transparent rounded-full mx-auto mb-3" />
-            <h3 className="text-lg font-semibold text-gray-800">Loading Index Data</h3>
-            <p className="text-sm text-gray-600 mt-1">Fetching data from Supabase...</p>
-          </div>
-          
-          <ProgressBar 
-            progress={loadingProgress}
-            message={loadingMessage}
-            color="purple"
-            className="mb-4"
-          />
-          
-          {loadingProgress > 80 && (
-            <div className="text-center">
-              <p className="text-xs text-gray-500">
-                ⚡ Supabase free tier - slower than localStorage but synced across devices
-              </p>
-            </div>
-          )}
+        <div className="text-center">
+          <div className="animate-spin h-10 w-10 border-4 border-purple-600 border-t-transparent rounded-full mx-auto mb-3" />
+          <p className="text-gray-600">Loading index data…</p>
         </div>
       </div>
     );
@@ -610,21 +388,6 @@ const IndexPage = ({
               </button>
             ))}
           </div>
-          
-          {/* Analysis Progress Bar */}
-          {analysisProgress > 0 && analysisProgress < 100 && (
-            <div className="border-b border-gray-200 p-4 bg-blue-50">
-              <ProgressBar 
-                progress={analysisProgress}
-                message={analysisMessage}
-                color="blue"
-                className="mb-2"
-              />
-              <p className="text-xs text-gray-600 text-center">
-                🧮 Computing ABCD/BCD patterns for HR {activeHR}...
-              </p>
-            </div>
-          )}
           
           {/* Color-Coding Legend */}
           {activeHR && Object.keys(abcdBcdAnalysis).length > 0 && (
