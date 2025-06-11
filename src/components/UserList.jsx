@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
 function UserList() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [formData, setFormData] = useState({
     username: '',
@@ -13,6 +14,17 @@ function UserList() {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  const handleLogout = () => {
+    // Clear authentication session
+    localStorage.removeItem('house_count_session');
+    localStorage.removeItem('house_count_enabled');
+    localStorage.removeItem('user_email');
+    localStorage.removeItem('auth_type');
+    
+    // Redirect to login
+    navigate('/auth');
+  };
 
   useEffect(() => {
     // Test Supabase connection
@@ -131,21 +143,56 @@ function UserList() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold mb-6">User Details</h2>
-
-      <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Username:</label>
-            <input
-              type="text"
-              value={formData.username}
-              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-              required
-            />
+    <div className="min-h-screen bg-gray-50">
+      {/* Header with Navigation */}
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-8">
+              <h1 className="text-xl font-semibold text-gray-900">viboothi.in</h1>
+              <nav className="flex space-x-6">
+                <Link to="/users" className="text-indigo-600 hover:text-indigo-900 font-medium">
+                  Users
+                </Link>
+                <Link to="/number-gen" className="text-gray-700 hover:text-gray-900">
+                  Number Generator
+                </Link>
+                <Link to="/test" className="text-gray-700 hover:text-gray-900">
+                  Test
+                </Link>
+              </nav>
+            </div>
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-500">Welcome, gurukrpasharma</span>
+              <button
+                onClick={handleLogout}
+                className="bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+              >
+                Logout
+              </button>
+            </div>
           </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          <h2 className="text-2xl font-bold mb-6">User Management</h2>
+
+          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Add New User</h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Username:</label>
+                <input
+                  type="text"
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                  required
+                />
+              </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Total HR:</label>
             <input
@@ -222,6 +269,8 @@ function UserList() {
           </tbody>
         </table>
       </div>
+      </div>
+      </main>
     </div>
   );
 }

@@ -14,7 +14,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.4",
+    "@supabase/supabase-js": "^2.50.0",
     "autoprefixer": "^10.4.17",
     "exceljs": "^4.4.0",
     "jspdf": "^3.0.1",
