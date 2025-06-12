@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import * as XLSX from 'xlsx';
 import IndexPage from './IndexPage';
+import Rule1Page from './Rule1Page';
 import Rule2Page from './Rule2Page';
 import Rule2CompactPage from './Rule2CompactPage';
 import AddDateModal from './modals/AddDateModal';
@@ -47,6 +48,8 @@ function ABCDBCDNumber() {
   const [hourEntryError, setHourEntryError] = useState('');
   const [showIndexPage, setShowIndexPage] = useState(false);
   const [indexPageData, setIndexPageData] = useState(null);
+  const [showRule1Page, setShowRule1Page] = useState(false);
+  const [rule1PageData, setRule1PageData] = useState(null);
   const [showRule2Page, setShowRule2Page] = useState(false);
   const [rule2PageData, setRule2PageData] = useState(null);
   const [dateStatuses, setDateStatuses] = useState({}); // Track Excel/Hour Entry status for each date
@@ -467,8 +470,16 @@ function ABCDBCDNumber() {
 
   // Index page navigation - Updated for planet-based Excel structure
   const handleIndexClick = async (date) => {
-    console.log('🔥 handleIndexClick called with date:', date);
-    console.log('🔥 Current datesList:', datesList);
+    console.log('🏠 handleIndexClick called with date:', date);
+    console.log('🏠 Current datesList:', datesList);
+    
+    // === CRITICAL DEBUG: Compare with Rule-1 ===
+    console.log('🆚 INDEXPAGE vs RULE-1 INPUT COMPARISON:');
+    console.log('   IndexPage clicked date:', date, typeof date);
+    console.log('   IndexPage datesList:', datesList);
+    console.log('   IndexPage user:', selectedUser);
+    console.log('   Rule-1 would get SAME inputs for SAME button click');
+    // =============================================
     
     if (!selectedUser) {
       setError('Please select a user first.');
@@ -507,6 +518,53 @@ function ABCDBCDNumber() {
   const handleBackFromIndex = () => {
     setShowIndexPage(false);
     setIndexPageData(null);
+  };
+
+  // Handle Rule-1 page navigation
+  const handleRule1Click = async (date) => {
+    console.log('🔗 handleRule1Click called with date:', date);
+    console.log('🔗 Current datesList:', datesList);
+    console.log('🔗 Current selectedUser:', selectedUser);
+    
+    // === CRITICAL DEBUG: Compare with IndexPage ===
+    console.log('🆚 RULE-1 vs INDEXPAGE INPUT COMPARISON:');
+    console.log('   Rule-1 clicked date:', date, typeof date);
+    console.log('   Rule-1 datesList:', datesList);
+    console.log('   Rule-1 user:', selectedUser);
+    console.log('   IndexPage would get SAME inputs for SAME button click');
+    // ================================================
+    
+    if (!selectedUser) {
+      console.log('❌ No user selected');
+      setError('Please select a user first.');
+      return;
+    }
+    
+    // Sort dates chronologically to find the position
+    const sortedDates = [...datesList].sort((a, b) => new Date(a) - new Date(b));
+    const idx = sortedDates.indexOf(date);
+    
+    if (idx < 4) {
+      setError('Rule-1 requires at least 5 dates. This is only the ' + (idx + 1) + getOrdinalSuffix(idx + 1) + ' date chronologically.');
+      return;
+    }
+    
+    // === REMOVED: Excel and Hour Entry dependency checks ===
+    // Rule-1 now works independently like Rule-2
+    // Missing data will be handled gracefully with empty arrays
+    console.log('✅ [INDEPENDENT] Rule-1 operating without Excel/Hour Entry requirements (like Rule-2)');
+    
+    console.log('✅ Launching Rule1Page with independent operation');
+    setRule1PageData({
+      date,
+      selectedUser
+    });
+    setShowRule1Page(true);
+  };
+
+  const handleBackFromRule1 = () => {
+    setShowRule1Page(false);
+    setRule1PageData(null);
   };
 
   // Handle Rule-2 page navigation
@@ -703,6 +761,19 @@ function ABCDBCDNumber() {
     debugCurrentData();
   }, [selectedUser]);
 
+  // Conditional render for Rule1Page
+  if (showRule1Page && rule1PageData) {
+    return (
+      <Rule1Page
+        key={`rule1-${selectedUser}-${datesList.length}-${JSON.stringify(datesList)}`}
+        date={rule1PageData.date}
+        selectedUser={rule1PageData.selectedUser}
+        datesList={datesList}
+        onBack={handleBackFromRule1}
+      />
+    );
+  }
+
   // Conditional render for Rule2Page
   if (showRule2Page && rule2PageData) {
     return (
@@ -781,6 +852,11 @@ function ABCDBCDNumber() {
                 const isOldest = idx === datesList.length - 1;
                 const excelUploaded = isExcelUploaded(date);
                 const hourEntryCompleted = isHourEntryCompleted(date);
+                // Rule-1 available only for dates that are chronologically 5th or later (thisIndex >= 4)
+                const rule1Available = thisIndex >= 4;
+                // Rule-1 is enabled for ANY date that is 5th or later chronologically
+                // (not just the newest date)
+                const rule1Enabled = rule1Available;
                 // Rule-2 available only for dates that are chronologically 5th or later (thisIndex >= 4)
                 const rule2Available = thisIndex >= 4;
                 
@@ -872,6 +948,22 @@ function ABCDBCDNumber() {
                       >
                         Index
                       </button>
+
+                      {/* Rule-1 button: available only for dates that are chronologically 5th or later (thisIndex >= 4) */}
+                      {rule1Available && (
+                        <button
+                          onClick={() => rule1Enabled ? handleRule1Click(date) : null}
+                          disabled={!rule1Enabled}
+                          className={`px-4 py-1 rounded transition-all ${
+                            rule1Enabled
+                              ? 'bg-green-500 hover:bg-green-600 text-white'
+                              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          }`}
+                          title={rule1Enabled ? 'Rule-1 Analysis - 4-day rolling window' : 'Rule-1 disabled - requires at least 5 total dates'}
+                        >
+                          Rule-1
+                        </button>
+                      )}
 
                       {/* Rule-2 button: available only for dates that are chronologically 5th or later (thisIndex >= 4) */}
                       {rule2Available && (

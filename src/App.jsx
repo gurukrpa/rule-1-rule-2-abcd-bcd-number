@@ -1,3 +1,8 @@
+// 
+// TEMPORARY DEVELOPMENT MODE: Authentication is disabled
+// All routes are accessible without login for development purposes
+// To re-enable authentication, search for "TEMPORARY" comments and restore original logic
+//
 import React, { useState, useEffect } from 'react';
 import { 
   BrowserRouter as Router, 
@@ -20,10 +25,27 @@ import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   const [session, setSession] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isHouseCountEnabled, setIsHouseCountEnabled] = useState(false);
+  // TEMPORARY: Disable authentication for development
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [isHouseCountEnabled, setIsHouseCountEnabled] = useState(true);
 
   useEffect(() => {
+    // TEMPORARY: Auto-enable house counting for development
+    localStorage.setItem('house_count_enabled', 'true');
+    localStorage.setItem('auth_type', 'simple');
+    
+    // Create a temporary session for development
+    const tempSession = {
+      user: {
+        authenticated: true,
+        email: 'dev@temporary.com',
+        id: 'temp-dev-user'
+      }
+    };
+    localStorage.setItem('house_count_session', JSON.stringify(tempSession));
+    setSession(tempSession);
+
+    /* COMMENTED OUT FOR DEVELOPMENT - Authentication logic
     // Check if house counting is enabled in localStorage
     const houseCountEnabled = localStorage.getItem('house_count_enabled');
     if (houseCountEnabled === 'true') {
@@ -49,6 +71,7 @@ function App() {
         localStorage.removeItem('auth_type');
       }
     }
+    */
   }, []);
 
   const enableHouseCounting = () => {
@@ -66,68 +89,47 @@ function App() {
       <ErrorBoundary>
         <div className="min-h-screen bg-gray-100">
           <Routes>
-            {/* Authentication route */}
-            <Route path="/auth" element={<SimpleAuth />} />
+            {/* TEMPORARY: Authentication routes commented out for development */}
+            {/* <Route path="/auth" element={<SimpleAuth />} /> */}
+            {/* <Route path="/legacy-auth" element={<Auth onEnableHouseCounting={enableHouseCounting} />} /> */}
             
-            {/* Legacy auth route for backward compatibility */}
-            <Route path="/legacy-auth" element={<Auth onEnableHouseCounting={enableHouseCounting} />} />
+            {/* Default route - redirect directly to users for development */}
+            <Route path="/" element={<Navigate to="/users" replace />} />
+            <Route path="/auth" element={<Navigate to="/users" replace />} />
             
-            {/* Default route - redirect to auth if not logged in, users if logged in */}
-            <Route path="/" element={
-              isAuthenticated ? <Navigate to="/users" replace /> : <Navigate to="/auth" replace />
-            } />
-            
-            {/* User List - main landing page after login */}
-            <Route path="/users" element={
-              isAuthenticated ? <UserList /> : <Navigate to="/auth" replace />
-            } />
+            {/* User List - main landing page (no auth required during development) */}
+            <Route path="/users" element={<UserList />} />
             
             {/* Dashboard route */}
-            <Route path="/dashboard" element={
-              isAuthenticated ? <Navigate to="/abcd-number/1" replace /> : <Navigate to="/auth" replace />
-            } />
+            <Route path="/dashboard" element={<Navigate to="/abcd-number/1" replace />} />
             
-            {/* All routes accessible after login - no protection needed */}
-            <Route path="/user/:userId" element={
-              isAuthenticated ? <UserData /> : <Navigate to="/auth" replace />
-            } />
+            {/* All routes accessible without authentication during development */}
+            <Route path="/user/:userId" element={<UserData />} />
             
-            <Route path="/user-data/:userId" element={
-              isAuthenticated ? <UserData /> : <Navigate to="/auth" replace />
-            } />
+            <Route path="/user-data/:userId" element={<UserData />} />
             
             <Route path="/day-details/:userId" element={
-              isAuthenticated ? (
-                <ErrorBoundary>
-                  <DayDetails />
-                </ErrorBoundary>
-              ) : <Navigate to="/auth" replace />
+              <ErrorBoundary>
+                <DayDetails />
+              </ErrorBoundary>
             } />
             
             <Route path="/number-gen" element={
-              isAuthenticated ? (
-                <ErrorBoundary>
-                  <NumberGen />
-                </ErrorBoundary>
-              ) : <Navigate to="/auth" replace />
+              <ErrorBoundary>
+                <NumberGen />
+              </ErrorBoundary>
             } />
             
             <Route path="/abcd-number/:userId" element={
-              isAuthenticated ? (
-                <ErrorBoundary>
-                  <ABCDBCDNumber />
-                </ErrorBoundary>
-              ) : <Navigate to="/auth" replace />
+              <ErrorBoundary>
+                <ABCDBCDNumber />
+              </ErrorBoundary>
             } />
             
-            <Route path="/test" element={
-              isAuthenticated ? <HouseCountTest /> : <Navigate to="/auth" replace />
-            } />
+            <Route path="/test" element={<HouseCountTest />} />
 
-            {/* Catch all route - redirect based on auth status */}
-            <Route path="*" element={
-              isAuthenticated ? <Navigate to="/users" replace /> : <Navigate to="/auth" replace />
-            } />
+            {/* Catch all route - redirect to users */}
+            <Route path="*" element={<Navigate to="/users" replace />} />
           </Routes>
         </div>
       </ErrorBoundary>
