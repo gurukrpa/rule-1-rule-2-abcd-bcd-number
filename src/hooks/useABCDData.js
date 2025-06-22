@@ -1,0 +1,230 @@
+import { useState, useEffect, useCallback } from 'react';
+import { dataService } from '../services/dataService';
+
+/**
+ * Hook to manage ABCD-BCD data with automatic localStorage fallback
+ * This provides a gradual migration path from localStorage to Supabase
+ */
+export const useABCDData = (userId) => {
+  const [dates, setDates] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+
+  // Load dates when userId changes
+  useEffect(() => {
+    if (userId) {
+      loadDates();
+    } else {
+      setDates([]);
+    }
+  }, [userId]);
+
+  const loadDates = useCallback(async () => {
+    if (!userId) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      const userDates = await dataService.getDates(userId);
+      setDates(userDates);
+    } catch (err) {
+      setError('Failed to load dates: ' + err.message);
+      console.error('Error loading dates:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  const addDate = useCallback(async (newDate) => {
+    if (!userId) {
+      setError('No user selected');
+      return false;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Check if date already exists
+      const normalizedNewDate = new Date(newDate).toISOString().split('T')[0];
+      const normalizedExisting = dates.map(d => new Date(d).toISOString().split('T')[0]);
+      
+      if (normalizedExisting.includes(normalizedNewDate)) {
+        setError('This date already exists.');
+        return false;
+      }
+      
+      // Add new date and sort
+      const updatedDates = [...dates, normalizedNewDate].sort((a, b) => new Date(b) - new Date(a));
+      
+      // Save to both localStorage and Supabase
+      await dataService.saveDates(userId, updatedDates);
+      setDates(updatedDates);
+      setSuccess(`Date ${new Date(normalizedNewDate).toLocaleDateString()} added successfully.`);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000);
+      return true;
+    } catch (err) {
+      setError('Failed to add date: ' + err.message);
+      console.error('Error adding date:', err);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [userId, dates]);
+
+  const removeDate = useCallback(async (dateToRemove) => {
+    if (!userId) {
+      setError('No user selected');
+      return false;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Remove date from array
+      const updatedDates = dates.filter(d => d !== dateToRemove);
+      
+      // Save updated dates
+      await dataService.saveDates(userId, updatedDates);
+      
+      // Delete all data for this date
+      await dataService.deleteDataForDate(userId, dateToRemove);
+      
+      setDates(updatedDates);
+      setSuccess(`Date ${new Date(dateToRemove).toLocaleDateString()} removed successfully.`);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000);
+      return true;
+    } catch (err) {
+      setError('Failed to remove date: ' + err.message);
+      console.error('Error removing date:', err);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [userId, dates]);
+
+  const saveExcelData = useCallback(async (date, excelData) => {
+    if (!userId) {
+      setError('No user selected');
+      return false;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      await dataService.saveExcelData(userId, date, excelData);
+      setSuccess(`Excel uploaded successfully for ${new Date(date).toLocaleDateString()}`);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000);
+      return true;
+    } catch (err) {
+      setError('Failed to save Excel data: ' + err.message);
+      console.error('Error saving Excel data:', err);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  const saveHourEntry = useCallback(async (date, hourEntryData) => {
+    if (!userId) {
+      setError('No user selected');
+      return false;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      await dataService.saveHourEntry(userId, date, hourEntryData);
+      setSuccess(`Hour entry saved for ${new Date(date).toLocaleDateString()}`);
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccess(null), 3000);
+      return true;
+    } catch (err) {
+      setError('Failed to save hour entry: ' + err.message);
+      console.error('Error saving hour entry:', err);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  const getExcelData = useCallback(async (date) => {
+    if (!userId) return null;
+    
+    try {
+      return await dataService.getExcelData(userId, date);
+    } catch (err) {
+      console.error('Error getting Excel data:', err);
+      return null;
+    }
+  }, [userId]);
+
+  const getHourEntry = useCallback(async (date) => {
+    if (!userId) return null;
+    
+    try {
+      return await dataService.getHourEntry(userId, date);
+    } catch (err) {
+      console.error('Error getting hour entry:', err);
+      return null;
+    }
+  }, [userId]);
+
+  const hasExcelData = useCallback(async (date) => {
+    if (!userId) return false;
+    
+    try {
+      return await dataService.hasExcelData(userId, date);
+    } catch (err) {
+      console.error('Error checking Excel data:', err);
+      return false;
+    }
+  }, [userId]);
+
+  const hasHourEntry = useCallback(async (date) => {
+    if (!userId) return false;
+    
+    try {
+      return await dataService.hasHourEntry(userId, date);
+    } catch (err) {
+      console.error('Error checking hour entry:', err);
+      return false;
+    }
+  }, [userId]);
+
+  const clearMessages = useCallback(() => {
+    setError(null);
+    setSuccess(null);
+  }, []);
+
+  return {
+    // Data
+    dates,
+    loading,
+    error,
+    success,
+    
+    // Actions
+    addDate,
+    removeDate,
+    saveExcelData,
+    saveHourEntry,
+    getExcelData,
+    getHourEntry,
+    hasExcelData,
+    hasHourEntry,
+    loadDates,
+    clearMessages
+  };
+};
