@@ -13,7 +13,12 @@
     "build": "vite build",
     "preview": "vite preview",
     "security-fix": "node apply-security-fixes.mjs",
-    "security-dashboard": "open instant-security-fix.html"
+    "security-dashboard": "open instant-security-fix.html",
+    "new-logic": "git checkout -b",
+    "save-checkpoint": "git add . && git commit -m",
+    "safe-merge": "git checkout main && git merge",
+    "list-branches": "git branch",
+    "back-to-main": "git checkout main"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.50.0",
