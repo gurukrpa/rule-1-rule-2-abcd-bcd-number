@@ -439,17 +439,23 @@ const IndexPage = ({
       const sortedDates = [...datesList].sort((a, b) => new Date(a) - new Date(b));
       const targetIdx   = sortedDates.indexOf(date);
 
-      // 2. Determine the window of up to 4 dates ending at the clicked date
+      // 2. Be flexible with window creation - use what's available up to 4 dates
       let windowDates;
       if (targetIdx === -1) {
-        // clicked date not found → just take the last 4 available
-        windowDates = sortedDates.slice(-4);
-        console.log(`⚠️ Target date "${date}" not found in datesList. Using last 4 dates.`);
+        // clicked date not found → use available dates (prefer recent ones)
+        const maxDates = Math.min(4, sortedDates.length);
+        windowDates = sortedDates.slice(-maxDates);
+        console.log(`⚠️ Target date "${date}" not found in datesList. Using ${windowDates.length} available dates.`);
       } else {
         const end   = targetIdx + 1;           // slice end (exclusive)
         const start = Math.max(0, end - 4);     // can't go below zero
         windowDates  = sortedDates.slice(start, end);
-        console.log(`✅ Target date "${date}" found at index ${targetIdx}. Window: ${start}-${end}`);
+        console.log(`✅ Target date "${date}" found at index ${targetIdx}. Using ${windowDates.length} dates in window.`);
+      }
+      
+      // Single date is perfectly fine for viewing data
+      if (windowDates.length === 1) {
+        console.log(`📊 Single date mode: Displaying data for "${windowDates[0]}"`);
       }
       
       console.log('🎯 Date Window Analysis:', {
@@ -712,10 +718,15 @@ const IndexPage = ({
       const availableLabels = ['A', 'B', 'C', 'D'].filter(lbl => allDaysData[lbl]?.success);
       console.log('📊 Available labels for analysis:', availableLabels);
       
-      if (availableLabels.length < 2) {
-        console.log(`⚠️ Not enough days for any analysis (${availableLabels.length}/4), clearing analysis`);
+      if (availableLabels.length < 1) {
+        console.log(`⚠️ No days available for analysis (${availableLabels.length}), clearing analysis`);
         setAbcdBcdAnalysis({});
         return;
+      }
+
+      // Allow analysis with any number of days (1 or more)
+      if (availableLabels.length < 4) {
+        console.log(`📊 Partial analysis mode: Using ${availableLabels.length} days instead of full 4-day window`);
       }
 
       // Check if activeHR exists in available days
@@ -1570,7 +1581,7 @@ const IndexPage = ({
               <div className="text-center py-12 text-gray-500">
                 <div className="text-6xl mb-4">🏠</div>
                 <p className="text-lg font-semibold mb-2">Select an HR above</p>
-                <p>Click an HR tab to view the 4-day matrices</p>
+                <p>Click an HR tab to view the available data matrices</p>
               </div>
             )}
           </div>
