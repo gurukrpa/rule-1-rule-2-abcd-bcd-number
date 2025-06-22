@@ -5,6 +5,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 // Using CleanSupabaseService singleton instance for data operations
 import cleanSupabaseService from '../services/CleanSupabaseService';
 import * as XLSX from 'xlsx';
+// Import strict Excel validation
+import { validateExcelStructure, generateValidationReport } from '../utils/excelValidation';
 
 // Import required components
 import Rule1Page from './Rule1Page';
@@ -643,20 +645,117 @@ function ABCDBCDNumber() {
     }
   };
 
-  // Handle Excel upload for specific date
+  // Handle Excel upload for specific date with STRICT VALIDATION
   const handleDateExcelUpload = async (event, targetDate) => {
     try {
       const file = event.target.files[0];
       if (!file) return;
 
+      console.log(`🔍 STRICT VALIDATION: Starting upload for ${file.name}`);
+      
+      // Check file size (10MB limit)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        setError(`File too large! Maximum size is 10MB. Your file: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+        setTimeout(() => setError(''), 8000);
+        event.target.value = null;
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = async (e) => {
         try {
+          console.log(`📊 Processing Excel file: ${file.name}`);
+          
           const data = new Uint8Array(e.target.result);
           const workbook = XLSX.read(data, { type: 'array' });
           const worksheet = workbook.Sheets[workbook.SheetNames[0]];
           const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
+          console.log(`📋 Raw Excel data: ${jsonData.length} rows`);
+
+          // 🚨 STRICT VALIDATION - File must match EXACT template structure
+          const validation = validateExcelStructure(jsonData, file.name);
+          
+          if (!validation.isValid) {
+            console.error('❌ VALIDATION FAILED:', validation.errors);
+            
+            // Generate detailed error report
+            const report = generateValidationReport(validation, file.name);
+            console.error('📋 VALIDATION REPORT:\n', report);
+            
+            // Enhanced user-friendly error message for ABCD format
+            let errorMsg = `❌ Excel file does not match the required ABCD template format!\n\n`;
+            
+            // Show validation summary
+            errorMsg += `📊 Validation Summary:\n`;
+            errorMsg += `   • Topics found: ${validation.topicsFound || 0}/30 ${validation.topicsFound === 30 ? '✅' : '❌'}\n`;
+            errorMsg += `   • Valid data cells: ${validation.validDataCells || 0}/2430 ${validation.validDataCells >= 2380 ? '✅' : '❌'}\n`;
+            errorMsg += `   • Data quality: ${validation.dataQualityScore ? validation.dataQualityScore.toFixed(1) : '0.0'}%\n\n`;
+            
+            // Show critical errors first
+            if (validation.criticalErrors && validation.criticalErrors.length > 0) {
+              errorMsg += `🚨 Critical Issues (${validation.criticalErrors.length}) - Must be fixed:\n`;
+              validation.criticalErrors.forEach((error, index) => {
+                errorMsg += `• ${error}\n`;
+              });
+              errorMsg += '\n';
+            }
+            
+            // Show first few standard errors
+            if (validation.errors && validation.errors.length > 0) {
+              const standardErrors = validation.errors.filter(e => !validation.criticalErrors?.includes(e));
+              if (standardErrors.length > 0) {
+                errorMsg += `❌ Additional Issues (${Math.min(standardErrors.length, 3)} shown):\n`;
+                standardErrors.slice(0, 3).forEach((error, index) => {
+                  errorMsg += `• ${error}\n`;
+                });
+                if (standardErrors.length > 3) {
+                  errorMsg += `... and ${standardErrors.length - 3} more issues\n`;
+                }
+                errorMsg += '\n';
+              }
+            }
+            
+            // Show template requirements
+            errorMsg += `📋 Required ABCD Template Structure:\n`;
+            errorMsg += `• Must have exactly 30 topics with headers like "D-1 Set-1 Matrix"\n`;
+            errorMsg += `• Each topic must have 9 elements: as, mo, hl, gl, vig, var, sl, pp, in\n`;
+            errorMsg += `• Each element must have 9 planet data cells in columns B-J\n`;
+            errorMsg += `• Planet data must be in astrological format (e.g., "as-7-/su-(...)", "7sc12")\n`;
+            errorMsg += `• Total expected: 2430 valid data cells\n\n`;
+            errorMsg += `💡 Please use the exact template file structure for uploads.`;
+            
+            setError(errorMsg);
+            setTimeout(() => setError(''), 20000); // Longer timeout for detailed message
+            event.target.value = null;
+            return;
+          }
+
+          // Enhanced success message with quality metrics
+          let successMsg = '';
+          if (validation.warnings && validation.warnings.length > 0) {
+            console.warn('⚠️ VALIDATION WARNINGS:', validation.warnings);
+            successMsg = `⚠️ File uploaded with ${validation.warnings.length} warning(s):\n`;
+            validation.warnings.slice(0, 3).forEach((warning, index) => {
+              successMsg += `${index + 1}. ${warning}\n`;
+            });
+            if (validation.warnings.length > 3) {
+              successMsg += `... and ${validation.warnings.length - 3} more warnings\n`;
+            }
+            setSuccess(successMsg);
+            setTimeout(() => setSuccess(''), 10000);
+          } else {
+            // Perfect validation - show quality metrics
+            const qualityEmoji = validation.dataQualityScore >= 98 ? '🟢' : validation.dataQualityScore >= 95 ? '🟡' : '🟠';
+            successMsg = `${qualityEmoji} Excel uploaded successfully for ${targetDate} - Quality: ${validation.dataQualityScore?.toFixed(1) || '100.0'}% (${validation.validDataCells || 2430} valid cells)`;
+            setSuccess(successMsg);
+            setTimeout(() => setSuccess(''), 8000);
+          }
+
+          console.log('✅ VALIDATION PASSED - Processing data...');
+
+          // Process the validated data
           const processedData = processSingleDayExcel(jsonData, targetDate);
           
           // Use DataService to save Excel data
@@ -664,7 +763,8 @@ function ABCDBCDNumber() {
             date: targetDate,
             fileName: file.name,
             data: processedData,
-            uploadedAt: new Date().toISOString()
+            uploadedAt: new Date().toISOString(),
+            validationReport: validation
           });
           
           // Update date status for this specific date
@@ -685,18 +785,20 @@ function ABCDBCDNumber() {
             }
           }));
           
-          setSuccess(`Excel uploaded successfully for ${new Date(targetDate).toLocaleDateString()}`);
-          setTimeout(() => setSuccess(''), 3000);
+          setSuccess(`✅ Excel file validated and uploaded successfully for ${new Date(targetDate).toLocaleDateString()}!`);
+          setTimeout(() => setSuccess(''), 5000);
           
           setDatesList([...datesList]);
           
         } catch (error) {
-          setError(`Failed to process Excel file: ${error.message}`);
-          setTimeout(() => setError(''), 5000);
+          console.error('❌ Excel processing error:', error);
+          setError(`Failed to process Excel file: ${error.message}\n\nPlease ensure the file matches the required template format.`);
+          setTimeout(() => setError(''), 8000);
         }
       };
 
       reader.readAsArrayBuffer(file);
+      event.target.value = null;
       event.target.value = null;
       
     } catch (error) {
