@@ -1,6 +1,6 @@
 // src/components/modals/AddDateModal.jsx
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
 function AddDateModal({ 
   visible, 
@@ -19,11 +19,65 @@ function AddDateModal({
   };
 
   const getMinDate = () => {
-    if (datesList.length === 0) return '';
-    const mostRecent = new Date(datesList[0]);
-    mostRecent.setDate(mostRecent.getDate() + 1);
-    return mostRecent.toISOString().split('T')[0];
+    if (datesList.length === 0) {
+      console.log('🚫 No dates in list, no minimum restriction');
+      return '';
+    }
+    
+    // Find the most recent date from the dates list
+    const sortedDates = [...datesList].sort((a, b) => new Date(b) - new Date(a));
+    const mostRecentDateString = sortedDates[0];
+    
+    // Debug: Log the calculation process
+    console.log('🗓️ Date restriction calculation:');
+    console.log('   Original dates list:', datesList);
+    console.log('   Sorted dates (newest first):', sortedDates);
+    console.log('   Most recent date string:', mostRecentDateString);
+    
+    // Create date object from the most recent date string
+    // Use the date string directly to avoid timezone issues
+    const mostRecentDate = new Date(mostRecentDateString + 'T00:00:00');
+    console.log('   Most recent date as Date object:', mostRecentDate);
+    
+    // Set minimum date to the day AFTER the most recent date
+    // This disables the most recent date and all dates before it
+    const nextDay = new Date(mostRecentDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    
+    console.log('   Next day date object:', nextDay);
+    console.log('   Next day getDate():', nextDay.getDate());
+    console.log('   Next day getMonth():', nextDay.getMonth());
+    console.log('   Next day getFullYear():', nextDay.getFullYear());
+    
+    const minDateString = nextDay.toISOString().split('T')[0];
+    console.log('   Calculated min date (day after most recent):', minDateString);
+    
+    // Alternative timezone-safe calculation for verification
+    const year = nextDay.getFullYear();
+    const month = String(nextDay.getMonth() + 1).padStart(2, '0');
+    const day = String(nextDay.getDate()).padStart(2, '0');
+    const safeMinDate = `${year}-${month}-${day}`;
+    console.log('   Timezone-safe min date:', safeMinDate);
+    
+    console.log('   🚫 All dates up to and including', mostRecentDateString, 'should be disabled');
+    console.log('   ✅ Only dates from', safeMinDate, 'onwards should be selectable');
+    
+    return safeMinDate;
   };
+
+  // Add a useEffect or direct check to verify the min attribute
+  const minDate = getMinDate();
+  console.log('🔍 Current min attribute value:', minDate);
+
+  const dateInputRef = useRef(null);
+
+  useEffect(() => {
+    if (dateInputRef.current && visible) {
+      console.log('📅 Date input element:', dateInputRef.current);
+      console.log('📅 Date input min attribute:', dateInputRef.current.min);
+      console.log('📅 Date input value:', dateInputRef.current.value);
+    }
+  }, [visible, minDate]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -44,10 +98,11 @@ function AddDateModal({
               Select Date
             </label>
             <input
+              ref={dateInputRef}
               type="date"
               value={newDate}
               onChange={(e) => setNewDate(e.target.value)}
-              min={getMinDate()}
+              min={minDate}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               required
             />
@@ -56,16 +111,7 @@ function AddDateModal({
             )}
           </div>
 
-          <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-            <p className="text-sm text-blue-700">
-              <strong>Note:</strong> New date must be after the most recent date.
-              {datesList.length >= 4 && (
-                <span className="block mt-1">
-                  Adding a 5th date will remove the oldest date automatically.
-                </span>
-              )}
-            </p>
-          </div>
+
 
           <div className="flex gap-3 justify-end">
             <button

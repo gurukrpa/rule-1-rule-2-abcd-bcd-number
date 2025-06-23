@@ -11,33 +11,7 @@ import { validateExcelStructure, generateValidationReport } from '../utils/excel
 // Import required components
 import Rule1Page from './Rule1Page';
 import IndexPage from './IndexPage';
-
-// Simple modal components for Supabase-only testing
-const AddDateModal = ({ visible, onClose, onSubmit, newDate, setNewDate, dateError }) => {
-  if (!visible) return null;
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
-        <h3 className="text-lg font-bold mb-4">Add New Date</h3>
-        <input
-          type="date"
-          value={newDate}
-          onChange={(e) => setNewDate(e.target.value)}
-          className="w-full p-2 border rounded mb-4"
-        />
-        {dateError && <p className="text-red-500 text-sm mb-4">{dateError}</p>}
-        <div className="flex gap-2">
-          <button onClick={onSubmit} className="bg-blue-500 text-white px-4 py-2 rounded">
-            Add Date
-          </button>
-          <button onClick={onClose} className="bg-gray-500 text-white px-4 py-2 rounded">
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
+import AddDateModal from './modals/AddDateModal';
 
 const HourEntryModal = ({ show, onClose, hourEntryDate, selectedUserData, planets, hourEntryPlanetSelections, handleHourEntryPlanetChange, handleSaveHourEntry, hourEntryError }) => {
   if (!show) return null;

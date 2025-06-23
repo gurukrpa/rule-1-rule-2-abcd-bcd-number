@@ -4,6 +4,20 @@ function AddNewDate({ onAddDate, existingDates }) {
   const [newDate, setNewDate] = useState('');
   const [error, setError] = useState('');
 
+  const getMinDate = () => {
+    if (!existingDates || existingDates.length === 0) return '';
+    
+    // Find the most recent date from the existing dates
+    const sortedDates = [...existingDates].sort((a, b) => new Date(b) - new Date(a));
+    const mostRecentDate = new Date(sortedDates[0]);
+    
+    // Set minimum date to the day AFTER the most recent date
+    // This disables the most recent date and all dates before it
+    mostRecentDate.setDate(mostRecentDate.getDate() + 1);
+    
+    return mostRecentDate.toISOString().split('T')[0];
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -30,7 +44,9 @@ function AddNewDate({ onAddDate, existingDates }) {
         type="date"
         value={newDate}
         onChange={(e) => setNewDate(e.target.value)}
+        min={getMinDate()}
         className="text-xs rounded border-gray-300"
+        title={existingDates.length > 0 ? `Dates up to and including ${new Date(existingDates.sort((a, b) => new Date(b) - new Date(a))[0]).toLocaleDateString()} are disabled` : ''}
       />
       <button
         type="submit"
