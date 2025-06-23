@@ -20,7 +20,7 @@ const Rule2CompactPage = ({ date, selectedUser, selectedUserData, datesList, onB
   const [loadingMessage, setLoadingMessage] = useState('Initializing...');
   const [error, setError] = useState('');
   const [analysisInfo, setAnalysisInfo] = useState({});
-  const [selectedHR, setSelectedHR] = useState(activeHR || '1');
+  const [selectedHR, setSelectedHR] = useState(activeHR || 1);
   const [availableHRs, setAvailableHRs] = useState([]);
   const [debounceTimer, setDebounceTimer] = useState(null);
 
@@ -273,7 +273,7 @@ const Rule2CompactPage = ({ date, selectedUser, selectedUserData, datesList, onB
     if (!cachedData || !cachedData.hourData) return [];
     
     const { planetSelections } = cachedData;
-    return Object.keys(planetSelections).sort((a, b) => parseInt(a) - parseInt(b));
+    return Object.keys(planetSelections).map(hr => parseInt(hr)).sort((a, b) => a - b);
   };
 
   useEffect(() => {
