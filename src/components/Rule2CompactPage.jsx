@@ -81,7 +81,7 @@ const Rule2CompactPage = ({ date, selectedUser, selectedUserData, datesList, onB
         dateDataCache.set(targetDate, {
           excelData,
           hourData,
-          sets: excelData?.data?.sets || {},
+          sets: excelData?.sets || {},
           planetSelections: hourData?.planetSelections || {}
         });
         
