@@ -13,7 +13,7 @@ import Rule1Page from './Rule1Page';
 import IndexPage from './IndexPage';
 import AddDateModal from './modals/AddDateModal';
 
-const HourEntryModal = ({ show, onClose, hourEntryDate, selectedUserData, planets, hourEntryPlanetSelections, handleHourEntryPlanetChange, handleSaveHourEntry, hourEntryError }) => {
+const HourEntryModal = ({ show, onClose, hourEntryDate, selectedUserData, planets, hourEntryPlanetSelections, handleHourEntryPlanetChange, handleSaveHourEntry, hourEntryError, saveConfirmationStep }) => {
   if (!show) return null;
   
   // Handle click outside modal to close
@@ -29,34 +29,35 @@ const HourEntryModal = ({ show, onClose, hourEntryDate, selectedUserData, planet
       onClick={handleBackdropClick}
     >
       <div 
-        className="bg-white p-8 rounded-xl max-w-6xl w-full mx-4 max-h-[95vh] overflow-y-auto shadow-2xl"
+        className="bg-white p-6 rounded-lg max-w-5xl w-full mx-4 max-h-[90vh] overflow-y-auto shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h3 className="text-2xl font-bold text-gray-800 mb-2">
+        {/* Header - More Compact */}
+        <div className="text-center mb-6">
+          <h3 className="text-xl font-bold text-gray-800 mb-1">
             🕐 Hour Entry for {hourEntryDate}
           </h3>
+          <p className="text-sm text-gray-600">Select a planet for each HR period</p>
         </div>
         
         {/* Single Comprehensive Box - All Hours Grid */}
-        <div className="border-4 border-blue-300 rounded-xl p-6 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-inner">
+        <div className="border-2 border-blue-200 rounded-lg p-4 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-sm">
           {/* Responsive Grid - All Hours in Single View */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {selectedUserData && Array.from({ length: selectedUserData.hr }, (_, i) => i + 1).map(hr => (
               <div 
                 key={hr} 
-                className="bg-white p-4 rounded-lg border-2 border-gray-200 shadow-md hover:shadow-lg transition-shadow"
+                className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow"
               >
-                <div className="text-center mb-3">
-                  <span className="inline-block bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-bold">
+                <div className="text-center mb-2">
+                  <span className="inline-block bg-blue-600 text-white px-2 py-1 rounded-md text-sm font-semibold">
                     HR {hr}
                   </span>
                 </div>
                 <select
                   value={hourEntryPlanetSelections[hr] || ''}
                   onChange={(e) => handleHourEntryPlanetChange(hr, e.target.value)}
-                  className="w-full p-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white text-center font-medium"
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:border-blue-500 focus:ring-1 focus:ring-blue-200 bg-white text-center font-medium"
                 >
                   <option value="">🌍 Select Planet</option>
                   {planets.map(planet => (
@@ -67,52 +68,46 @@ const HourEntryModal = ({ show, onClose, hourEntryDate, selectedUserData, planet
                 </select>
                 {/* Visual indicator for selected planet */}
                 {hourEntryPlanetSelections[hr] && (
-                  <div className="mt-2 text-center">
-                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                      ✅ Selected
+                  <div className="mt-1.5 text-center">
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                      ✓ Selected
                     </span>
                   </div>
                 )}
               </div>
             ))}
           </div>
-          
-          {/* Progress Indicator */}
-          <div className="mt-6 bg-white rounded-lg p-4 shadow-inner">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">Progress:</span>
-              <span className="text-sm font-bold text-blue-600">
-                {Object.keys(hourEntryPlanetSelections).filter(hr => hourEntryPlanetSelections[hr]).length} / {selectedUserData?.hr || 0}
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
-              <div 
-                className="bg-gradient-to-r from-blue-500 to-green-500 h-3 rounded-full transition-all duration-300"
-                style={{
-                  width: `${selectedUserData?.hr ? (Object.keys(hourEntryPlanetSelections).filter(hr => hourEntryPlanetSelections[hr]).length / selectedUserData.hr) * 100 : 0}%`
-                }}
-              ></div>
-            </div>
-          </div>
         </div>
         
-        {/* Error Message */}
+        {/* Error Message - Compact */}
         {hourEntryError && (
-          <div className="mt-6 p-4 bg-red-100 border-2 border-red-300 rounded-lg">
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
             <div className="flex items-center">
-              <span className="text-red-600 mr-2">⚠️</span>
-              <p className="text-red-700 font-medium">{hourEntryError}</p>
+              <span className="text-red-500 mr-2">⚠️</span>
+              <p className="text-red-700 text-sm font-medium">{hourEntryError}</p>
             </div>
           </div>
         )}
-        
-        {/* Save Button - Prominent and Centered */}
-        <div className="flex justify-center mt-8">
+         {/* Action Buttons - Compact and Well-Styled */}
+        <div className="flex justify-center gap-3 mt-4">
+          {/* Cancel Button */}
+          <button 
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 hover:text-gray-700 transition-all duration-150 shadow-sm hover:shadow-md"
+          >
+            Cancel
+          </button>
+          
+          {/* Save Button - Compact Design */}
           <button 
             onClick={handleSaveHourEntry} 
-            className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-12 py-4 rounded-xl font-bold text-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+            className={`px-6 py-2 text-sm font-medium rounded-lg shadow-sm hover:shadow-md transition-all duration-150 transform hover:scale-[1.02] ${
+              saveConfirmationStep === 0
+                ? "bg-blue-600 hover:bg-blue-700 text-white border border-blue-600"
+                : "bg-red-500 hover:bg-red-600 text-white border border-red-500 ring-2 ring-red-200 animate-pulse"
+            }`}
           >
-            💾 Save All Hour Entries
+            {saveConfirmationStep === 0 ? "💾 Save Entry" : "⚠️ Confirm Save"}
           </button>
         </div>
       </div>
@@ -176,6 +171,7 @@ function ABCDBCDNumber() {
   const [hourEntryDate, setHourEntryDate] = useState('');
   const [hourEntryPlanetSelections, setHourEntryPlanetSelections] = useState({});
   const [hourEntryError, setHourEntryError] = useState('');
+  const [saveConfirmationStep, setSaveConfirmationStep] = useState(0); // 0 = not clicked, 1 = first click, 2 = saved
   const [dateStatuses, setDateStatuses] = useState({}); // Track Excel/Hour Entry status for each date
   
   // Rule1Page navigation states
@@ -889,41 +885,54 @@ function ABCDBCDNumber() {
       setHourEntryError('Select a planet for each HR.');
       return;
     }
-    
-    const payload = {
-      userId: selectedUser,
-      date: hourEntryDate,
-      planetSelections: hourEntryPlanetSelections,
-      savedAt: new Date().toISOString()
-    };
-    
-    try {
-      // Use DataService to save hour entry
-      await dataService.saveHourEntry(selectedUser, hourEntryDate, payload);
+
+    // Double-click save logic
+    if (saveConfirmationStep === 0) {
+      // First click - show confirmation
+      setSaveConfirmationStep(1);
+      setHourEntryError(''); // Clear any previous errors
+      return;
+    }
+
+    if (saveConfirmationStep === 1) {
+      // Second click - actually save
+      const payload = {
+        userId: selectedUser,
+        date: hourEntryDate,
+        planetSelections: hourEntryPlanetSelections,
+        savedAt: new Date().toISOString()
+      };
       
-      // Update date status for this specific date
-      const excelUploaded = await dataService.hasExcelData(selectedUser, hourEntryDate);
-      const hourEntryCompleted = await dataService.hasHourEntry(selectedUser, hourEntryDate);
-      
-      console.log(`⏰ Status after Hour Entry save for ${hourEntryDate}:`, { 
-        excelUploaded, 
-        hourEntryCompleted,
-        key: `${selectedUser}_${hourEntryDate}`
-      });
-      
-      setDateStatuses(prev => ({
-        ...prev,
-        [hourEntryDate]: {
-          excelUploaded,
-          hourEntryCompleted
-        }
-      }));
-      
-      setShowHourEntryModal(false); // Close modal only after successful save
-      setSuccess(`Hour entry saved for ${new Date(hourEntryDate).toLocaleDateString()}.`);
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (e) {
-      setHourEntryError('Failed to save. Try again.');
+      try {
+        // Use DataService to save hour entry
+        await dataService.saveHourEntry(selectedUser, hourEntryDate, payload);
+        
+        // Update date status for this specific date
+        const excelUploaded = await dataService.hasExcelData(selectedUser, hourEntryDate);
+        const hourEntryCompleted = await dataService.hasHourEntry(selectedUser, hourEntryDate);
+        
+        console.log(`⏰ Status after Hour Entry save for ${hourEntryDate}:`, { 
+          excelUploaded, 
+          hourEntryCompleted,
+          key: `${selectedUser}_${hourEntryDate}`
+        });
+        
+        setDateStatuses(prev => ({
+          ...prev,
+          [hourEntryDate]: {
+            excelUploaded,
+            hourEntryCompleted
+          }
+        }));
+        
+        setSaveConfirmationStep(0); // Reset confirmation step
+        setShowHourEntryModal(false); // Close modal only after successful save
+        setSuccess(`Hour entry saved for ${new Date(hourEntryDate).toLocaleDateString()}.`);
+        setTimeout(() => setSuccess(''), 3000);
+      } catch (e) {
+        setHourEntryError('Failed to save. Try again.');
+        setSaveConfirmationStep(0); // Reset on error
+      }
     }
   };
 
@@ -1567,6 +1576,7 @@ function ABCDBCDNumber() {
           onClose={() => {
             setShowHourEntryModal(false);
             setHourEntryError('');
+            setSaveConfirmationStep(0); // Reset confirmation step when modal is closed
           }}
           hourEntryDate={hourEntryDate}
           datesList={datesList}
@@ -1577,6 +1587,7 @@ function ABCDBCDNumber() {
           handleSaveHourEntry={handleSaveHourEntry}
           selectedUserData={selectedUserData}
           planets={planets}
+          saveConfirmationStep={saveConfirmationStep}
         />
       </div>
     </div>
