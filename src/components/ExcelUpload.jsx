@@ -13,32 +13,126 @@ function ExcelUpload({ onDataUploaded, icon = '⬆️', showIcon = true, isUploa
     return houses.includes(house?.toString().trim());
   };
 
-  const extractHouseFromDegree = (value) => {
+  const extractHouseFromViboothiDegree = (value) => {
     if (!value) return null;
-    const match = value.toString().match(/\d+([A-Za-z]{2})\d+/);
-    return match ? match[1] : null;
+    
+    const valueStr = value.toString().trim();
+    
+    // Handle viboothi degree format like "9Vi42", "27Pi20", etc.
+    const degreeMatch = valueStr.match(/\d+([A-Za-z]{2})\d+/);
+    if (degreeMatch) {
+      return degreeMatch[1]; // Extract the house abbreviation (Vi, Pi, etc.)
+    }
+    
+    // Handle direct house format if present
+    if (houses.includes(valueStr)) {
+      return valueStr;
+    }
+    
+    return null;
   };
 
-  const validateCellCount = (worksheet, range) => {
-    let dataCount = 0;
+  const processViboothiFormat = (worksheet, range) => {
+    const processedData = {};
+    const viboothiPlanetMapping = {
+      'Lagna': 'Lg',
+      'Sun': 'Su',
+      'Moon': 'Mo', 
+      'Mars': 'Ma',
+      'Mercury': 'Me',
+      'Jupiter': 'Ju',
+      'Venus': 'Ve',
+      'Saturn': 'Sa',
+      'Rahu': 'Ra',
+      'Ketu': 'Ke'
+    };
     
-    // Count all cells with data across all rows and columns
-    for (let row = 0; row <= range.e.r; row++) {
-      for (let col = 0; col <= range.e.c; col++) {
-        const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
-        const cell = worksheet[cellAddress];
-        
-        // Count cell if it has data (not empty, not null, not undefined)
-        if (cell && cell.v !== null && cell.v !== undefined && cell.v.toString().trim() !== '') {
-          dataCount++;
+    // Get division headers from row 0
+    const divisionHeaders = [];
+    for (let col = 1; col <= range.e.c; col++) {
+      const headerCell = worksheet[XLSX.utils.encode_cell({ r: 0, c: col })];
+      if (headerCell && headerCell.v) {
+        let division = headerCell.v.toString().trim();
+        // Clean up division names (remove extra text in parentheses)
+        division = division.replace(/\s*\([^)]*\)/, '');
+        divisionHeaders[col] = division;
+      }
+    }
+    
+    // Process planet rows (starting from row 2)
+    for (let row = 2; row <= Math.min(10, range.e.r); row++) {
+      const planetCell = worksheet[XLSX.utils.encode_cell({ r: row, c: 0 })];
+      if (!planetCell || !planetCell.v) continue;
+      
+      const planetName = planetCell.v.toString().trim();
+      const planetShort = viboothiPlanetMapping[planetName];
+      
+      if (!planetShort) {
+        console.warn(`Unknown planet: ${planetName}`);
+        continue;
+      }
+      
+      processedData[planetShort] = {};
+      
+      // Process each division column
+      for (let col = 1; col <= range.e.c; col++) {
+        const cell = worksheet[XLSX.utils.encode_cell({ r: row, c: col })];
+        if (cell && cell.v) {
+          const house = extractHouseFromViboothiDegree(cell.v);
+          const division = divisionHeaders[col];
+          
+          if (house && division) {
+            processedData[planetShort][division] = house;
+          }
         }
       }
     }
     
-    if (dataCount !== 3030) {
-      throw new Error(`Data is missing. Expected 3030 cells with data, found ${dataCount} cells.`);
+    return processedData;
+  };
+
+  const validateViboothiFormat = (worksheet, range) => {
+    // Viboothi format validation: 9 planets × 24 divisions = 216 data cells
+    let dataCount = 0;
+    const expectedPlanets = ['Lagna', 'Sun', 'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn', 'Rahu'];
+    const planetRows = [];
+    
+    // Find planet rows (should start from row 2, 0-based)
+    for (let row = 2; row <= Math.min(10, range.e.r); row++) {
+      const planetCell = worksheet[XLSX.utils.encode_cell({ r: row, c: 0 })];
+      if (planetCell && planetCell.v) {
+        const planetName = planetCell.v.toString().trim();
+        if (expectedPlanets.includes(planetName)) {
+          planetRows.push({ row, name: planetName });
+        }
+      }
     }
     
+    if (planetRows.length !== 9) {
+      throw new Error(`Invalid viboothi format. Expected 9 planets, found ${planetRows.length}. Missing: ${expectedPlanets.filter(p => !planetRows.find(pr => pr.name === p)).join(', ')}`);
+    }
+    
+    // Count data cells for each planet (should have 24 divisions)
+    planetRows.forEach(({ row, name }) => {
+      let planetDataCount = 0;
+      for (let col = 1; col <= Math.min(24, range.e.c); col++) {
+        const cell = worksheet[XLSX.utils.encode_cell({ r: row, c: col })];
+        if (cell && cell.v !== null && cell.v !== undefined && cell.v.toString().trim() !== '') {
+          planetDataCount++;
+          dataCount++;
+        }
+      }
+      
+      if (planetDataCount < 20) { // Allow some tolerance for optional divisions
+        console.warn(`Warning: ${name} has only ${planetDataCount} divisions (expected ~24)`);
+      }
+    });
+    
+    if (dataCount < 180) { // Minimum threshold with tolerance
+      throw new Error(`Insufficient viboothi data. Expected ~216 cells (9 planets × 24 divisions), found ${dataCount} cells.`);
+    }
+    
+    console.log(`✅ Viboothi format validated: ${dataCount} data cells across ${planetRows.length} planets`);
     return dataCount;
   };
 
@@ -55,53 +149,15 @@ function ExcelUpload({ onDataUploaded, icon = '⬆️', showIcon = true, isUploa
           const workbook = XLSX.read(data, { type: 'array' });
           const worksheet = workbook.Sheets[workbook.SheetNames[0]];
 
-          const processedData = {};
           const range = XLSX.utils.decode_range(worksheet['!ref']);
 
-          // Validate that there are exactly 3030 cells with data
-          validateCellCount(worksheet, range);
+          // Validate viboothi format (9 planets × 24 divisions)
+          validateViboothiFormat(worksheet, range);
 
-          // Process each row (starting from row 1, skipping header)
-          for (let row = 1; row <= range.e.r; row++) {
-            const planetCell = worksheet[`A${row + 1}`]; // Add 1 to skip header
-            if (!planetCell) continue;
+          // Process viboothi format data
+          const processedData = processViboothiFormat(worksheet, range);
 
-            const planet = (planetCell.w || planetCell.v).toString().trim();
-            if (!validatePlanet(planet)) {
-              throw new Error(`Invalid planet "${planet}" in row ${row + 1}`);
-            }
-
-            const planetShort = planetMappings[planet];
-
-            // Ensure data for this planet is isolated
-            if (!processedData[planetShort]) {
-              processedData[planetShort] = {};
-            }
-
-            // Process each column (starting from column B)
-            for (let col = 1; col <= range.e.c; col++) {
-              const cellAddress = XLSX.utils.encode_cell({ r: row, c: col }); // Use `row` directly
-              const cell = worksheet[cellAddress];
-
-              if (cell) {
-                const house = extractHouseFromDegree(cell.w || cell.v);
-                if (!house) {
-                  throw new Error(`Invalid house format in row ${row + 1}, column ${XLSX.utils.encode_col(col)}`);
-                }
-                if (!validateHouse(house)) {
-                  throw new Error(`Invalid house "${house}" in row ${row + 1}, column ${XLSX.utils.encode_col(col)}`);
-                }
-
-                const division = getDivisionFromColumn(col);
-                if (division) {
-                  // Only update if no manual input exists for this division
-                  processedData[planetShort][division] = house;
-                }
-              }
-            }
-          }
-
-          onDataUploaded(processedData, file.name); // Pass file name to callback
+          onDataUploaded(processedData, file.name);
           event.target.value = null; // Reset file input
         } catch (error) {
           console.error('Excel processing error:', error);
