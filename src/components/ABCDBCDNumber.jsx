@@ -10,10 +10,11 @@ import { validateExcelStructure, generateValidationReport } from '../utils/excel
 
 // Import required components
 import Rule1Page from './Rule1Page';
+import Rule2CompactPage from './Rule2CompactPage';
 import IndexPage from './IndexPage';
 import AddDateModal from './modals/AddDateModal';
 
-const HourEntryModal = ({ show, onClose, hourEntryDate, selectedUserData, planets, hourEntryPlanetSelections, handleHourEntryPlanetChange, handleSaveHourEntry, hourEntryError, saveConfirmationStep }) => {
+const HourEntryModal = ({ show, onClose, hourEntryDate, selectedUserData, planets, hourEntryPlanetSelections, handleHourEntryPlanetChange, handleSaveHourEntry, hourEntryError }) => {
   if (!show) return null;
   
   // Handle click outside modal to close
@@ -98,43 +99,18 @@ const HourEntryModal = ({ show, onClose, hourEntryDate, selectedUserData, planet
             Cancel
           </button>
           
-          {/* Save Button - Compact Design */}
+          {/* Save Button - Simple Design */}
           <button 
             onClick={handleSaveHourEntry} 
-            className={`px-6 py-2 text-sm font-medium rounded-lg shadow-sm hover:shadow-md transition-all duration-150 transform hover:scale-[1.02] ${
-              saveConfirmationStep === 0
-                ? "bg-blue-600 hover:bg-blue-700 text-white border border-blue-600"
-                : "bg-red-500 hover:bg-red-600 text-white border border-red-500 ring-2 ring-red-200 animate-pulse"
-            }`}
+            className="px-6 py-2 text-sm font-medium rounded-lg shadow-sm hover:shadow-md transition-all duration-150 transform hover:scale-[1.02] bg-blue-600 hover:bg-blue-700 text-white border border-blue-600"
           >
-            {saveConfirmationStep === 0 ? "💾 Save Entry" : "⚠️ Confirm Save"}
+            💾 Save Entry
           </button>
         </div>
       </div>
     </div>
   );
 };
-
-// Import Rule2CompactPage (create a fallback if it doesn't exist)
-let Rule2CompactPage;
-try {
-  Rule2CompactPage = require('./Rule2CompactPage').default;
-} catch (e) {
-  // Fallback component if Rule2CompactPage doesn't exist
-  Rule2CompactPage = ({ date, selectedUser, datesList, onBack, activeHR }) => (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="text-center">
-        <h2 className="text-xl font-bold mb-4">Rule 2 Analysis</h2>
-        <p className="mb-4">Date: {date}</p>
-        <p className="mb-4">User: {selectedUser}</p>
-        <p className="mb-4">Active HR: {activeHR}</p>
-        <button onClick={onBack} className="bg-blue-500 text-white px-4 py-2 rounded">
-          Back
-        </button>
-      </div>
-    </div>
-  );
-}
 
 // 9 planets for dropdowns
 const planets = [
@@ -171,7 +147,6 @@ function ABCDBCDNumber() {
   const [hourEntryDate, setHourEntryDate] = useState('');
   const [hourEntryPlanetSelections, setHourEntryPlanetSelections] = useState({});
   const [hourEntryError, setHourEntryError] = useState('');
-  const [saveConfirmationStep, setSaveConfirmationStep] = useState(0); // 0 = not clicked, 1 = first click, 2 = saved
   const [dateStatuses, setDateStatuses] = useState({}); // Track Excel/Hour Entry status for each date
   
   // Rule1Page navigation states
@@ -204,8 +179,27 @@ function ABCDBCDNumber() {
     getHourEntry: (userId, date) => cleanSupabaseService.getHourEntry(userId, date),
     saveHourEntry: (userId, date, data) => cleanSupabaseService.saveHourEntry(userId, date, data.planetSelections),
     
-    // No-op methods for compatibility
-    deleteDataForDate: () => Promise.resolve(),
+    // ✅ COMPREHENSIVE DELETION - Connect to actual deletion functions
+    deleteDataForDate: async (userId, date) => {
+      console.log('🗑️ [DATASERVICE] Calling comprehensive deletion for:', { userId, date });
+      
+      // Delete from CleanSupabaseService first
+      try {
+        await cleanSupabaseService.deleteExcelData(userId, date);
+        await cleanSupabaseService.deleteHourEntry(userId, date);
+        console.log('✅ [DATASERVICE] CleanSupabaseService deletion completed');
+      } catch (error) {
+        console.warn('⚠️ [DATASERVICE] CleanSupabaseService deletion had issues:', error.message);
+      }
+      
+      // Import and use the comprehensive DataService deletion
+      const { DataService } = await import('../services/dataService');
+      const comprehensiveDataService = new DataService();
+      await comprehensiveDataService.deleteDataForDate(userId, date);
+      console.log('✅ [DATASERVICE] Comprehensive deletion completed');
+    },
+    
+    // Cache management methods (can be no-ops for now)
     invalidateAnalysisCacheForDate: () => Promise.resolve(),
     invalidateUser: () => Promise.resolve(),
     clearAllCache: () => Promise.resolve(),
@@ -286,18 +280,21 @@ function ABCDBCDNumber() {
       console.log('📅 Loading user dates for:', uid);
       
       const dates = await cleanSupabaseService.getUserDates(uid);
-      console.log('📅 Loaded dates:', dates);
+      console.log('📅 Loaded dates from database:', dates);
       
       if (dates && dates.length > 0) {
         const sorted = dates.sort((a, b) => new Date(b) - new Date(a));
+        console.log('📅 Setting sorted dates in UI:', sorted);
         setDatesList(sorted);
         setSelectedDate(sorted[0]);
         return;
       }
+      
+      console.log('📅 No dates found, setting empty state');
       setDatesList([]);
       setSelectedDate('');
     } catch (e) {
-      console.error('Error loading user dates:', e);
+      console.error('❌ Error loading user dates:', e);
       setDatesList([]);
       setSelectedDate('');
     }
@@ -321,14 +318,17 @@ function ABCDBCDNumber() {
 
   const saveDatesToLocalStorage = async (uid, dates) => {
     try {
+      console.log('💾 Saving dates to database for user:', uid, 'dates:', dates);
       await dataService.saveDates(uid, dates);
+      console.log('✅ Successfully saved dates to database');
     } catch (e) {
-      console.error('Error saving dates:', e);
+      console.error('❌ Error saving dates to database:', e);
+      throw e; // Re-throw to let caller handle the error
     }
   };
 
   // Add new date
-  const handleAddDate = () => {
+  const handleAddDate = async () => {
     if (!newDate) {
       setDateError('Please select a date.');
       return;
@@ -340,6 +340,7 @@ function ABCDBCDNumber() {
     }
     
     try {
+      setDateError(''); // Clear any previous errors
       const iso = new Date(newDate).toISOString().split('T')[0];
       const normalized = datesList.map(d => new Date(d).toISOString().split('T')[0]);
       
@@ -348,11 +349,17 @@ function ABCDBCDNumber() {
         return;
       }
       
-      let updated = [...datesList, iso].sort((a, b) => new Date(b) - new Date(a));
+      // ✅ Use CleanSupabaseService's dedicated addUserDate method
+      console.log('💾 Adding new date using CleanSupabaseService:', iso);
+      await cleanSupabaseService.addUserDate(selectedUser, iso);
+      console.log('✅ Date added successfully to database');
       
-      setDatesList(updated);
+      // ✅ Reload dates from database to ensure UI is in sync
+      await loadUserDates(selectedUser);
+      console.log('✅ Reloaded dates from database after adding');
+      
+      // ✅ Set the newly added date as selected
       setSelectedDate(iso);
-      saveDatesToLocalStorage(selectedUser, updated);
       setNewDate('');
       setDateError('');
       setShowAddDateModal(false);
@@ -360,7 +367,8 @@ function ABCDBCDNumber() {
       setSuccess(`Date ${new Date(iso).toLocaleDateString()} added successfully.`);
       setTimeout(() => setSuccess(''), 3000);
     } catch (e) {
-      setDateError('An error occurred. Try again.');
+      console.error('❌ Error adding date:', e);
+      setDateError('Failed to add date. Please try again.');
     }
   };
 
@@ -370,28 +378,14 @@ function ABCDBCDNumber() {
       console.log('🗑️ Starting date removal process for:', dateToRemove);
       
       if (datesList.length <= 1) {
-        const updated = datesList.filter(d => d !== dateToRemove);
+        // ✅ Use CleanSupabaseService's dedicated removeUserDate method for single date
+        console.log('🗑️ Removing last date using CleanSupabaseService:', dateToRemove);
+        await cleanSupabaseService.removeUserDate(selectedUser, dateToRemove);
+        console.log('✅ Last date removed successfully from database');
         
-        // 1. Update local state first
-        setDatesList(updated);
+        // ✅ Reload dates from database to ensure UI is in sync
+        await loadUserDates(selectedUser);
         setSelectedDate('');
-        
-        // 2. Save to both localStorage and Supabase
-        await saveDatesToLocalStorage(selectedUser, updated);
-        
-        // 3. Delete all associated data
-        await dataService.deleteDataForDate(selectedUser, dateToRemove);
-        
-        // 4. Clear all caches related to this user and date
-        await dataService.invalidateAnalysisCacheForDate(selectedUser, dateToRemove);
-        await dataService.invalidateUser(selectedUser); // Clear user cache
-        
-        // 5. Update date statuses
-        setDateStatuses(prev => {
-          const updated = { ...prev };
-          delete updated[dateToRemove];
-          return updated;
-        });
         
         setSuccess(`Date ${new Date(dateToRemove).toLocaleDateString()} removed.`);
         setTimeout(() => setSuccess(''), 3000);
@@ -406,37 +400,26 @@ function ABCDBCDNumber() {
         return;
       }
       
-      const updated = datesList.filter(d => d !== dateToRemove);
+      // ✅ Use CleanSupabaseService's dedicated removeUserDate method
+      console.log('🗑️ Removing date using CleanSupabaseService:', dateToRemove);
+      await cleanSupabaseService.removeUserDate(selectedUser, dateToRemove);
+      console.log('✅ Date removed successfully from database');
       
-      // 1. Update local state first
-      setDatesList(updated);
+      // ✅ Reload dates from database to ensure UI is in sync
+      await loadUserDates(selectedUser);
+      console.log('✅ Reloaded dates from database after removal');
       
+      // ✅ Update selected date if necessary
       if (selectedDate === dateToRemove) {
-        if (updated.length > 0) setSelectedDate(updated[0]);
-        else setSelectedDate('');
+        const remainingDates = await cleanSupabaseService.getUserDates(selectedUser);
+        if (remainingDates.length > 0) {
+          setSelectedDate(remainingDates[0]);
+        } else {
+          setSelectedDate('');
+        }
       }
       
-      // 2. Save updated dates list to both localStorage and Supabase
-      await saveDatesToLocalStorage(selectedUser, updated);
-      
-      // 3. Delete ALL data for this date from Supabase
-      await dataService.deleteDataForDate(selectedUser, dateToRemove);
-      
-      // 4. Clear ALL caches related to this user and date
-      console.log('🧹 Clearing caches for deleted date...');
-      await dataService.invalidateAnalysisCacheForDate(selectedUser, dateToRemove);
-      await dataService.invalidateUser(selectedUser); // Clear user cache
-      
-      // 5. Force clear localStorage cache for this date (backup cleanup)
-      const localStorageKeys = Object.keys(localStorage);
-      localStorageKeys.forEach(key => {
-        if (key.includes(selectedUser) && key.includes(dateToRemove)) {
-          localStorage.removeItem(key);
-          console.log('🧹 Removed localStorage key:', key);
-        }
-      });
-      
-      // 6. Update date statuses
+      // ✅ Update date statuses
       setDateStatuses(prev => {
         const updated = { ...prev };
         delete updated[dateToRemove];
@@ -446,120 +429,10 @@ function ABCDBCDNumber() {
       const label = dateToRemove === first ? 'Newest' : 'Oldest';
       setSuccess(`${label} date ${new Date(dateToRemove).toLocaleDateString()} removed.`);
       setTimeout(() => setSuccess(''), 3000);
-      
-      console.log('✅ Date removal process completed for:', dateToRemove);
-      
     } catch (error) {
-      console.error('❌ Error during date removal:', error);
-      console.error('❌ Error details:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      });
-      
-      // Provide more specific error message
-      let errorMessage = 'Failed to remove date. ';
-      
-      if (error.message?.includes('duplicate key value violates unique constraint')) {
-        errorMessage += 'Database constraint error - trying alternative method...';
-        
-        // Try emergency deletion as fallback for unique constraint errors
-        try {
-          console.log('🚨 Attempting emergency deletion fallback for unique constraint...');
-          
-          // Force remove from local state
-          const updated = datesList.filter(d => d !== dateToRemove);
-          setDatesList(updated);
-          
-          if (selectedDate === dateToRemove) {
-            if (updated.length > 0) setSelectedDate(updated[0]);
-            else setSelectedDate('');
-          }
-          
-          // Force update localStorage
-          const localKey = `user_dates_${selectedUser}`;
-          localStorage.setItem(localKey, JSON.stringify(updated));
-          
-          // Clear all related localStorage entries
-          const allKeys = Object.keys(localStorage);
-          allKeys.forEach(key => {
-            if (key.includes(selectedUser) && key.includes(dateToRemove)) {
-              localStorage.removeItem(key);
-            }
-          });
-          
-          // Update date statuses
-          setDateStatuses(prev => {
-            const updated = { ...prev };
-            delete updated[dateToRemove];
-            return updated;
-          });
-          
-          setSuccess(`Date ${new Date(dateToRemove).toLocaleDateString()} removed (using fallback method).`);
-          setTimeout(() => setSuccess(''), 3000);
-          
-          console.log('✅ Emergency deletion fallback successful for unique constraint');
-          return; // Exit without showing error
-          
-        } catch (fallbackError) {
-          console.error('❌ Emergency deletion fallback failed:', fallbackError);
-          errorMessage += ' Fallback method also failed.';
-        }
-      } else if (error.message?.includes('406') || error.message?.includes('Not Acceptable')) {
-        errorMessage += 'Server error (406) - trying alternative method...';
-        
-        // Try emergency deletion as fallback
-        try {
-          console.log('🚨 Attempting emergency deletion fallback...');
-          
-          // Force remove from local state
-          const updated = datesList.filter(d => d !== dateToRemove);
-          setDatesList(updated);
-          
-          if (selectedDate === dateToRemove) {
-            if (updated.length > 0) setSelectedDate(updated[0]);
-            else setSelectedDate('');
-          }
-          
-          // Force update localStorage
-          const localKey = `user_dates_${selectedUser}`;
-          localStorage.setItem(localKey, JSON.stringify(updated));
-          
-          // Clear all related localStorage entries
-          const allKeys = Object.keys(localStorage);
-          allKeys.forEach(key => {
-            if (key.includes(selectedUser) && key.includes(dateToRemove)) {
-              localStorage.removeItem(key);
-            }
-          });
-          
-          // Update date statuses
-          setDateStatuses(prev => {
-            const updated = { ...prev };
-            delete updated[dateToRemove];
-            return updated;
-          });
-          
-          setSuccess(`Date ${new Date(dateToRemove).toLocaleDateString()} removed (using fallback method).`);
-          setTimeout(() => setSuccess(''), 3000);
-          
-          console.log('✅ Emergency deletion fallback successful');
-          return; // Exit without showing error
-          
-        } catch (fallbackError) {
-          console.error('❌ Emergency deletion fallback failed:', fallbackError);
-          errorMessage += ' Fallback method also failed.';
-        }
-      } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
-        errorMessage += 'Network error - check your connection.';
-      } else if (error.message?.includes('permission') || error.message?.includes('unauthorized')) {
-        errorMessage += 'Permission error - check database access.';
-      } else {
-        errorMessage += `Error: ${error.message}`;
-      }
-      
-      setError(errorMessage);
-      setTimeout(() => setError(''), 8000); // Longer timeout for detailed messages
+      console.error('❌ Error removing date:', error);
+      setError('Failed to remove date. Please try again.');
+      setTimeout(() => setError(''), 5000);
     }
   };
 
@@ -602,50 +475,11 @@ function ABCDBCDNumber() {
             const report = generateValidationReport(validation, file.name);
             console.error('📋 VALIDATION REPORT:\n', report);
             
-            // Enhanced user-friendly error message for ABCD format
-            let errorMsg = `❌ Excel file does not match the required ABCD template format!\n\n`;
-            
-            // Show validation summary
-            errorMsg += `📊 Validation Summary:\n`;
-            errorMsg += `   • Topics found: ${validation.topicsFound || 0}/30 ${validation.topicsFound === 30 ? '✅' : '❌'}\n`;
-            errorMsg += `   • Valid data cells: ${validation.validDataCells || 0}/2430 ${validation.validDataCells >= 2380 ? '✅' : '❌'}\n`;
-            errorMsg += `   • Data quality: ${validation.dataQualityScore ? validation.dataQualityScore.toFixed(1) : '0.0'}%\n\n`;
-            
-            // Show critical errors first
-            if (validation.criticalErrors && validation.criticalErrors.length > 0) {
-              errorMsg += `🚨 Critical Issues (${validation.criticalErrors.length}) - Must be fixed:\n`;
-              validation.criticalErrors.forEach((error, index) => {
-                errorMsg += `• ${error}\n`;
-              });
-              errorMsg += '\n';
-            }
-            
-            // Show first few standard errors
-            if (validation.errors && validation.errors.length > 0) {
-              const standardErrors = validation.errors.filter(e => !validation.criticalErrors?.includes(e));
-              if (standardErrors.length > 0) {
-                errorMsg += `❌ Additional Issues (${Math.min(standardErrors.length, 3)} shown):\n`;
-                standardErrors.slice(0, 3).forEach((error, index) => {
-                  errorMsg += `• ${error}\n`;
-                });
-                if (standardErrors.length > 3) {
-                  errorMsg += `... and ${standardErrors.length - 3} more issues\n`;
-                }
-                errorMsg += '\n';
-              }
-            }
-            
-            // Show template requirements
-            errorMsg += `📋 Required ABCD Template Structure:\n`;
-            errorMsg += `• Must have exactly 30 topics with headers like "D-1 Set-1 Matrix"\n`;
-            errorMsg += `• Each topic must have 9 elements: as, mo, hl, gl, vig, var, sl, pp, in\n`;
-            errorMsg += `• Each element must have 9 planet data cells in columns B-J\n`;
-            errorMsg += `• Planet data must be in astrological format (e.g., "as-7-/su-(...)", "7sc12")\n`;
-            errorMsg += `• Total expected: 2430 valid data cells\n\n`;
-            errorMsg += `💡 Please use the exact template file structure for uploads.`;
+            // Simple, concise error message
+            const errorMsg = `❌ Excel file can't be uploaded - it's not from ABCD and BCD number file.`;
             
             setError(errorMsg);
-            setTimeout(() => setError(''), 20000); // Longer timeout for detailed message
+            setTimeout(() => setError(''), 5000); // Normal timeout for simple message
             event.target.value = null;
             return;
           }
@@ -836,10 +670,7 @@ function ABCDBCDNumber() {
     
     // Check if Excel data exists using DataService
     const excelData = await dataService.getExcelData(selectedUser, date);
-    if (!excelData) {
-      setError('Upload Excel file for this date first.');
-      return;
-    }
+    // Removed Excel data requirement - allow Hour Entry without Excel upload
     
     const userObj = users.find(u => u.id.toString() === selectedUser);
     if (!userObj?.hr) {
@@ -886,53 +717,41 @@ function ABCDBCDNumber() {
       return;
     }
 
-    // Double-click save logic
-    if (saveConfirmationStep === 0) {
-      // First click - show confirmation
-      setSaveConfirmationStep(1);
-      setHourEntryError(''); // Clear any previous errors
-      return;
-    }
-
-    if (saveConfirmationStep === 1) {
-      // Second click - actually save
-      const payload = {
-        userId: selectedUser,
-        date: hourEntryDate,
-        planetSelections: hourEntryPlanetSelections,
-        savedAt: new Date().toISOString()
-      };
+    // Single-click save - no confirmation needed
+    const payload = {
+      userId: selectedUser,
+      date: hourEntryDate,
+      planetSelections: hourEntryPlanetSelections,
+      savedAt: new Date().toISOString()
+    };
+    
+    try {
+      // Use DataService to save hour entry
+      await dataService.saveHourEntry(selectedUser, hourEntryDate, payload);
       
-      try {
-        // Use DataService to save hour entry
-        await dataService.saveHourEntry(selectedUser, hourEntryDate, payload);
+      // Update date status for this specific date
+      const excelUploaded = await dataService.hasExcelData(selectedUser, hourEntryDate);
+      const hourEntryCompleted = await dataService.hasHourEntry(selectedUser, hourEntryDate);
         
-        // Update date status for this specific date
-        const excelUploaded = await dataService.hasExcelData(selectedUser, hourEntryDate);
-        const hourEntryCompleted = await dataService.hasHourEntry(selectedUser, hourEntryDate);
-        
-        console.log(`⏰ Status after Hour Entry save for ${hourEntryDate}:`, { 
-          excelUploaded, 
-          hourEntryCompleted,
-          key: `${selectedUser}_${hourEntryDate}`
-        });
-        
-        setDateStatuses(prev => ({
-          ...prev,
-          [hourEntryDate]: {
-            excelUploaded,
-            hourEntryCompleted
-          }
-        }));
-        
-        setSaveConfirmationStep(0); // Reset confirmation step
-        setShowHourEntryModal(false); // Close modal only after successful save
-        setSuccess(`Hour entry saved for ${new Date(hourEntryDate).toLocaleDateString()}.`);
-        setTimeout(() => setSuccess(''), 3000);
-      } catch (e) {
-        setHourEntryError('Failed to save. Try again.');
-        setSaveConfirmationStep(0); // Reset on error
-      }
+      console.log(`⏰ Status after Hour Entry save for ${hourEntryDate}:`, { 
+        excelUploaded, 
+        hourEntryCompleted,
+        key: `${selectedUser}_${hourEntryDate}`
+      });
+      
+      setDateStatuses(prev => ({
+        ...prev,
+        [hourEntryDate]: {
+          excelUploaded,
+          hourEntryCompleted
+        }
+      }));
+      
+      setShowHourEntryModal(false); // Close modal only after successful save
+      setSuccess(`Hour entry saved for ${new Date(hourEntryDate).toLocaleDateString()}.`);
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (e) {
+      setHourEntryError('Failed to save. Try again.');
     }
   };
 
@@ -958,10 +777,7 @@ function ABCDBCDNumber() {
     const excelData = await dataService.getExcelData(selectedUser, date);
     const hourEntryData = await dataService.getHourEntry(selectedUser, date);
     
-    if (!excelData) {
-      setError('Upload Excel file for this date first.');
-      return;
-    }
+    // Removed Excel data requirement - allow Index access without Excel upload
     
     if (!hourEntryData) {
       setError('Complete Hour Entry for this date first.');
@@ -1562,7 +1378,6 @@ function ABCDBCDNumber() {
           onClose={() => {
             setShowHourEntryModal(false);
             setHourEntryError('');
-            setSaveConfirmationStep(0); // Reset confirmation step when modal is closed
           }}
           hourEntryDate={hourEntryDate}
           datesList={datesList}
@@ -1573,7 +1388,6 @@ function ABCDBCDNumber() {
           handleSaveHourEntry={handleSaveHourEntry}
           selectedUserData={selectedUserData}
           planets={planets}
-          saveConfirmationStep={saveConfirmationStep}
         />
       </div>
     </div>

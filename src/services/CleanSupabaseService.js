@@ -89,6 +89,8 @@ class CleanSupabaseService {
           date: date,
           file_name: excelData.fileName || 'Unknown',
           data: { sets: excelData.sets } // Store as JSON in 'data' column
+        }, {
+          onConflict: 'user_id,date'  // Specify composite key for conflict resolution
         })
         .select()
         .single();
@@ -154,16 +156,26 @@ class CleanSupabaseService {
 
   async hasExcelData(userId, date) {
     try {
+      console.log(`🔍 [DEBUG] Checking Excel data for user ${userId} on ${date}`);
+      
       const { count, error } = await this.supabase
         .from('excel_data')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
         .eq('date', date);
 
-      if (error) throw error;
-      return count > 0;
+      console.log(`📊 [DEBUG] Excel data query result:`, { count, error: error?.message });
+
+      if (error) {
+        console.error('❌ [DEBUG] Excel data query error:', error);
+        return false;
+      }
+
+      const exists = count > 0;
+      console.log(`${exists ? '✅' : '❌'} [DEBUG] Excel data ${exists ? 'EXISTS' : 'NOT FOUND'} for ${date}`);
+      return exists;
     } catch (error) {
-      console.error('❌ Error checking Excel data existence:', error);
+      console.error('❌ [DEBUG] Exception in hasExcelData:', error);
       return false;
     }
   }
@@ -187,6 +199,8 @@ class CleanSupabaseService {
             userId: userId,
             savedAt: new Date().toISOString()
           }
+        }, {
+          onConflict: 'user_id,date_key'  // Specify composite key for conflict resolution
         })
         .select()
         .single();
@@ -250,16 +264,26 @@ class CleanSupabaseService {
 
   async hasHourEntry(userId, date) {
     try {
+      console.log(`⏰ [DEBUG] Checking Hour Entry for user ${userId} on ${date}`);
+      
       const { count, error } = await this.supabase
         .from('hour_entries')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
         .eq('date_key', date); // Use date_key column
 
-      if (error) throw error;
-      return count > 0;
+      console.log(`📊 [DEBUG] Hour Entry query result:`, { count, error: error?.message });
+
+      if (error) {
+        console.error('❌ [DEBUG] Hour Entry query error:', error);
+        return false;
+      }
+
+      const exists = count > 0;
+      console.log(`${exists ? '✅' : '❌'} [DEBUG] Hour Entry ${exists ? 'EXISTS' : 'NOT FOUND'} for ${date}`);
+      return exists;
     } catch (error) {
-      console.error('❌ Error checking hour entry existence:', error);
+      console.error('❌ [DEBUG] Exception in hasHourEntry:', error);
       return false;
     }
   }
@@ -298,6 +322,8 @@ class CleanSupabaseService {
         .upsert({
           user_id: userId,
           dates: dates
+        }, {
+          onConflict: 'user_id'  // Specify the column to use for conflict resolution
         })
         .select()
         .single();

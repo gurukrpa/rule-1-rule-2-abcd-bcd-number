@@ -247,31 +247,28 @@ class DataService {
    */
   async hasExcelData(userId, date) {
     try {
-      // Check Supabase first - use correct table and column names
-      const { data, error } = await supabase
+      // Check Supabase first - use count to avoid single() errors
+      const { count, error } = await supabase
         .from('excel_data')
-        .select('id')
+        .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .eq('date', date)
-        .single();
+        .eq('date', date);
 
-      if (!error && data) {
-        return true;
+      if (error) {
+        this.log('⚠️ Supabase Excel check error:', error.message);
+        // For status checks, return false on Supabase errors to avoid false positives
+        // Don't fall back to localStorage for hasExcelData to prevent auto-upload bug
+        return false;
       }
 
-      // Fallback to localStorage
-      if (this.useLocalStorageFallback) {
-        const key = `abcd_excel_${userId}_${date}`;
-        return localStorage.getItem(key) !== null;
-      }
+      // Return true only if data actually exists in Supabase
+      const exists = count > 0;
+      this.log(`📊 Excel data check: ${exists ? 'EXISTS' : 'NOT FOUND'}`, { userId, date, count });
+      return exists;
 
-      return false;
     } catch (error) {
-      // If Supabase fails, check localStorage
-      if (this.useLocalStorageFallback) {
-        const key = `abcd_excel_${userId}_${date}`;
-        return localStorage.getItem(key) !== null;
-      }
+      this.log('❌ Excel data check failed:', error.message);
+      // For status checking, err on the side of "not uploaded" to prevent false positives
       return false;
     }
   }
@@ -396,31 +393,28 @@ class DataService {
    */
   async hasHourEntry(userId, date) {
     try {
-      // Check Supabase first - use correct table and column names
-      const { data, error } = await supabase
+      // Check Supabase first - use count to avoid single() errors
+      const { count, error } = await supabase
         .from('hour_entry')
-        .select('id')
+        .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .eq('date_key', date)
-        .single();
+        .eq('date_key', date);
 
-      if (!error && data) {
-        return true;
+      if (error) {
+        this.log('⚠️ Supabase Hour Entry check error:', error.message);
+        // For status checks, return false on Supabase errors to avoid false positives
+        // Don't fall back to localStorage for hasHourEntry to prevent auto-upload bug
+        return false;
       }
 
-      // Fallback to localStorage
-      if (this.useLocalStorageFallback) {
-        const key = `abcd_hourEntry_${userId}_${date}`;
-        return localStorage.getItem(key) !== null;
-      }
+      // Return true only if data actually exists in Supabase
+      const exists = count > 0;
+      this.log(`⏰ Hour Entry check: ${exists ? 'EXISTS' : 'NOT FOUND'}`, { userId, date, count });
+      return exists;
 
-      return false;
     } catch (error) {
-      // If Supabase fails, check localStorage
-      if (this.useLocalStorageFallback) {
-        const key = `abcd_hourEntry_${userId}_${date}`;
-        return localStorage.getItem(key) !== null;
-      }
+      this.log('❌ Hour Entry check failed:', error.message);
+      // For status checking, err on the side of "not uploaded" to prevent false positives
       return false;
     }
   }
@@ -435,38 +429,52 @@ class DataService {
    * @param {string} date - Date string
    */
   async deleteDataForDate(userId, date) {
-    this.log('🗑️ [ENHANCED] Deleting all data for date from ALL storage locations:', { userId, date });
+    this.log('🗑️ [COMPREHENSIVE] Deleting all data for date from ALL storage locations:', { userId, date });
     
     try {
-      // Delete from all known Supabase tables where this date might exist
+      // Delete from ALL known Supabase tables where this date might exist
       const deletePromises = [
         // Core ABCD data tables
         supabase.from('excel_data').delete().eq('user_id', userId).eq('date', date),
         supabase.from('hour_entry').delete().eq('user_id', userId).eq('date_key', date),
         supabase.from('hour_entries').delete().eq('user_id', userId).eq('date_key', date),
         
-        // UserData component tables (hr_data, house) - THESE WERE MISSING!
+        // UserData component tables (hr_data, house)
         supabase.from('hr_data').delete().eq('user_id', userId).eq('date', date),
         supabase.from('house').delete().eq('user_id', userId).eq('date', date),
         
-        // PagesDataService tables - THESE WERE MISSING!
+        // PagesDataService tables  
         supabase.from('processed_data').delete().eq('user_id', userId).eq('date', date),
         supabase.from('abcd_sequences').delete().eq('user_id', userId).eq('trigger_date', date),
+        supabase.from('abcd_sequences').delete().eq('user_id', userId).eq('a_date', date),
+        supabase.from('abcd_sequences').delete().eq('user_id', userId).eq('b_date', date),
+        supabase.from('abcd_sequences').delete().eq('user_id', userId).eq('c_date', date),
+        supabase.from('abcd_sequences').delete().eq('user_id', userId).eq('d_date', date),
         
-        // Any other potential data tables
+        // Rule2 analysis results
+        supabase.from('rule2_results').delete().eq('user_id', userId).eq('date', date),
+        
+        // General analysis and cache tables
         supabase.from('analysis_results').delete().eq('user_id', userId).eq('date', date),
-        supabase.from('calculation_cache').delete().eq('user_id', userId).eq('date', date)
+        supabase.from('calculation_cache').delete().eq('user_id', userId).eq('date', date),
+        
+        // Index page and other potential cache tables
+        supabase.from('page_cache').delete().eq('user_id', userId).eq('date', date),
+        supabase.from('user_cache').delete().eq('user_id', userId).eq('date', date),
+        supabase.from('session_cache').delete().eq('user_id', userId).eq('date', date)
       ];
 
-      this.log('🔄 Executing deletion from 9 tables...', { tableCount: deletePromises.length });
+      this.log('🔄 Executing comprehensive deletion from 17 tables...', { tableCount: deletePromises.length });
       const results = await Promise.allSettled(deletePromises);
       
       // Log results for each table (some tables might not exist, that's OK)
       const tableNames = [
         'excel_data', 'hour_entry', 'hour_entries', 
         'hr_data', 'house', 
-        'processed_data', 'abcd_sequences',
-        'analysis_results', 'calculation_cache'
+        'processed_data', 'abcd_sequences(trigger)', 'abcd_sequences(a_date)', 
+        'abcd_sequences(b_date)', 'abcd_sequences(c_date)', 'abcd_sequences(d_date)',
+        'rule2_results', 'analysis_results', 'calculation_cache',
+        'page_cache', 'user_cache', 'session_cache'
       ];
       
       let successCount = 0;
@@ -486,14 +494,23 @@ class DataService {
       // Delete from localStorage (existing function)
       this.deleteLocalStorageDataForDate(userId, date);
       
-      // Clear any additional localStorage keys that might exist
+      // Clear any additional localStorage keys that might exist (comprehensive cleanup)
       const additionalLocalStorageKeys = [
         `abcd_analysis_${userId}_${date}`,
         `abcd_cached_${userId}_${date}`,
         `abcd_processed_${userId}_${date}`,
         `rule1_data_${userId}_${date}`,
         `rule2_data_${userId}_${date}`,
-        `index_data_${userId}_${date}`
+        `index_data_${userId}_${date}`,
+        `rule2_results_${userId}_${date}`,
+        `page_cache_${userId}_${date}`,
+        `matrix_data_${userId}_${date}`,
+        `abcd_sequences_${userId}_${date}`,
+        `planets_analysis_${userId}_${date}`,
+        `hr_selections_${userId}_${date}`,
+        `topic_analysis_${userId}_${date}`,
+        `comprehensive_${userId}_${date}`,
+        `validation_${userId}_${date}`
       ];
       
       additionalLocalStorageKeys.forEach(key => {
@@ -543,7 +560,7 @@ class DataService {
         this.log('⚠️ Error updating user_dates table (deletion from other tables still successful):', userDatesError.message);
       }
       
-      this.log('✅ [ENHANCED] Comprehensive data deletion completed', { 
+      this.log('✅ [COMPREHENSIVE] Complete data deletion finished', { 
         date, 
         successfulTables: successCount, 
         failedTables: errorCount,
@@ -551,7 +568,7 @@ class DataService {
       });
       
     } catch (error) {
-      this.log('❌ [ENHANCED] Error during comprehensive deletion', error.message);
+      this.log('❌ [COMPREHENSIVE] Error during complete deletion', error.message);
       throw error; // Let caller handle the error
     }
   }

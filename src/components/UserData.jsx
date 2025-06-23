@@ -7,6 +7,7 @@ import AddNewDate from './AddNewDate';
 import ExcelUpload from './ExcelUpload';
 import * as XLSX from 'xlsx'; // Import the xlsx library
 import ExcelJS from 'exceljs'; // Import the exceljs library
+import { cleanSupabaseService } from '../services/CleanSupabaseService'; // Import CleanSupabaseService
 
 function UserData() {
   const navigate = useNavigate();
@@ -41,6 +42,11 @@ function UserData() {
         if (userError) throw userError;
         setUser(userData);
 
+        // ✅ Load dates from user_dates table first (single source of truth)
+        console.log('📅 Loading dates from user_dates table for user:', userId);
+        const userDates = await cleanSupabaseService.getUserDates(userId);
+        console.log('📅 Loaded dates from user_dates table:', userDates);
+
         // Fetch HR data
         const { data: hrData, error: hrError } = await supabase
           .from('hr_data')
@@ -50,19 +56,30 @@ function UserData() {
 
         if (hrError) throw hrError;
 
-        // Process dates from HR data
+        // Process dates from user_dates table (not HR data)
         const datesMap = {};
-        hrData.forEach(item => {
-          if (item.topic.startsWith('DAY-')) {
-            const day = parseInt(item.topic.split('-')[1]);
-            datesMap[day] = item.date;
-          }
-        });
+        if (userDates && userDates.length > 0) {
+          // Create day mapping based on chronological order
+          const sortedDates = userDates.sort((a, b) => new Date(a) - new Date(b));
+          sortedDates.forEach((date, index) => {
+            datesMap[index + 1] = date; // Start from day 1
+          });
+        } else {
+          // Fallback: Process dates from HR data if user_dates is empty
+          hrData.forEach(item => {
+            if (item.topic.startsWith('DAY-')) {
+              const day = parseInt(item.topic.split('-')[1]);
+              datesMap[day] = item.date;
+            }
+          });
+        }
 
+        console.log('📅 Final dates mapping:', datesMap);
         setHrData(hrData || []);
         setDates(datesMap);
         setHouseNumbers(updateHouseNumbers(hrData, datesMap));
       } catch (error) {
+        console.error('❌ Error fetching data:', error);
         setError('Error fetching data: ' + error.message);
       }
     }
@@ -115,12 +132,19 @@ function UserData() {
         });
       }
 
-      // Insert new entries
+      // Insert new entries with proper conflict resolution
       const { error: insertError } = await supabase
         .from('hr_data')
-        .insert(newEntries);
+        .upsert(newEntries, {
+          onConflict: 'id'  // Use ID for conflict resolution
+        });
 
       if (insertError) throw insertError;
+
+      // ✅ Save date to user_dates table using CleanSupabaseService
+      console.log('💾 Adding date to user_dates table:', newDate);
+      await cleanSupabaseService.addUserDate(userId, newDate);
+      console.log('✅ Date added to user_dates table successfully');
 
       // Update local state
       setDates(prev => ({
@@ -133,6 +157,7 @@ function UserData() {
 
       return true;
     } catch (error) {
+      console.error('❌ Error adding date:', error);
       setError('Error adding date: ' + error.message);
       return false;
     } finally {
@@ -159,7 +184,17 @@ function UserData() {
       });
 
       setHrData(updatedData);
+
+      // ✅ Save updated dates to user_dates table
+      const updatedDates = { ...dates, [day]: value };
+      const allDates = Object.values(updatedDates).filter(Boolean);
+      if (allDates.length > 0) {
+        console.log('💾 Saving updated dates to user_dates table:', allDates);
+        await cleanSupabaseService.saveUserDates(userId, allDates);
+        console.log('✅ Updated dates saved to user_dates table successfully');
+      }
     } catch (error) {
+      console.error('❌ Error updating date:', error);
       setError('Error updating date: ' + error.message);
     }
   };
@@ -254,7 +289,9 @@ function UserData() {
 
         const { error: insertError } = await supabase
           .from('hr_data')
-          .upsert(dataToSave); // This now includes the corrected column name
+          .upsert(dataToSave, {
+            onConflict: 'id'  // Use ID for conflict resolution
+          });
 
         if (insertError) throw insertError;
       }
@@ -346,12 +383,22 @@ function UserData() {
       if (houseCountData.length > 0) {
         const { error: insertError } = await supabase
           .from('house') // Still targeting the 'house' table here
-          .insert(houseCountData);
+          .upsert(houseCountData, {
+            onConflict: 'user_id,hr_number,day_number,date,topic'  // Specify composite key for conflict resolution
+          });
 
         if (insertError) {
           console.error('Insert error into house table:', insertError);
           throw insertError;
         }
+      }
+
+      // ✅ Save all dates to user_dates table to ensure persistence
+      const allDates = Object.values(dates).filter(Boolean);
+      if (allDates.length > 0) {
+        console.log('💾 Saving dates to user_dates table:', allDates);
+        await cleanSupabaseService.saveUserDates(userId, allDates);
+        console.log('✅ Dates saved to user_dates table successfully');
       }
 
       // --- End saving to 'house' table ---
