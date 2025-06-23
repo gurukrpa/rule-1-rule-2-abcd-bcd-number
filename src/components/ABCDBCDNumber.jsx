@@ -956,15 +956,16 @@ function ABCDBCDNumber() {
     setRule2PageData(null);
   };
 
-  // Handle extract numbers navigation
-  const handleExtractNumbers = (date, activeHR) => {
-    console.log('Extract numbers clicked with date:', date, 'activeHR:', activeHR);
+  // Handle extract numbers navigation with enhanced data support
+  const handleExtractNumbers = (date, activeHR, enhancedData = null) => {
+    console.log('🚀 Enhanced extract numbers navigation:', { date, activeHR, hasEnhancedData: !!enhancedData });
     
-    // Store the activeHR in the rule2PageData
+    // Store enhanced data for Rule2Page integration
     setRule2PageData({
       date,
       selectedUser,
-      activeHR
+      activeHR,
+      enhancedData
     });
     setShowRule2Page(true);
   };
@@ -1077,7 +1078,7 @@ function ABCDBCDNumber() {
     );
   }
 
-  // Conditional render for Rule2Page
+  // Conditional render for Rule2Page with enhanced data support
   if (showRule2Page && rule2PageData) {
     return (
       <Rule2CompactPage
@@ -1087,6 +1088,7 @@ function ABCDBCDNumber() {
         datesList={datesList}
         onBack={handleBackFromRule2}
         activeHR={rule2PageData.activeHR}
+        enhancedData={rule2PageData.enhancedData}
       />
     );
   }

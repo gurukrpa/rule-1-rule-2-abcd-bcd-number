@@ -4,14 +4,16 @@ import { DataService } from '../services/dataService';
 import { Rule2ResultsService } from '../services/rule2ResultsService';
 import ProgressBar from './ProgressBar';
 import { performAbcdBcdAnalysis } from '../utils/abcdBcdAnalysis';
+import ABCDBCDAnalyzer, { quickAnalyze, createAnalyzer } from '../../abcd-bcd-analyzer-script';
 
 /**
- * Rule2Page - Correct ABCD-BCD Logic Implementation
+ * Rule2Page - Enhanced ABCD-BCD Logic Implementation with Comprehensive Analyzer
  *
  * ABCD: D-day numbers appearing in ≥2 of A,B,C days (not counting D-day)
- * BCD: D-day numbers appearing in both B AND C days (not counting D-day)
+ * BCD: D-day numbers appearing in exclusive B-D or C-D pairs (not both B and C)
+ * Enhanced: Uses comprehensive analyzer for consistent results and detailed analysis
  */
-const Rule2Page = ({ date, selectedUser, selectedUserData, datesList, onBack }) => {
+const Rule2Page = ({ date, selectedUser, selectedUserData, datesList, onBack, enhancedData = null }) => {
   const navigate = useNavigate();
   const userId = selectedUser;
 
@@ -25,8 +27,28 @@ const Rule2Page = ({ date, selectedUser, selectedUserData, datesList, onBack }) 
   const [analysisInfo, setAnalysisInfo] = useState({});
   const [detailedAnalysis, setDetailedAnalysis] = useState({});
 
+  // 🚀 Enhanced ABCD/BCD Analysis State
+  const [abcdBcdAnalyzer, setAbcdBcdAnalyzer] = useState(null);
+  const [enhancedAnalysisResults, setEnhancedAnalysisResults] = useState(null);
+
   // Initialize DataService for localStorage fallback during migration
   const dataService = new DataService();
+
+  // 🆕 Initialize ABCD/BCD Analyzer
+  useEffect(() => {
+    const analyzer = enhancedData?.enhancedAnalyzer || createAnalyzer();
+    setAbcdBcdAnalyzer(analyzer);
+    console.log('🎯 Rule2Page: ABCD/BCD Analyzer initialized', enhancedData ? '(from IndexPage)' : '(new instance)');
+    
+    // If we have enhanced data from IndexPage, log it
+    if (enhancedData) {
+      console.log('📥 Rule2Page received enhanced data from IndexPage:', {
+        analysisData: !!enhancedData.analysisData,
+        allAnalysisResults: Object.keys(enhancedData.allAnalysisResults || {}),
+        allExtractedNumbers: Object.keys(enhancedData.allExtractedNumbers || {})
+      });
+    }
+  }, [enhancedData]);
 
   // Extract the FIRST number after element prefix, e.g. "as-7/su-..." → 7
   const extractElementNumber = (str) => {
@@ -223,22 +245,57 @@ const Rule2Page = ({ date, selectedUser, selectedUserData, datesList, onBack }) 
         setExtractedFromDDay(dDayNumbers);
         
         setLoadingProgress(90);
-        setLoadingMessage('Performing ABCD-BCD analysis...');
+        setLoadingMessage('Performing enhanced ABCD-BCD analysis...');
         
-        // ✅ Use enhanced utility function for consistent ABCD/BCD analysis
-        const analysis = performAbcdBcdAnalysis(
-          aDayNumbers, 
-          bDayNumbers, 
-          cDayNumbers, 
-          dDayNumbers,
-          {
-            includeDetailedAnalysis: true,
-            logResults: true,
-            setName: 'Combined All Topics'
-          }
-        );
+        // 🚀 Use enhanced analyzer for comprehensive analysis if available
+        let analysis;
+        let enhancedAnalysis = null;
+        
+        if (abcdBcdAnalyzer) {
+          console.log('🎯 Using enhanced analyzer for Rule2Page analysis');
+          
+          const dataStructure = {
+            aDayNumbers,
+            bDayNumbers,
+            cDayNumbers,
+            dDayNumbers
+          };
 
-        // Extract results from utility function
+          enhancedAnalysis = abcdBcdAnalyzer.analyze(dataStructure, {
+            setName: `Rule2Page-${date}`,
+            includeSummary: true,
+            includeElementWise: true, // Full analysis for Rule2Page
+            includeDetailed: true,
+            saveToHistory: true
+          });
+
+          console.log('🎯 Enhanced Rule2Page analysis results:', enhancedAnalysis);
+          setEnhancedAnalysisResults(enhancedAnalysis);
+
+          // Extract results in format expected by existing UI
+          analysis = {
+            abcdNumbers: enhancedAnalysis.results.abcdNumbers,
+            bcdNumbers: enhancedAnalysis.results.bcdNumbers,
+            summary: enhancedAnalysis.summary,
+            detailedAnalysis: enhancedAnalysis.detailedAnalysis || {}
+          };
+        } else {
+          console.log('📝 Enhanced analyzer not ready, using fallback utility');
+          // ✅ Fallback to enhanced utility function for consistent ABCD/BCD analysis
+          analysis = performAbcdBcdAnalysis(
+            aDayNumbers, 
+            bDayNumbers, 
+            cDayNumbers, 
+            dDayNumbers,
+            {
+              includeDetailedAnalysis: true,
+              logResults: true,
+              setName: 'Combined All Topics'
+            }
+          );
+        }
+
+        // Extract results from analysis (whether enhanced or fallback)
         const abcd = analysis.abcdNumbers;
         const bcd = analysis.bcdNumbers;
         const { detailedAnalysis: analysisDetails } = analysis;
@@ -247,7 +304,7 @@ const Rule2Page = ({ date, selectedUser, selectedUserData, datesList, onBack }) 
         const abcdAnalysis = {};
         const bcdAnalysis = {};
         
-        Object.entries(analysisDetails).forEach(([num, details]) => {
+        Object.entries(analysisDetails || {}).forEach(([num, details]) => {
           if (details.type === 'ABCD') {
             abcdAnalysis[num] = {
               count: details.abcCount,

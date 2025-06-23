@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { cleanSupabaseService } from '../services/CleanSupabaseService';
 import ProgressBar from './ProgressBar';
 import { performAbcdBcdAnalysis } from '../utils/abcdBcdAnalysis';
+import ABCDBCDAnalyzer, { quickAnalyze, createAnalyzer } from '../../abcd-bcd-analyzer-script';
 
 const IndexPage = ({
   date,               // clicked date (e.g. "2025-06-05")
@@ -25,6 +26,11 @@ const IndexPage = ({
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [analysisMessage, setAnalysisMessage] = useState('');
   const [debugStatus, setDebugStatus] = useState('Initializing...');
+  
+  // 🆕 Enhanced ABCD/BCD Analysis State
+  const [abcdBcdAnalyzer, setAbcdBcdAnalyzer] = useState(null);
+  const [analysisResults, setAnalysisResults] = useState(null);
+  const [extractedNumbers, setExtractedNumbers] = useState({});
 
   // 🆕 Topic Selection State
   const [selectedTopics, setSelectedTopics] = useState(new Set()); // Set of selected topic names
@@ -33,6 +39,13 @@ const IndexPage = ({
 
   // Initialize CleanSupabaseService for consistent data operations
   const dataService = cleanSupabaseService;
+
+  // 🆕 Initialize ABCD/BCD Analyzer
+  useEffect(() => {
+    const analyzer = createAnalyzer();
+    setAbcdBcdAnalyzer(analyzer);
+    console.log('🎯 ABCD/BCD Analyzer initialized');
+  }, []);
 
   // Define the 30-topic order in ascending numerical order (same as Rule2CompactPage)
   const TOPIC_ORDER = [
@@ -168,10 +181,10 @@ const IndexPage = ({
     }
   };
 
-  // Enhanced ABCD-BCD analysis for IndexPage - uses centralized utility
+  // 🚀 Enhanced ABCD-BCD analysis using comprehensive analyzer
   const performIndexAbcdBcdAnalysis = async (setName, aDay, bDay, cDay, dDay, hrNumber) => {
     try {
-      console.log(`🧮 Performing ABCD-BCD analysis for ${setName} with days A=${aDay}, B=${bDay}, C=${cDay}, D=${dDay}, HR=${hrNumber}`);
+      console.log(`🧮 Enhanced Analyzer - Performing ABCD-BCD analysis for ${setName} with days A=${aDay}, B=${bDay}, C=${cDay}, D=${dDay}, HR=${hrNumber}`);
       
       // Extract numbers from all available days (some might be empty if days are missing)
       const dDayNumbers = dDay ? await extractFromDateAndSet(dDay, setName, hrNumber) : [];
@@ -179,7 +192,7 @@ const IndexPage = ({
       const bDayNumbers = bDay ? await extractFromDateAndSet(bDay, setName, hrNumber) : [];
       const aDayNumbers = aDay ? await extractFromDateAndSet(aDay, setName, hrNumber) : [];
       
-      console.log(`📈 Numbers extracted (partial data OK):`, {
+      console.log(`📈 Numbers extracted for enhanced analysis:`, {
         A: aDayNumbers,
         B: bDayNumbers,
         C: cDayNumbers,
@@ -191,32 +204,78 @@ const IndexPage = ({
         return { abcdNumbers: [], bcdNumbers: [] };
       }
 
-      // ✅ Use enhanced utility function for consistent analysis
-      const analysis = performAbcdBcdAnalysis(
-        aDayNumbers, 
-        bDayNumbers, 
-        cDayNumbers, 
-        dDayNumbers,
-        {
-          includeDetailedAnalysis: false,
-          logResults: true,
-          setName
+      // 🎯 Store extracted numbers for Rule2Page integration
+      setExtractedNumbers(prev => ({
+        ...prev,
+        [setName]: {
+          aDayNumbers,
+          bDayNumbers,
+          cDayNumbers,
+          dDayNumbers,
+          hrNumber,
+          timestamp: new Date().toISOString()
         }
-      );
+      }));
 
-      console.log(`🎯 Enhanced analysis results for ${setName}:`, {
-        availableDays: [aDayNumbers, bDayNumbers, cDayNumbers].filter(arr => arr.length > 0).length,
-        summary: analysis.summary,
-        abcdNumbers: analysis.abcdNumbers,
-        bcdNumbers: analysis.bcdNumbers
-      });
+      // 🚀 Use enhanced analyzer for comprehensive analysis
+      if (abcdBcdAnalyzer) {
+        const dataStructure = {
+          aDayNumbers,
+          bDayNumbers,
+          cDayNumbers,
+          dDayNumbers
+        };
 
-      return { 
-        abcdNumbers: analysis.abcdNumbers, 
-        bcdNumbers: analysis.bcdNumbers 
-      };
+        const enhancedAnalysis = abcdBcdAnalyzer.analyze(dataStructure, {
+          setName: `IndexPage-${setName}`,
+          includeSummary: true,
+          includeElementWise: false, // Skip element-wise for performance in IndexPage
+          includeDetailed: false,
+          saveToHistory: true
+        });
+
+        console.log(`🎯 Enhanced analyzer results for ${setName}:`, {
+          availableDays: [aDayNumbers, bDayNumbers, cDayNumbers].filter(arr => arr.length > 0).length,
+          summary: enhancedAnalysis.summary,
+          abcdNumbers: enhancedAnalysis.results.abcdNumbers,
+          bcdNumbers: enhancedAnalysis.results.bcdNumbers,
+          unqualifiedNumbers: enhancedAnalysis.results.unqualifiedNumbers
+        });
+
+        // Store enhanced results for future reference
+        setAnalysisResults(prev => ({
+          ...prev,
+          [setName]: enhancedAnalysis
+        }));
+
+        return { 
+          abcdNumbers: enhancedAnalysis.results.abcdNumbers, 
+          bcdNumbers: enhancedAnalysis.results.bcdNumbers,
+          unqualifiedNumbers: enhancedAnalysis.results.unqualifiedNumbers,
+          summary: enhancedAnalysis.summary
+        };
+      } else {
+        // Fallback to utility function if analyzer not ready
+        console.log('📝 Analyzer not ready, using fallback utility');
+        const analysis = performAbcdBcdAnalysis(
+          aDayNumbers, 
+          bDayNumbers, 
+          cDayNumbers, 
+          dDayNumbers,
+          {
+            includeDetailedAnalysis: false,
+            logResults: true,
+            setName
+          }
+        );
+
+        return { 
+          abcdNumbers: analysis.abcdNumbers, 
+          bcdNumbers: analysis.bcdNumbers 
+        };
+      }
     } catch (error) {
-      console.error('Error performing ABCD-BCD analysis:', error);
+      console.error('Error performing enhanced ABCD-BCD analysis:', error);
       return { abcdNumbers: [], bcdNumbers: [] };
     }
   };
@@ -903,7 +962,7 @@ const IndexPage = ({
       // 3. Data exists but has no actual topic sets
       //
       // To fix: Re-upload Excel file with proper 30 topics structure
-      // Format should be: "D-1 Set-1 Matrix", "D-1 Set-2 Matrix", etc.
+      // Format should be: "D-1 Set-1 Matrix", "D-1 Set-2 Matrix", "D-3 Set-1 Matrix", etc.
       
       if (!hasAnySets) {
         console.log('🚧 REAL DATA ISSUE: No sets found in your uploaded Excel data!');
@@ -945,6 +1004,46 @@ const IndexPage = ({
     });
     
     return elementSet;
+  };
+
+  // 🔗 Function to provide enhanced analysis data to Rule2Page
+  const getAnalysisDataForRule2 = (setName) => {
+    const extractedData = extractedNumbers[setName];
+    const analysisData = analysisResults?.[setName];
+    
+    if (extractedData && analysisData) {
+      console.log(`📤 Providing enhanced analysis data for ${setName} to Rule2Page`);
+      return {
+        extractedNumbers: extractedData,
+        analysisResults: analysisData,
+        enhancedAnalyzer: abcdBcdAnalyzer,
+        timestamp: extractedData.timestamp
+      };
+    }
+    
+    console.log(`⚠️ No enhanced analysis data available for ${setName}`);
+    return null;
+  };
+
+  // 🚀 Enhanced navigation to Rule2Page with analysis data
+  const handleExtractNumbersWithAnalysis = (date, hrNumber, setName = null) => {
+    console.log(`🚀 Enhanced navigation to Rule2Page - Date: ${date}, HR: ${hrNumber}, Set: ${setName}`);
+    
+    // Prepare enhanced data package for Rule2Page
+    const enhancedData = {
+      date,
+      hrNumber,
+      setName,
+      analysisData: setName ? getAnalysisDataForRule2(setName) : null,
+      allAnalysisResults: analysisResults,
+      allExtractedNumbers: extractedNumbers,
+      enhancedAnalyzer: abcdBcdAnalyzer
+    };
+
+    // Call the original callback with enhanced data
+    if (onExtractNumbers) {
+      onExtractNumbers(date, hrNumber, enhancedData);
+    }
   };
 
   if (loading) {
@@ -1562,7 +1661,7 @@ const IndexPage = ({
           <button
             onClick={() => {
               if (canEnableRule2) {
-                onExtractNumbers(date, activeHR);
+                handleExtractNumbersWithAnalysis(date, activeHR);
               }
             }}
             disabled={!canEnableRule2}
@@ -1572,7 +1671,7 @@ const IndexPage = ({
                 : 'bg-gray-300 text-gray-600 cursor-not-allowed opacity-60'
             }`}
           >
-            Extract Numbers
+            🚀 Extract Numbers (Enhanced)
           </button>
         </div>
       </div>

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rule2 Data Extraction Test</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .section {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0088ff;
+        }
+        .result {
+            min-height: 100px;
+            background: #000;
+            border: 1px solid #333;
+            padding: 15px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            color: #00ff00;
+        }
+        .success { color: #00ff00; }
+        .error { color: #ff4444; }
+        .warning { color: #ffaa00; }
+        .info { color: #44aaff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Rule2 Data Extraction Test</h1>
+        
+        <div class="section">
+            <h2>🔍 Test Data Extraction</h2>
+            <button onclick="runFullTest()">Run Complete Test</button>
+            <div id="testResult" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h2>🧪 Test ABCD/BCD Logic</h2>
+            <button onclick="testAbcdBcdLogic()">Test Logic with Extracted Numbers</button>
+            <div id="logicResult" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h2>🔄 Quick Actions</h2>
+            <button onclick="recreateTestData()">Recreate Test Data</button>
+            <button onclick="goToApp()">Go Back to App</button>
+            <button onclick="goToRule2CompactPage()">Go to Rule2CompactPage</button>
+        </div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const colors = {
+                success: '#00ff00',
+                error: '#ff4444', 
+                warning: '#ffaa00',
+                info: '#44aaff'
+            };
+            return `<span style="color: ${colors[type]}">${message}</span>`;
+        }
+
+        function runFullTest() {
+            const result = document.getElementById('testResult');
+            result.innerHTML = '';
+            
+            try {
+                result.innerHTML += log('🎯 TARGETED RULE2COMPACTPAGE DEBUG', 'info') + '\\n';
+                result.innerHTML += log('================================', 'info') + '\\n\\n';
+
+                // Check what user ID is being used
+                const userId = localStorage.getItem('userId');
+                result.innerHTML += log('👤 Current User ID: ' + (userId || 'NOT FOUND'), userId ? 'success' : 'error') + '\\n';
+
+                if (!userId) {
+                    result.innerHTML += log('❌ No user ID found! Create test data first.', 'error') + '\\n';
+                    return;
+                }
+
+                // Get all localStorage keys for this user
+                const allKeys = Object.keys(localStorage);
+                const userKeys = allKeys.filter(key => key.includes(userId));
+                
+                result.innerHTML += log('\\n📊 ALL USER KEYS:', 'info') + '\\n';
+                userKeys.forEach(key => {
+                    result.innerHTML += log('  - ' + key, 'info') + '\\n';
+                });
+                
+                // Check Excel keys specifically
+                const excelKeys = userKeys.filter(key => key.includes('excel'));
+                result.innerHTML += log('\\n📋 EXCEL KEYS: ' + excelKeys.length + ' found', excelKeys.length > 0 ? 'success' : 'error') + '\\n';
+                
+                // Check Hour keys specifically  
+                const hourKeys = userKeys.filter(key => key.includes('hour'));
+                result.innerHTML += log('⏰ HOUR KEYS: ' + hourKeys.length + ' found', hourKeys.length > 0 ? 'success' : 'error') + '\\n';
+                
+                // Let's see what dates we have data for - DEBUG THE REGEX
+                result.innerHTML += log('\\n🔍 DEBUGGING DATE EXTRACTION:', 'info') + '\\n';
+                result.innerHTML += log('Sample keys for regex testing:', 'info') + '\\n';
+                userKeys.slice(0, 3).forEach(key => {
+                    result.innerHTML += log('  Key: ' + key, 'info') + '\\n';
+                });
+                
+                const datePattern = /(\d{4}-\d{2}-\d{2})/;
+                const datesWithData = new Set();
+                
+                userKeys.forEach(key => {
+                    const match = key.match(datePattern);
+                    if (match) {
+                        datesWithData.add(match[1]);
+                        result.innerHTML += log('  ✅ Found date: ' + match[1] + ' in key: ' + key, 'success') + '\\n';
+                    } else {
+                        if (userKeys.indexOf(key) < 3) { // Show first few non-matches
+                            result.innerHTML += log('  ❌ No date match in: ' + key, 'warning') + '\\n';
+                        }
+                    }
+                });
+                
+                const sortedDates = Array.from(datesWithData).sort();
+                result.innerHTML += log('\\n📅 DATES WITH DATA (' + sortedDates.length + ' found): ' + sortedDates.join(', '), sortedDates.length > 0 ? 'success' : 'error') + '\\n';
+                
+                // Check one Excel file structure
+                if (excelKeys.length > 0) {
+                    const sampleKey = excelKeys[0];
+                    const sampleData = JSON.parse(localStorage.getItem(sampleKey));
+                    result.innerHTML += log('\\n📋 SAMPLE EXCEL STRUCTURE:', 'info') + '\\n';
+                    result.innerHTML += log('Key: ' + sampleKey, 'info') + '\\n';
+                    result.innerHTML += log('Has data: ' + !!sampleData.data, sampleData.data ? 'success' : 'error') + '\\n';
+                    result.innerHTML += log('Has sets: ' + !!sampleData.data?.sets, sampleData.data?.sets ? 'success' : 'error') + '\\n';
+                    result.innerHTML += log('Set names: ' + Object.keys(sampleData.data?.sets || {}).join(', '), 'info') + '\\n';
+                }
+                
+                // Check one Hour file structure
+                if (hourKeys.length > 0) {
+                    const sampleKey = hourKeys[0];
+                    const sampleData = JSON.parse(localStorage.getItem(sampleKey));
+                    result.innerHTML += log('\\n⏰ SAMPLE HOUR STRUCTURE:', 'info') + '\\n';
+                    result.innerHTML += log('Key: ' + sampleKey, 'info') + '\\n';
+                    result.innerHTML += log('Has planetSelections: ' + !!sampleData.planetSelections, sampleData.planetSelections ? 'success' : 'error') + '\\n';
+                    result.innerHTML += log('HR keys: ' + Object.keys(sampleData.planetSelections || {}).join(', '), 'info') + '\\n';
+                    result.innerHTML += log('Planet selections: ' + JSON.stringify(sampleData.planetSelections), 'info') + '\\n';
+                }
+
+                // Test data extraction
+                result.innerHTML += log('\\n🧪 TESTING DATA EXTRACTION:', 'info') + '\\n';
+                const testDates = sortedDates.slice(0, 4); // Test first 4 dates
+                
+                testDates.forEach(date => {
+                    const extracted = testDataExtraction(date, 'D-1 Set-1 Matrix', '1');
+                    result.innerHTML += log('Date ' + date + ': [' + extracted.join(', ') + '] (' + extracted.length + ' numbers)', extracted.length > 0 ? 'success' : 'warning') + '\\n';
+                });
+
+            } catch (error) {
+                result.innerHTML += log('❌ Error: ' + error.message, 'error') + '\\n';
+            }
+        }
+
+        function testDataExtraction(targetDate, setName, selectedHR) {
+            const userId = localStorage.getItem('userId');
+            if (!userId) return [];
+            
+            const excelKey = `${userId}_excel_${targetDate}`;
+            const hourKey = `${userId}_hour_${targetDate}`;
+            
+            const excelData = localStorage.getItem(excelKey);
+            const hourData = localStorage.getItem(hourKey);
+            
+            if (!excelData || !hourData) return [];
+            
+            const parsedExcel = JSON.parse(excelData);
+            const parsedHour = JSON.parse(hourData);
+            
+            const sets = parsedExcel.data?.sets || {};
+            const planetSelections = parsedHour.planetSelections || {};
+            
+            const setData = sets[setName];
+            if (!setData) return [];
+            
+            const selectedPlanet = planetSelections[selectedHR];
+            if (!selectedPlanet) return [];
+            
+            const allNumbers = new Set();
+            
+            Object.entries(setData).forEach(([elementName, planetData]) => {
+                const rawString = planetData[selectedPlanet];
+                if (rawString) {
+                    const match = rawString.match(/^[a-z]+-(\d+)[\\/\\-]/);
+                    const elementNumber = match ? Number(match[1]) : null;
+                    if (elementNumber !== null) {
+                        allNumbers.add(elementNumber);
+                    }
+                }
+            });
+            
+            return Array.from(allNumbers).sort((a, b) => a - b);
+        }
+
+        function testAbcdBcdLogic() {
+            const result = document.getElementById('logicResult');
+            result.innerHTML = '';
+            
+            try {
+                result.innerHTML += log('🧪 TESTING ABCD/BCD LOGIC', 'info') + '\\n';
+                result.innerHTML += log('==========================', 'info') + '\\n\\n';
+
+                const userId = localStorage.getItem('userId');
+                if (!userId) {
+                    result.innerHTML += log('❌ No user ID found', 'error') + '\\n';
+                    return;
+                }
+
+                // Get dates with data
+                const allKeys = Object.keys(localStorage);
+                const userKeys = allKeys.filter(key => key.includes(userId));
+                const datePattern = /(\d{4}-\d{2}-\d{2})/;
+                const datesWithData = new Set();
+                
+                userKeys.forEach(key => {
+                    const match = key.match(datePattern);
+                    if (match) {
+                        datesWithData.add(match[1]);
+                    }
+                });
+                
+                const sortedDates = Array.from(datesWithData).sort();
+                
+                if (sortedDates.length < 4) {
+                    result.innerHTML += log('❌ Need at least 4 dates for ABCD analysis. Found: ' + sortedDates.length, 'error') + '\\n';
+                    return;
+                }
+
+                // Use first 4 dates as A, B, C, D
+                const [aDay, bDay, cDay, dDay] = sortedDates;
+                
+                result.innerHTML += log('📅 Using dates:', 'info') + '\\n';
+                result.innerHTML += log('A-day: ' + aDay, 'info') + '\\n';
+                result.innerHTML += log('B-day: ' + bDay, 'info') + '\\n';
+                result.innerHTML += log('C-day: ' + cDay, 'info') + '\\n';
+                result.innerHTML += log('D-day: ' + dDay, 'info') + '\\n\\n';
+
+                // Extract numbers for each day
+                const aDayNumbers = testDataExtraction(aDay, 'D-1 Set-1 Matrix', '1');
+                const bDayNumbers = testDataExtraction(bDay, 'D-1 Set-1 Matrix', '1');
+                const cDayNumbers = testDataExtraction(cDay, 'D-1 Set-1 Matrix', '1');
+                const dDayNumbers = testDataExtraction(dDay, 'D-1 Set-1 Matrix', '1');
+
+                result.innerHTML += log('📊 Extracted Numbers:', 'info') + '\\n';
+                result.innerHTML += log('A-day: [' + aDayNumbers.join(', ') + ']', 'info') + '\\n';
+                result.innerHTML += log('B-day: [' + bDayNumbers.join(', ') + ']', 'info') + '\\n';
+                result.innerHTML += log('C-day: [' + cDayNumbers.join(', ') + ']', 'info') + '\\n';
+                result.innerHTML += log('D-day: [' + dDayNumbers.join(', ') + ']', 'info') + '\\n\\n';
+
+                if (dDayNumbers.length === 0) {
+                    result.innerHTML += log('❌ No D-day numbers found!', 'error') + '\\n';
+                    return;
+                }
+
+                // Apply ABCD/BCD logic
+                const abcdNumbers = [];
+                const bcdNumbers = [];
+
+                dDayNumbers.forEach(num => {
+                    const inA = aDayNumbers.includes(num);
+                    const inB = bDayNumbers.includes(num);
+                    const inC = cDayNumbers.includes(num);
+                    
+                    const abcCount = [inA, inB, inC].filter(Boolean).length;
+                    
+                    if (abcCount >= 2) {
+                        abcdNumbers.push(num);
+                        result.innerHTML += log('✅ ' + num + ' → ABCD (in ' + abcCount + '/3 ABC days)', 'success') + '\\n';
+                    } else {
+                        const bdPairOnly = inB && !inC;
+                        const cdPairOnly = inC && !inB;
+                        
+                        if (bdPairOnly || cdPairOnly) {
+                            bcdNumbers.push(num);
+                            result.innerHTML += log('✅ ' + num + ' → BCD (' + (bdPairOnly ? 'B-D pair' : 'C-D pair') + ')', 'success') + '\\n';
+                        } else {
+                            result.innerHTML += log('❌ ' + num + ' → No qualification (only in ' + abcCount + '/3 ABC days)', 'warning') + '\\n';
+                        }
+                    }
+                });
+
+                result.innerHTML += log('\\n🎉 FINAL RESULTS:', 'info') + '\\n';
+                result.innerHTML += log('✅ ABCD Numbers: [' + abcdNumbers.join(', ') + '] (' + abcdNumbers.length + ' total)', abcdNumbers.length > 0 ? 'success' : 'warning') + '\\n';
+                result.innerHTML += log('✅ BCD Numbers: [' + bcdNumbers.join(', ') + '] (' + bcdNumbers.length + ' total)', bcdNumbers.length > 0 ? 'success' : 'warning') + '\\n';
+
+            } catch (error) {
+                result.innerHTML += log('❌ Error: ' + error.message, 'error') + '\\n';
+            }
+        }
+
+        function recreateTestData() {
+            // Same logic as in debug-tool.html
+            const userId = 'test-user-' + Date.now();
+            localStorage.setItem('userId', userId);
+            
+            // Create test dates (4 consecutive days)
+            const today = new Date();
+            const dates = [];
+            for (let i = 3; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                dates.push(date.toISOString().split('T')[0]);
+            }
+            
+            const [aDay, bDay, cDay, dDay] = dates;
+            
+            // Create sample data for each day
+            const sampleNumbers = {
+                [aDay]: [1, 2, 15, 20, 25, 30],
+                [bDay]: [1, 3, 16, 21, 26, 31], 
+                [cDay]: [2, 4, 17, 22, 27, 32],
+                [dDay]: [1, 2, 3, 4, 5, 18]
+            };
+
+            dates.forEach(date => {
+                // Create Excel data
+                const excelData = {
+                    data: {
+                        sets: {
+                            'D-1 Set-1 Matrix': {
+                                'element1': { 'Sun': 'as-' + sampleNumbers[date][0] + '/su-20', 'Moon': 'mo-' + sampleNumbers[date][1] + '/ve-25' },
+                                'element2': { 'Sun': 'li-' + sampleNumbers[date][2] + '/ma-30', 'Moon': 'ar-' + sampleNumbers[date][3] + '/ju-35' },
+                                'element3': { 'Sun': 'vi-' + sampleNumbers[date][4] + '/sa-40', 'Moon': 'le-' + sampleNumbers[date][5] + '/me-45' }
+                            }
+                        }
+                    }
+                };
+
+                // Create hour data
+                const hourData = {
+                    planetSelections: { '1': 'Sun', '2': 'Moon' }
+                };
+
+                localStorage.setItem(userId + '_excel_' + date, JSON.stringify(excelData));
+                localStorage.setItem(userId + '_hour_' + date, JSON.stringify(hourData));
+            });
+
+            alert('✅ Fresh test data created! User ID: ' + userId);
+            location.reload(); // Refresh to run tests with new data
+        }
+
+        function goToApp() {
+            window.location.href = 'http://localhost:5173/';
+        }
+
+        function goToRule2CompactPage() {
+            window.location.href = 'http://localhost:5173/';
+            // Note: User will need to navigate to Rule2CompactPage from main app
+        }
+
+        // Auto-run test on page load
+        window.onload = function() {
+            runFullTest();
+        };
+    </script>
+</body>
+</html>
