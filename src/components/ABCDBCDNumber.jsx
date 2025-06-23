@@ -1069,6 +1069,7 @@ function ABCDBCDNumber() {
         key={`rule1-${selectedUser}-${datesList.length}-${JSON.stringify(datesList)}`}
         date={rule1PageData.date}
         selectedUser={rule1PageData.selectedUser}
+        selectedUserData={selectedUserData}
         datesList={datesList}
         users={rule1PageData.users}
         onBack={handleBackFromRule1}

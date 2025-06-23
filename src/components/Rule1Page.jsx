@@ -263,6 +263,8 @@ function Rule1Page({ date, selectedUser, selectedUserData, datesList, onBack }) 
       
       console.log(`🔍 [Rule-1] Loading data for user ${selectedUser}, date ${date}`);
       console.log(`📊 [Rule-1] Available dates:`, datesList);
+      console.log(`👤 [Rule-1] User data:`, selectedUserData);
+      console.log(`🗓️ [Rule-1] DatesList length:`, datesList?.length);
 
       // Stage 1: Data Validation (0-10%)
       setLoadingProgress(5);
@@ -271,7 +273,7 @@ function Rule1Page({ date, selectedUser, selectedUserData, datesList, onBack }) 
 
       if (!datesList || !Array.isArray(datesList) || datesList.length === 0) {
         console.error(`❌ [Rule-1] CRITICAL: Invalid datesList:`, datesList);
-        setError('Invalid dates list provided to Rule-1 page');
+        setError('No dates available. Please add dates first from the main page.');
         setLoading(false);
         return;
       }
@@ -304,7 +306,7 @@ function Rule1Page({ date, selectedUser, selectedUserData, datesList, onBack }) 
       let windowDates = sortedDates.slice(0, targetIdx + 1);
       console.log(`🪟 [Rule-1] Window dates:`, windowDates);
       console.log(`🪟 [Rule-1] Window analysis:`, {
-        totalDates: windowDates.length,
+        windowTotalDates: windowDates.length,
         firstDate: windowDates[0],
         lastDate: windowDates[windowDates.length - 1],
         fifthDate: windowDates.length >= 5 ? windowDates[4] : 'Not available',
@@ -328,14 +330,14 @@ function Rule1Page({ date, selectedUser, selectedUserData, datesList, onBack }) 
       setLoadingStages(prev => ({ ...prev, dateProcessing: true }));
 
       const assembled = {};
-      const totalDates = windowDates.length;
-      const progressPerDate = 65 / totalDates; // 65% for all date processing (15% to 80%)
+      const windowTotalDates = windowDates.length;
+      const progressPerDate = 65 / windowTotalDates; // 65% for all date processing (15% to 80%)
 
       // Optimize: Load all data concurrently with Promise.all for better performance
       const dataPromises = windowDates.map(async (d, idx) => {
         const currentProgress = 15 + (idx * progressPerDate);
         setLoadingProgress(currentProgress);
-        setLoadingMessage(`Loading date ${idx + 1}/${totalDates}: ${new Date(d).toLocaleDateString()}`);
+        setLoadingMessage(`Loading date ${idx + 1}/${windowTotalDates}: ${new Date(d).toLocaleDateString()}`);
 
         try {
           // Load Excel and Hour data concurrently
@@ -413,9 +415,31 @@ function Rule1Page({ date, selectedUser, selectedUserData, datesList, onBack }) 
       setLoadingMessage('Processing all date data...');
       const results = await Promise.all(dataPromises);
       
-      // Assemble results
+      // Assemble results and analyze data availability
+      let successfulDates = 0;
+      let totalDates = results.length;
+      const missingDataSummary = { missingExcel: [], missingHour: [], hasData: [] };
+      
       results.forEach(({ dateKey, data }) => {
         assembled[dateKey] = data;
+        if (data.success) {
+          successfulDates++;
+          missingDataSummary.hasData.push(dateKey);
+        } else if (data.error) {
+          if (data.error.includes('Excel')) {
+            missingDataSummary.missingExcel.push(dateKey);
+          }
+          if (data.error.includes('Hour')) {
+            missingDataSummary.missingHour.push(dateKey);
+          }
+        }
+      });
+
+      console.log(`📊 [Rule-1] Data loading summary:`, {
+        totalDates,
+        successfulDates,
+        missingDataSummary,
+        loadedDates: Object.keys(assembled)
       });
 
       setLoadingProgress(80);
@@ -430,27 +454,35 @@ function Rule1Page({ date, selectedUser, selectedUserData, datesList, onBack }) 
       setAllDaysData(assembled);
       console.log(`✅ [Rule-1] All days data assembled:`, assembled);
 
-      // Auto-select first available HR if none selected
+      // Auto-select first available HR if none selected (prioritize user's first HR)
       if (!activeHR) {
+        // Check for HR data from loaded dates first
         const allHRs = new Set();
         Object.values(assembled).forEach(dayData => {
           if (dayData?.success && dayData.hrData) {
             Object.keys(dayData.hrData).forEach(hr => allHRs.add(hr));
           }
         });
-        const firstHR = Array.from(allHRs).sort((a, b) => parseInt(a) - parseInt(b))[0];
         
-        // 🚀 INDEPENDENT MODE: If no HR found from data, use HR1 as default
-        const selectedHR = firstHR || (selectedUserData?.hr ? '1' : null);
+        const firstDataHR = Array.from(allHRs).sort((a, b) => parseInt(a) - parseInt(b))[0];
+        
+        // 🎯 PRIORITIZED SELECTION: Use data HR if available, otherwise default to HR1 from user config
+        const selectedHR = firstDataHR || (selectedUserData?.hr ? '1' : null);
         
         if (selectedHR) {
-          console.log(`🎯 [Rule-1] Auto-selecting HR: ${selectedHR} ${firstHR ? '(from data)' : '(default for independent mode)'}`);
+          console.log(`🎯 [Rule-1] Auto-selecting HR: ${selectedHR} ${firstDataHR ? '(from actual Hour Entry data)' : '(default HR1 from user config)'}`);
           setActiveHR(selectedHR);
+        } else {
+          console.warn(`⚠️ [Rule-1] No HR available - no data and no user configuration`);
         }
       }
 
       setLoadingProgress(95);
-      setLoadingMessage('✅ Matrix ready!');
+      if (successfulDates > 0) {
+        setLoadingMessage(`✅ Matrix ready! Loaded ${successfulDates}/${totalDates} dates with complete data.`);
+      } else {
+        setLoadingMessage(`⚠️ Interface ready - ${totalDates} dates available but missing Excel/Hour Entry data.`);
+      }
       setLoadingStages(prev => ({ ...prev, uiRendering: true }));
 
       // Brief completion delay to show success message
@@ -458,7 +490,12 @@ function Rule1Page({ date, selectedUser, selectedUserData, datesList, onBack }) 
         setLoading(false);
         setLoadingProgress(100);
         setShowSuccessNotification(true);
-        console.log('🎉 [Rule-1] Page fully loaded and ready!');
+        
+        if (successfulDates > 0) {
+          console.log(`🎉 [Rule-1] Page loaded with ${successfulDates} dates of data!`);
+        } else {
+          console.log(`🔄 [Rule-1] Page loaded in interface mode - ${missingDataSummary.missingExcel.length} dates need Excel, ${missingDataSummary.missingHour.length} need Hour Entry.`);
+        }
         
         // Hide success notification after 3 seconds
         setTimeout(() => {
@@ -931,25 +968,27 @@ function Rule1Page({ date, selectedUser, selectedUserData, datesList, onBack }) 
   // Get ALL window dates including those without data (for proper display)
   const allWindowDates = availableDates; // Show all dates loaded into allDaysData
   
-  // Get HR choices from ANY available date that has data (with fallback for independent operation)
+  // Get HR choices from user configuration (like Hour Entry modal) and actual data
   const hrChoices = (() => {
     const allHRs = new Set();
+    
+    // 🎯 PRIMARY: Use user's HR configuration (like Hour Entry modal)
+    if (selectedUserData?.hr) {
+      for (let i = 1; i <= selectedUserData.hr; i++) {
+        allHRs.add(i.toString());
+      }
+      console.log(`✅ [Rule-1] Using user's HR configuration: HR 1-${selectedUserData.hr}`);
+    }
+    
+    // 🔍 SUPPLEMENTARY: Also include any HR data found in successful dates
     availableDates.forEach(dateKey => {
       if (allDaysData[dateKey]?.hrData && allDaysData[dateKey].success) {
         Object.keys(allDaysData[dateKey].hrData).forEach(hr => allHRs.add(hr));
       }
     });
+    
     const hrArray = Array.from(allHRs).sort((a, b) => parseInt(a) - parseInt(b));
-    
-    // 🚀 INDEPENDENT OPERATION: If no HR data found, provide default HR options based on user data
-    if (hrArray.length === 0 && selectedUserData?.hr) {
-      console.log(`🔄 [Rule-1] No HR data found in dates, using default HR range 1-${selectedUserData.hr} for independent operation`);
-      for (let i = 1; i <= selectedUserData.hr; i++) {
-        hrArray.push(i.toString());
-      }
-    }
-    
-    console.log(`🔍 [Rule-1] Available HR choices:`, hrArray, 'from successful dates:', availableDates.filter(dateKey => allDaysData[dateKey]?.success));
+    console.log(`🔍 [Rule-1] Final HR choices:`, hrArray, 'from user config and/or data');
     return hrArray;
   })();
 
@@ -1340,31 +1379,73 @@ function Rule1Page({ date, selectedUser, selectedUserData, datesList, onBack }) 
             <span className="text-sm font-medium text-gray-600 mr-4">Select HR:</span>
             {hrChoices.length > 0 ? (
               <>
-                {hrChoices.map(hr => (
-                  <button
-                    key={hr}
-                    onClick={() => setActiveHR(hr)}
-                    className={`mx-1 px-3 py-1 rounded-lg text-sm font-medium ${
-                      activeHR === hr
-                        ? 'bg-green-500 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-green-100'
-                    }`}
-                  >
-                    HR {hr}
-                  </button>
-                ))}
-                {/* Show operation mode indicator */}
-                {availableDates.every(dateKey => !allDaysData[dateKey]?.success) && (
-                  <span className="ml-4 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                    🔄 Independent Mode - Default HR range
-                  </span>
-                )}
+                {hrChoices.map(hr => {
+                  // Get planet data for this HR from any available date
+                  let planetData = null;
+                  for (const dateKey of availableDates) {
+                    if (allDaysData[dateKey]?.success && allDaysData[dateKey].hrData?.[hr]?.selectedPlanet) {
+                      planetData = allDaysData[dateKey].hrData[hr].selectedPlanet;
+                      break;
+                    }
+                  }
+                  
+                  return (
+                    <button
+                      key={hr}
+                      onClick={() => setActiveHR(hr)}
+                      className={`mx-1 px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                        activeHR === hr
+                          ? 'bg-green-500 text-white shadow-md'
+                          : 'bg-gray-100 text-gray-700 hover:bg-green-100'
+                      }`}
+                      title={planetData ? `Planet: ${planetData}` : 'No planet data available'}
+                    >
+                      <div className="flex flex-col items-center">
+                        <span>HR {hr}</span>
+                        {planetData && (
+                          <span className="text-xs opacity-75">🪐 {planetData}</span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+                
+                {/* Show data status indicator */}
+                <div className="ml-4 text-xs text-gray-600">
+                  {(() => {
+                    const hasAnyData = availableDates.some(dateKey => allDaysData[dateKey]?.success);
+                    const hasHourData = availableDates.some(dateKey => 
+                      allDaysData[dateKey]?.success && allDaysData[dateKey].hrData && 
+                      Object.values(allDaysData[dateKey].hrData).some(hrData => hrData.selectedPlanet)
+                    );
+                    
+                    if (hasHourData) {
+                      return (
+                        <span className="bg-green-50 text-green-700 px-2 py-1 rounded">
+                          ✅ Hour Entry data found
+                        </span>
+                      );
+                    } else if (hasAnyData) {
+                      return (
+                        <span className="bg-amber-50 text-amber-700 px-2 py-1 rounded">
+                          ⚠️ Data without Hour Entry
+                        </span>
+                      );
+                    } else {
+                      return (
+                        <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                          🔄 Independent Mode
+                        </span>
+                      );
+                    }
+                  })()}
+                </div>
               </>
             ) : (
               <div className="text-amber-600 text-sm">
                 <span className="block">⚠️ No HR data available for the current window</span>
                 <span className="block text-xs mt-1">
-                  Please complete Hour Entries for at least one date to view HR-specific analysis
+                  Configure user HR settings or complete Hour Entries to view HR-specific analysis
                 </span>
               </div>
             )}
@@ -1383,22 +1464,29 @@ function Rule1Page({ date, selectedUser, selectedUserData, datesList, onBack }) 
                     return (
                       <div className="text-center py-12">
                         <div className="text-6xl mb-4">📊</div>
-                        <p className="text-lg font-semibold mb-4 text-blue-600">Rule1Page - Independent Mode</p>
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 max-w-3xl mx-auto text-left">
-                          <h4 className="font-semibold mb-3 text-blue-800">🚀 Independent Operation Active</h4>
-                          <div className="text-sm space-y-2 text-blue-700">
+                        <p className="text-lg font-semibold mb-4 text-blue-600">Rule1Page - Historical Matrix Interface</p>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 max-w-4xl mx-auto text-left">
+                          <h4 className="font-semibold mb-3 text-blue-800">🗓️ Dates Available for Analysis</h4>
+                          <div className="text-sm space-y-3 text-blue-700">
                             <p><strong>Window Dates:</strong> {availableDates.join(', ')}</p>
-                            <p><strong>Selected HR:</strong> HR{activeHR} (Default from user configuration)</p>
-                            <p className="mt-4 p-3 bg-white rounded border-l-4 border-blue-400">
-                              <strong>📝 To view actual ABCD/BCD analysis:</strong><br/>
-                              1. Return to the main page<br/>
-                              2. Upload Excel files for the dates in this window<br/>
-                              3. Complete Hour Entry (planet selections) for each date<br/>
-                              4. Return to Rule1Page for full matrix analysis
-                            </p>
-                            <p className="text-xs mt-3 text-blue-600">
-                              Current mode shows HR interface without requiring data dependencies.
-                            </p>
+                            <p><strong>Selected HR:</strong> HR{activeHR} {selectedUserData?.hr ? `(User has ${selectedUserData.hr} HR periods configured)` : ''}</p>
+                            
+                            <div className="mt-4 p-4 bg-white rounded border-l-4 border-orange-400">
+                              <h5 className="font-semibold text-orange-800 mb-2">📝 To View ABCD/BCD Analysis Matrix:</h5>
+                              <div className="text-sm text-orange-700 space-y-1">
+                                <p><strong>1. Upload Excel Files:</strong> Return to main page and upload Excel files for these dates</p>
+                                <p><strong>2. Complete Hour Entries:</strong> Select planets for each HR period for each date</p>
+                                <p><strong>3. Return to Rule1:</strong> Come back here to see the full historical matrix analysis</p>
+                              </div>
+                            </div>
+                            
+                            <div className="mt-3 p-3 bg-gray-50 rounded text-xs">
+                              <p><strong>💡 What you'll see with data:</strong></p>
+                              <p>• Historical matrix showing all dates and elements</p>
+                              <p>• Color-coded ABCD numbers (green badges) and BCD numbers (blue badges)</p>
+                              <p>• Topic-specific analysis for each of the 30 astrological divisions</p>
+                              <p>• Interactive HR selection with planet-based calculations</p>
+                            </div>
                           </div>
                         </div>
                       </div>
