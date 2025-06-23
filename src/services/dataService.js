@@ -287,7 +287,7 @@ class DataService {
     try {
       // Try Supabase first
       const { data, error } = await supabase
-        .from('hour_entry')
+        .from('hour_entries')
         .select('*')
         .eq('user_id', userId)
         .eq('date_key', date)
@@ -298,8 +298,8 @@ class DataService {
         return {
           userId: data.user_id,
           date: data.date_key,
-          planetSelections: data.planet_selections,
-          savedAt: data.saved_at
+          planetSelections: data.hour_data?.planetSelections || {},
+          savedAt: data.hour_data?.savedAt || data.created_at
         };
       }
 
@@ -334,11 +334,16 @@ class DataService {
       const record = {
         user_id: userId,
         date_key: date,
-        planet_selections: hourEntryData.planetSelections
+        hour_data: {
+          planetSelections: hourEntryData.planetSelections,
+          userId: userId,
+          date: date,
+          savedAt: hourEntryData.savedAt || new Date().toISOString()
+        }
       };
 
       const { error } = await supabase
-        .from('hour_entry')
+        .from('hour_entries')
         .upsert(record, { onConflict: 'user_id,date_key' });
 
       if (!error) {
@@ -395,7 +400,7 @@ class DataService {
     try {
       // Check Supabase first - use count to avoid single() errors
       const { count, error } = await supabase
-        .from('hour_entry')
+        .from('hour_entries')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
         .eq('date_key', date);
@@ -436,7 +441,7 @@ class DataService {
       const deletePromises = [
         // Core ABCD data tables
         supabase.from('excel_data').delete().eq('user_id', userId).eq('date', date),
-        supabase.from('hour_entry').delete().eq('user_id', userId).eq('date_key', date),
+        supabase.from('hour_entries').delete().eq('user_id', userId).eq('date_key', date),
         supabase.from('hour_entries').delete().eq('user_id', userId).eq('date_key', date),
         
         // UserData component tables (hr_data, house)
