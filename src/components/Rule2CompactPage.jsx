@@ -78,6 +78,22 @@ const Rule2CompactPage = ({ date, selectedUser, selectedUserData, datesList, onB
           dataService.getHourEntry(userId, targetDate)
         ]);
         
+        // 🔍 DEBUG: Log the data structure we're receiving
+        console.log(`🔍 [DEBUG] Data received for ${targetDate}:`, {
+          excelData: excelData ? {
+            hasDirectSets: !!excelData.sets,
+            hasNestedSets: !!excelData.data?.sets,
+            directSetsCount: Object.keys(excelData.sets || {}).length,
+            nestedSetsCount: Object.keys(excelData.data?.sets || {}).length,
+            structure: Object.keys(excelData)
+          } : null,
+          hourData: hourData ? {
+            hasPlanetSelections: !!hourData.planetSelections,
+            planetSelectionsCount: Object.keys(hourData.planetSelections || {}).length,
+            structure: Object.keys(hourData)
+          } : null
+        });
+        
         dateDataCache.set(targetDate, {
           excelData,
           hourData,
