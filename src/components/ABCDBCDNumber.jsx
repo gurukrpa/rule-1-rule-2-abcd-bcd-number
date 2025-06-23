@@ -1354,8 +1354,6 @@ function ABCDBCDNumber() {
                 const thisIndex = sortedDates.indexOf(date); // Zero-based index in sorted order
                 
                 const canDelete = datesList.length === 1 || idx === 0 || idx === datesList.length - 1;
-                const isNewest = idx === 0;
-                const isOldest = idx === datesList.length - 1;
                 const excelUploaded = isExcelUploaded(date);
                 const hourEntryCompleted = isHourEntryCompleted(date);
                 // Rule-1 available only for dates that are chronologically 5th or later (thisIndex >= 4)
@@ -1386,18 +1384,6 @@ function ABCDBCDNumber() {
                           month: 'short',
                           day: 'numeric'
                         })}
-                      </div>
-                      <div className="flex gap-1 mt-0.5">
-                        {isNewest && datesList.length > 1 && (
-                          <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">
-                            Newest
-                          </span>
-                        )}
-                        {isOldest && datesList.length > 1 && (
-                          <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">
-                            Oldest
-                          </span>
-                        )}
                       </div>
                     </div>
 
