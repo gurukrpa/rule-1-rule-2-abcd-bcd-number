@@ -439,9 +439,13 @@ function Rule1Page({ date, selectedUser, selectedUserData, datesList, onBack }) 
           }
         });
         const firstHR = Array.from(allHRs).sort((a, b) => parseInt(a) - parseInt(b))[0];
-        if (firstHR) {
-          console.log(`🎯 [Rule-1] Auto-selecting first HR: ${firstHR}`);
-          setActiveHR(firstHR);
+        
+        // 🚀 INDEPENDENT MODE: If no HR found from data, use HR1 as default
+        const selectedHR = firstHR || (selectedUserData?.hr ? '1' : null);
+        
+        if (selectedHR) {
+          console.log(`🎯 [Rule-1] Auto-selecting HR: ${selectedHR} ${firstHR ? '(from data)' : '(default for independent mode)'}`);
+          setActiveHR(selectedHR);
         }
       }
 
@@ -927,7 +931,7 @@ function Rule1Page({ date, selectedUser, selectedUserData, datesList, onBack }) 
   // Get ALL window dates including those without data (for proper display)
   const allWindowDates = availableDates; // Show all dates loaded into allDaysData
   
-  // Get HR choices from ANY available date that has data
+  // Get HR choices from ANY available date that has data (with fallback for independent operation)
   const hrChoices = (() => {
     const allHRs = new Set();
     availableDates.forEach(dateKey => {
@@ -936,6 +940,15 @@ function Rule1Page({ date, selectedUser, selectedUserData, datesList, onBack }) 
       }
     });
     const hrArray = Array.from(allHRs).sort((a, b) => parseInt(a) - parseInt(b));
+    
+    // 🚀 INDEPENDENT OPERATION: If no HR data found, provide default HR options based on user data
+    if (hrArray.length === 0 && selectedUserData?.hr) {
+      console.log(`🔄 [Rule-1] No HR data found in dates, using default HR range 1-${selectedUserData.hr} for independent operation`);
+      for (let i = 1; i <= selectedUserData.hr; i++) {
+        hrArray.push(i.toString());
+      }
+    }
+    
     console.log(`🔍 [Rule-1] Available HR choices:`, hrArray, 'from successful dates:', availableDates.filter(dateKey => allDaysData[dateKey]?.success));
     return hrArray;
   })();
@@ -1326,23 +1339,34 @@ function Rule1Page({ date, selectedUser, selectedUserData, datesList, onBack }) 
           <div className="border-b border-gray-200 p-4">
             <span className="text-sm font-medium text-gray-600 mr-4">Select HR:</span>
             {hrChoices.length > 0 ? (
-              hrChoices.map(hr => (
-                <button
-                  key={hr}
-                  onClick={() => setActiveHR(hr)}
-                  className={`mx-1 px-3 py-1 rounded-lg text-sm font-medium ${
-                    activeHR === hr
-                      ? 'bg-green-500 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-green-100'
-                  }`}
-                >
-                  HR {hr}
-                </button>
-              ))
+              <>
+                {hrChoices.map(hr => (
+                  <button
+                    key={hr}
+                    onClick={() => setActiveHR(hr)}
+                    className={`mx-1 px-3 py-1 rounded-lg text-sm font-medium ${
+                      activeHR === hr
+                        ? 'bg-green-500 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-green-100'
+                    }`}
+                  >
+                    HR {hr}
+                  </button>
+                ))}
+                {/* Show operation mode indicator */}
+                {availableDates.every(dateKey => !allDaysData[dateKey]?.success) && (
+                  <span className="ml-4 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                    🔄 Independent Mode - Default HR range
+                  </span>
+                )}
+              </>
             ) : (
-              <span className="text-red-600 text-sm">
-                No HR data available for any of the days in this window
-              </span>
+              <div className="text-amber-600 text-sm">
+                <span className="block">⚠️ No HR data available for the current window</span>
+                <span className="block text-xs mt-1">
+                  Please complete Hour Entries for at least one date to view HR-specific analysis
+                </span>
+              </div>
             )}
           </div>
           
@@ -1352,6 +1376,35 @@ function Rule1Page({ date, selectedUser, selectedUserData, datesList, onBack }) 
                 const availableSets = getAvailableSetsForDisplay();
                 
                 if (availableSets.length === 0) {
+                  // Check if we're in independent mode (no actual data)
+                  const hasAnyData = availableDates.some(dateKey => allDaysData[dateKey]?.success);
+                  
+                  if (!hasAnyData) {
+                    return (
+                      <div className="text-center py-12">
+                        <div className="text-6xl mb-4">📊</div>
+                        <p className="text-lg font-semibold mb-4 text-blue-600">Rule1Page - Independent Mode</p>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 max-w-3xl mx-auto text-left">
+                          <h4 className="font-semibold mb-3 text-blue-800">🚀 Independent Operation Active</h4>
+                          <div className="text-sm space-y-2 text-blue-700">
+                            <p><strong>Window Dates:</strong> {availableDates.join(', ')}</p>
+                            <p><strong>Selected HR:</strong> HR{activeHR} (Default from user configuration)</p>
+                            <p className="mt-4 p-3 bg-white rounded border-l-4 border-blue-400">
+                              <strong>📝 To view actual ABCD/BCD analysis:</strong><br/>
+                              1. Return to the main page<br/>
+                              2. Upload Excel files for the dates in this window<br/>
+                              3. Complete Hour Entry (planet selections) for each date<br/>
+                              4. Return to Rule1Page for full matrix analysis
+                            </p>
+                            <p className="text-xs mt-3 text-blue-600">
+                              Current mode shows HR interface without requiring data dependencies.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  
                   return (
                     <div className="text-center py-12">
                       <div className="text-4xl mb-4">⚠️</div>
