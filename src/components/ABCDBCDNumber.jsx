@@ -219,74 +219,22 @@ function ABCDBCDNumber() {
   // Cache stats for UI display (disabled for Supabase-only testing)
   const [cacheStats, setCacheStats] = useState(null);
 
-  // Track uploaded data for Excel and Hour Entry validation
-  const [uploadedExcelData, setUploadedExcelData] = useState({});
-  const [uploadedHourEntries, setUploadedHourEntries] = useState({});
-
-  // Simple dataService substitute for Supabase-only testing
+  // Use the real DataService instead of local state-based approach
+  // This ensures data is saved to Supabase/localStorage where IndexPage can read it
   const dataService = {
     saveDates: (uid, dates) => cleanSupabaseService.saveUserDates(uid, dates),
     getDates: (uid) => cleanSupabaseService.getUserDates(uid),
     
-    // Track Excel data uploads - OPTIMIZED: Direct state access
-    hasExcelData: (userId, date) => {
-      const key = `${userId}_${date}`;
-      const hasData = !!uploadedExcelData[key];
-      console.log(`🔍 hasExcelData check for ${key}:`, hasData);
-      return Promise.resolve(hasData);
-    },
+    // Use CleanSupabaseService for proper data persistence
+    hasExcelData: (userId, date) => cleanSupabaseService.hasExcelData(userId, date),
+    getExcelData: (userId, date) => cleanSupabaseService.getExcelData(userId, date),
+    saveExcelData: (userId, date, data) => cleanSupabaseService.saveExcelData(userId, date, data),
     
-    getExcelData: (userId, date) => {
-      const key = `${userId}_${date}`;
-      return Promise.resolve(uploadedExcelData[key] || null);
-    },
+    hasHourEntry: (userId, date) => cleanSupabaseService.hasHourEntry(userId, date),
+    getHourEntry: (userId, date) => cleanSupabaseService.getHourEntry(userId, date),
+    saveHourEntry: (userId, date, data) => cleanSupabaseService.saveHourEntry(userId, date, data.planetSelections),
     
-    saveExcelData: (userId, date, data) => {
-      const key = `${userId}_${date}`;
-      console.log(`💾 Saving Excel data for key: ${key}`);
-      
-      // Return a promise that resolves after state update
-      return new Promise((resolve) => {
-        setUploadedExcelData(prev => {
-          const newData = { ...prev, [key]: data };
-          console.log(`✅ Excel data saved for key: ${key}`, { hasData: !!newData[key] });
-          // Resolve after state update
-          setTimeout(() => resolve(), 0);
-          return newData;
-        });
-      });
-    },
-    
-    // Track Hour Entry uploads - OPTIMIZED: Direct state access
-    hasHourEntry: (userId, date) => {
-      const key = `${userId}_${date}`;
-      const hasData = !!uploadedHourEntries[key];
-      console.log(`🔍 hasHourEntry check for ${key}:`, hasData);
-      return Promise.resolve(hasData);
-    },
-    
-    getHourEntry: (userId, date) => {
-      const key = `${userId}_${date}`;
-      return Promise.resolve(uploadedHourEntries[key] || null);
-    },
-    
-    saveHourEntry: (userId, date, data) => {
-      const key = `${userId}_${date}`;
-      console.log(`💾 Saving Hour Entry for key: ${key}`);
-      
-      // Return a promise that resolves after state update
-      return new Promise((resolve) => {
-        setUploadedHourEntries(prev => {
-          const newData = { ...prev, [key]: data };
-          console.log(`✅ Hour Entry saved for key: ${key}`, { hasData: !!newData[key] });
-          // Resolve after state update
-          setTimeout(() => resolve(), 0);
-          return newData;
-        });
-      });
-    },
-    
-    // No-op methods for testing
+    // No-op methods for compatibility
     deleteDataForDate: () => Promise.resolve(),
     invalidateAnalysisCacheForDate: () => Promise.resolve(),
     invalidateUser: () => Promise.resolve(),
@@ -760,9 +708,9 @@ function ABCDBCDNumber() {
           
           // Use DataService to save Excel data
           await dataService.saveExcelData(selectedUser, targetDate, {
-            date: targetDate,
             fileName: file.name,
-            data: processedData,
+            sets: processedData.sets, // Extract sets from processedData
+            date: targetDate,
             uploadedAt: new Date().toISOString(),
             validationReport: validation
           });

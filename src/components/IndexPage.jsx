@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DataService } from '../services/dataService';
-import { getExcelFromSupabase, getHourEntryFromSupabase } from '../helpers/supabaseStorageHelpers';
+import { cleanSupabaseService } from '../services/CleanSupabaseService';
 import ProgressBar from './ProgressBar';
 
 const IndexPage = ({
@@ -31,8 +30,8 @@ const IndexPage = ({
   const [showTopicSelector, setShowTopicSelector] = useState(true); // Show/hide topic selector
   const [availableTopics, setAvailableTopics] = useState([]); // All available topics
 
-  // Initialize DataService for fallback during migration
-  const dataService = new DataService();
+  // Initialize CleanSupabaseService for consistent data operations
+  const dataService = cleanSupabaseService;
 
   // Define the 30-topic order in ascending numerical order (same as Rule2CompactPage)
   const TOPIC_ORDER = [
@@ -93,17 +92,17 @@ const IndexPage = ({
     try {
       console.log(`🔍 [ABCD-DEBUG] Extracting from date=${targetDate}, set=${setName}, HR=${hrNumber}`);
       
-      // Use new Supabase storage helpers with automatic localStorage fallback
-      console.log(`☁️ [ABCD-DEBUG] Using automatic storage selection with Supabase + localStorage fallback for ${targetDate}`);
-      const excelData = await getExcelFromSupabase(selectedUser, targetDate);
-      const hourData = await getHourEntryFromSupabase(selectedUser, targetDate);
+      // Use CleanSupabaseService for direct and consistent data access
+      console.log(`☁️ [ABCD-DEBUG] Using CleanSupabaseService for ${targetDate}`);
+      const excelData = await dataService.getExcelData(selectedUser, targetDate);
+      const hourData = await dataService.getHourEntry(selectedUser, targetDate);
       
       console.log(`📊 [ABCD-DEBUG] Data for ${targetDate}:`, { 
         hasExcel: !!excelData, 
         hasHour: !!hourData,
-        excelSets: excelData?.sets ? Object.keys(excelData.sets) : excelData?.data?.sets ? Object.keys(excelData.data.sets) : [],
+        excelSets: excelData?.sets ? Object.keys(excelData.sets) : [],
         hourPlanets: hourData?.planetSelections ? Object.keys(hourData.planetSelections) : [],
-        storageType: 'Automatic (Supabase + localStorage fallback)'
+        storageType: 'CleanSupabaseService'
       });
       
       if (!excelData || !hourData) {
@@ -111,17 +110,15 @@ const IndexPage = ({
         return [];
       }
       
-      // Handle both new Supabase format (direct sets) and old format (data.sets)
-      const sets = excelData?.sets || excelData?.data?.sets || {};
-      const planetSelections = hourData.planetSelections || {};
-      
-      console.log(`🔍 [ABCD-DEBUG] Data structure for ${targetDate}:`, {
-        hasDirectSets: !!excelData?.sets,
-        hasNestedSets: !!excelData?.data?.sets,
-        usingFormat: excelData?.sets ? 'direct' : 'nested',
-        setCount: Object.keys(sets).length,
-        planetSelectionCount: Object.keys(planetSelections).length
-      });
+      // CleanSupabaseService returns data in direct sets format
+      const sets = excelData.sets || {};
+      const planetSelections = hourData.planetSelections || {};        
+        console.log(`🔍 [ABCD-DEBUG] Data structure for ${targetDate}:`, {
+          hasDirectSets: !!excelData?.sets,
+          usingFormat: 'CleanSupabaseService',
+          setCount: Object.keys(sets).length,
+          planetSelectionCount: Object.keys(planetSelections).length
+        });
       
       const allNumbers = new Set();
       const setData = sets[setName];
@@ -494,20 +491,17 @@ const IndexPage = ({
           // DEBUG: Log the raw data structure with enhanced detail
           console.log(`🔍 Raw data for ${d} (${label}):`, {
             excelData: excelData ? {
-              hasData: !!excelData.data,
-              hasSets: !!excelData.data?.sets,
-              setNames: excelData.data?.sets ? Object.keys(excelData.data.sets) : [],
-              setCount: excelData.data?.sets ? Object.keys(excelData.data.sets).length : 0,
-              firstSetStructure: excelData.data?.sets ? 
-                Object.entries(excelData.data.sets)[0] : null,
-              dataSource: excelData.dataSource || 'unknown',
+              hasSets: !!excelData.sets,
+              setNames: excelData.sets ? Object.keys(excelData.sets) : [],
+              setCount: excelData.sets ? Object.keys(excelData.sets).length : 0,
+              dataSource: excelData.dataSource || 'CleanSupabaseService',
               fileName: excelData.fileName || 'unknown'
             } : null,
             hourData: hourData ? {
               hasPlanetSelections: !!hourData.planetSelections,
               hrNumbers: hourData.planetSelections ? Object.keys(hourData.planetSelections) : [],
               hrCount: hourData.planetSelections ? Object.keys(hourData.planetSelections).length : 0,
-              dataSource: hourData.dataSource || 'unknown'
+              dataSource: hourData.dataSource || 'CleanSupabaseService'
             } : null
           });
 
@@ -516,7 +510,6 @@ const IndexPage = ({
 
             console.log(`🔍 [DATA DEBUG] Processing ${label}-day (${d}):`, {
               excelSets: excelData?.sets ? Object.keys(excelData.sets).length : 'none',
-              excelDataSets: excelData?.data?.sets ? Object.keys(excelData.data.sets).length : 'none',
               planetSelections: Object.keys(planetSel).length
             });
 
@@ -524,8 +517,8 @@ const IndexPage = ({
             const hrData = {};
             Object.entries(planetSel).forEach(([hr, selectedPlanet]) => {
               const oneHR = { selectedPlanet, sets: {} };
-              // Handle both new Supabase format (direct sets) and old format (data.sets)
-              const setsData = excelData?.sets || excelData?.data?.sets || {};
+              // CleanSupabaseService returns data in direct sets format
+              const setsData = excelData.sets || {};
               
               console.log(`🔍 [DATA DEBUG] HR${hr} processing:`, {
                 selectedPlanet,

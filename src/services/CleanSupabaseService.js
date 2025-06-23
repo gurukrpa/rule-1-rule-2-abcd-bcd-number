@@ -88,7 +88,7 @@ class CleanSupabaseService {
           user_id: userId,
           date: date,
           file_name: excelData.fileName || 'Unknown',
-          sets: excelData.sets
+          data: { sets: excelData.sets } // Store as JSON in 'data' column
         })
         .select()
         .single();
@@ -123,10 +123,10 @@ class CleanSupabaseService {
         throw error;
       }
 
-      console.log(`✅ Excel data loaded: ${Object.keys(data.sets || {}).length} sets`);
+      console.log(`✅ Excel data loaded: ${Object.keys(data.data?.sets || {}).length} sets`);
       return {
         fileName: data.file_name,
-        sets: data.sets,
+        sets: data.data?.sets || {}, // Extract sets from data JSON column
         dataSource: 'Supabase',
         date: data.date
       };
@@ -180,8 +180,13 @@ class CleanSupabaseService {
         .from('hour_entries')
         .upsert({
           user_id: userId,
-          date: date,
-          planet_selections: planetSelections
+          date_key: date, // Use date_key column as per actual schema
+          hour_data: { 
+            planetSelections: planetSelections,
+            date: date,
+            userId: userId,
+            savedAt: new Date().toISOString()
+          }
         })
         .select()
         .single();
@@ -204,7 +209,7 @@ class CleanSupabaseService {
         .from('hour_entries')
         .select('*')
         .eq('user_id', userId)
-        .eq('date', date)
+        .eq('date_key', date) // Use date_key column as per actual schema
         .single();
 
       if (error) {
@@ -215,11 +220,11 @@ class CleanSupabaseService {
         throw error;
       }
 
-      console.log(`✅ Hour entry loaded: ${Object.keys(data.planet_selections || {}).length} HR selections`);
+      console.log(`✅ Hour entry loaded: ${Object.keys(data.hour_data?.planetSelections || {}).length} HR selections`);
       return {
-        planetSelections: data.planet_selections,
+        planetSelections: data.hour_data?.planetSelections || {}, // Extract from hour_data JSON
         dataSource: 'Supabase',
-        date: data.date
+        date: data.date_key
       };
     } catch (error) {
       console.error('❌ Error getting hour entry:', error);
@@ -233,7 +238,7 @@ class CleanSupabaseService {
         .from('hour_entries')
         .delete()
         .eq('user_id', userId)
-        .eq('date', date);
+        .eq('date_key', date); // Use date_key column
 
       if (error) throw error;
       console.log(`🗑️ Hour entry deleted for ${userId} on ${date}`);
@@ -249,7 +254,7 @@ class CleanSupabaseService {
         .from('hour_entries')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .eq('date', date);
+        .eq('date_key', date); // Use date_key column
 
       if (error) throw error;
       return count > 0;
