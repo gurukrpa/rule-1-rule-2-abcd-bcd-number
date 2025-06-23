@@ -149,10 +149,6 @@ function ABCDBCDNumber() {
   const [hourEntryError, setHourEntryError] = useState('');
   const [dateStatuses, setDateStatuses] = useState({}); // Track Excel/Hour Entry status for each date
   
-  // Rule1Page navigation states
-  const [showRule1Page, setShowRule1Page] = useState(false);
-  const [rule1PageData, setRule1PageData] = useState(null);
-  
   // Rule2Page navigation states
   const [showRule2Page, setShowRule2Page] = useState(false);
   const [rule2PageData, setRule2PageData] = useState(null);
@@ -160,6 +156,10 @@ function ABCDBCDNumber() {
   // IndexPage navigation states
   const [showIndexPage, setShowIndexPage] = useState(false);
   const [indexPageData, setIndexPageData] = useState(null);
+  
+  // Rule1Page navigation states  
+  const [showRule1Page, setShowRule1Page] = useState(false);
+  const [rule1PageData, setRule1PageData] = useState(null);
   
   // Cache stats for UI display (disabled for Supabase-only testing)
   const [cacheStats, setCacheStats] = useState(null);
@@ -804,92 +804,56 @@ function ABCDBCDNumber() {
     setIndexPageData(null);
   };
 
-  // Handle Rule-1 page navigation
-  const handleRule1Click = async (date) => {
-    console.log('🔗 handleRule1Click called with date:', date);
-    console.log('🔗 Current datesList:', datesList);
-    console.log('🔗 Current selectedUser:', selectedUser);
-    
-    // === CRITICAL DEBUG: Compare with IndexPage ===
-    console.log('🆚 RULE-1 vs INDEXPAGE INPUT COMPARISON:');
-    console.log('   Rule-1 clicked date:', date, typeof date);
-    console.log('   Rule-1 datesList:', datesList);
-    console.log('   Rule-1 user:', selectedUser);
-    console.log('   IndexPage would get SAME inputs for SAME button click');
-    // ================================================
-    
-    if (!selectedUser) {
-      console.log('❌ No user selected');
-      setError('Please select a user first.');
-      return;
-    }
-    
-    // Sort dates chronologically to find the position
-    const sortedDates = [...datesList].sort((a, b) => new Date(a) - new Date(b));
-    const idx = sortedDates.indexOf(date);
-    
-    if (idx < 4) {
-      setError('Rule-1 requires at least 5 dates. This is only the ' + (idx + 1) + getOrdinalSuffix(idx + 1) + ' date chronologically.');
-      return;
-    }
-    
-    // === REMOVED: Excel and Hour Entry dependency checks ===
-    // Rule-1 now works independently like Rule-2
-    // Missing data will be handled gracefully with empty arrays
-    console.log('✅ [INDEPENDENT] Rule-1 operating without Excel/Hour Entry requirements (like Rule-2)');
-    
-    console.log('✅ Launching Rule1Page with independent operation');
-    setRule1PageData({
-      date,
-      selectedUser,
-      users  // Pass the users data
-    });
-    setShowRule1Page(true);
-  };
-
-  const handleBackFromRule1 = () => {
-    setShowRule1Page(false);
-    setRule1PageData(null);
-  };
-
   // Handle Rule-2 page navigation
   const handleRule2Click = async (date) => {
     console.log('🔗 handleRule2Click called with date:', date);
     console.log('🔗 Current datesList:', datesList);
     console.log('🔗 Current selectedUser:', selectedUser);
     
+    // 🔍 DEBUG: Add detailed date analysis
+    console.log('🔍 === ABCDNUMBER RULE2 DEBUG ===');
+    console.log('📅 Clicked date type:', typeof date);
+    console.log('📅 Clicked date value:', JSON.stringify(date));
+    console.log('📅 DatesList type:', typeof datesList);
+    console.log('📅 DatesList value:', JSON.stringify(datesList));
+    
     if (!selectedUser) {
       console.log('❌ No user selected');
       setError('Please select a user first.');
       return;
     }
     
-    // Rule-2 validates the four preceding dates (A, B, C, D), not the clicked date itself
-    // The clicked date is just a trigger - it must be chronologically 5th or later
+    // 🔄 FIXED: Rule-2 now uses clicked date as D-day, needs 3 preceding dates (A, B, C)
+    // The clicked date must be chronologically 4th or later (index 3+)
     
     // Get all dates for this user and sort them chronologically
     const sortedDates = [...datesList].sort((a, b) => new Date(a) - new Date(b));
     const idx = sortedDates.indexOf(date);
     
-    if (idx < 4) {
-      setError('Rule-2 requires at least 5 dates. This is only the ' + (idx + 1) + getOrdinalSuffix(idx + 1) + ' date chronologically.');
+    console.log('🔍 ABCDBCDNumber date processing (FIXED):');
+    console.log('  Sorted dates:', sortedDates);
+    console.log(`  Clicked date "${date}" is at index ${idx} (position ${idx + 1})`);
+    
+    if (idx < 3) {
+      setError('Rule-2 requires the clicked date to have at least 3 preceding dates. This is only the ' + (idx + 1) + getOrdinalSuffix(idx + 1) + ' date chronologically.');
       return;
     }
     
-    // Get the four preceding dates (A, B, C, D)
-    const A = sortedDates[idx - 4];
-    const B = sortedDates[idx - 3];
-    const C = sortedDates[idx - 2];
-    const D = sortedDates[idx - 1];
+    // Get the three preceding dates (A, B, C) and the clicked date (D)
+    const A = sortedDates[idx - 3];
+    const B = sortedDates[idx - 2];
+    const C = sortedDates[idx - 1];
+    const D = sortedDates[idx]; // Clicked date becomes D-day
     
-    console.log('🔗 Checking preceding dates:');
-    console.log('   A (4th back):', A);
-    console.log('   B (3rd back):', B);
-    console.log('   C (2nd back):', C);
+    console.log('🔗 Checking dates for ABCD sequence:');
+    console.log('   A (3rd back):', A);
+    console.log('   B (2nd back):', B);
+    console.log('   C (1st back):', C);
+    console.log('   D (clicked):', D, '← Analysis source');
     console.log('   D (1st back):', D);
     
-    // Check if all four preceding dates have Excel and Hour Entry data
-    const precedingDates = [
+    // Check if the three preceding dates and clicked date have Excel and Hour Entry data
+    const datesToCheck = [
       { label: 'A', date: A },
       { label: 'B', date: B },
       { label: 'C', date: C },
@@ -898,7 +862,7 @@ function ABCDBCDNumber() {
     
     const missingData = [];
     
-    for (const { label, date: checkDate } of precedingDates) {
+    for (const { label, date: checkDate } of datesToCheck) {
       // Use DataService to check for data existence
       const hasExcel = await dataService.hasExcelData(selectedUser, checkDate);
       const hasHourEntry = await dataService.hasHourEntry(selectedUser, checkDate);
@@ -912,7 +876,7 @@ function ABCDBCDNumber() {
     }
     
     if (missingData.length > 0) {
-      setError(`Rule-2 requires Excel and Hour Entry for the four preceding dates:\n\n${missingData.join('\n')}`);
+      setError(`Rule-2 requires Excel and Hour Entry for all ABCD dates:\n\n${missingData.join('\n')}`);
       return;
     }
     
@@ -954,6 +918,40 @@ function ABCDBCDNumber() {
   const handleBackFromRule2 = () => {
     setShowRule2Page(false);
     setRule2PageData(null);
+  };
+
+  // Handle Rule1 (Past Days) navigation
+  const handleRule1Click = (date) => {
+    console.log('🕰️ handleRule1Click called with date:', date);
+    console.log('🕰️ Current datesList:', datesList);
+    console.log('🕰️ Current selectedUser:', selectedUser);
+    
+    if (!selectedUser) {
+      console.log('❌ No user selected');
+      setError('Please select a user first.');
+      return;
+    }
+    
+    // Get all dates for this user and sort them chronologically
+    const sortedDates = [...datesList].sort((a, b) => new Date(a) - new Date(b));
+    const idx = sortedDates.indexOf(date);
+    
+    if (idx < 4) {
+      setError('Past Days requires at least 5 dates. This is only the ' + (idx + 1) + getOrdinalSuffix(idx + 1) + ' date chronologically.');
+      return;
+    }
+    
+    console.log('✅ Past Days validation passed, showing Rule1PageEnhanced');
+    setRule1PageData({
+      date,
+      selectedUser
+    });
+    setShowRule1Page(true);
+  };
+
+  const handleBackFromRule1 = () => {
+    setShowRule1Page(false);
+    setRule1PageData(null);
   };
 
   // Handle extract numbers navigation with enhanced data support
@@ -1063,21 +1061,6 @@ function ABCDBCDNumber() {
     debugCurrentData();
   }, [selectedUser]);
 
-  // Conditional render for Rule1Page (Enhanced version only)
-  if (showRule1Page && rule1PageData) {
-    return (
-      <Rule1PageEnhanced
-        key={`rule1-${selectedUser}-${datesList.length}-${JSON.stringify(datesList)}`}
-        date={rule1PageData.date}
-        selectedUser={rule1PageData.selectedUser}
-        selectedUserData={selectedUserData}
-        datesList={datesList}
-        users={rule1PageData.users}
-        onBack={handleBackFromRule1}
-      />
-    );
-  }
-
   // Conditional render for Rule2Page with enhanced data support
   if (showRule2Page && rule2PageData) {
     return (
@@ -1103,6 +1086,20 @@ function ABCDBCDNumber() {
         datesList={datesList}  // Pass current datesList state instead of stored one
         onBack={handleBackFromIndex}
         onExtractNumbers={handleExtractNumbers}
+      />
+    );
+  }
+
+  // Conditional render for Rule1Page (Past Days)
+  if (showRule1Page && rule1PageData) {
+    return (
+      <Rule1PageEnhanced
+        key={`rule1-${selectedUser}-${datesList.length}-${JSON.stringify(datesList)}`}
+        date={rule1PageData.date}
+        selectedUser={rule1PageData.selectedUser}
+        datesList={datesList}
+        onBack={handleBackFromRule1}
+        users={users}
       />
     );
   }
@@ -1180,8 +1177,9 @@ function ABCDBCDNumber() {
                 // Rule-1 is enabled for ANY date that is 5th or later chronologically
                 // (not just the newest date)
                 const rule1Enabled = rule1Available;
-                // Rule-2 available only for dates that are chronologically 5th or later (thisIndex >= 4)
-                const rule2Available = thisIndex >= 4;
+                // 🔄 FIXED: Rule-2 available only for dates that are chronologically 4th or later (thisIndex >= 3)
+                // since we need 3 preceding dates (A, B, C) and clicked date becomes D-day
+                const rule2Available = thisIndex >= 3;
                 
                 return (
                   <div

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DataService } from '../services/dataService';
+// Using CleanSupabaseService singleton instance for data operations
+import cleanSupabaseService from '../services/CleanSupabaseService';
 import { Rule2ResultsService } from '../services/rule2ResultsService';
 import ProgressBar from './ProgressBar';
 import { performAbcdBcdAnalysis } from '../utils/abcdBcdAnalysis';
@@ -24,8 +25,13 @@ const Rule2CompactPage = ({ date, selectedUser, selectedUserData, datesList, onB
   const [availableHRs, setAvailableHRs] = useState([]);
   const [debounceTimer, setDebounceTimer] = useState(null);
 
-  // Initialize DataService for localStorage fallback during migration
-  const dataService = new DataService();
+  // Use CleanSupabaseService for proper data persistence
+  const dataService = {
+    hasExcelData: (userId, date) => cleanSupabaseService.hasExcelData(userId, date),
+    getExcelData: (userId, date) => cleanSupabaseService.getExcelData(userId, date),
+    hasHourEntry: (userId, date) => cleanSupabaseService.hasHourEntry(userId, date),
+    getHourEntry: (userId, date) => cleanSupabaseService.getHourEntry(userId, date)
+  };
 
   // 🚀 OPTIMIZED: Debounced HR change to avoid frequent re-analysis
   const handleHRChange = (newHR) => {
@@ -316,11 +322,28 @@ const Rule2CompactPage = ({ date, selectedUser, selectedUserData, datesList, onB
         // Sort dates in ascending order (oldest to newest)
         const sortedDates = [...datesList].sort((a, b) => new Date(a) - new Date(b));
         
+        // 🔍 DEBUG: Log date processing details
+        console.log('🔍 === RULE2COMPACT DATE SEQUENCE DEBUG ===');
+        console.log('📅 Received date (clicked):', date, typeof date);
+        console.log('📅 Received datesList:', datesList);
+        console.log('📅 Sorted dates:', sortedDates);
+        
         // Find the clicked date position
         const clickedIndex = sortedDates.findIndex(d => d === date);
+        console.log(`📍 Clicked date "${date}" found at index ${clickedIndex} (position ${clickedIndex + 1})`);
         
-        if (clickedIndex < 4) {
-          setError(`Rule-2 can only be triggered from the 5th date onwards. Current position: ${clickedIndex + 1}`);
+        // 🔍 DEBUG: Verify date string matching
+        if (clickedIndex === -1) {
+          console.log('🚨 CRITICAL: Clicked date not found in sorted dates!');
+          console.log('🔍 Attempting string comparison:');
+          sortedDates.forEach((d, i) => {
+            console.log(`  ${i}: "${d}" === "${date}" → ${d === date}`);
+            console.log(`  ${i}: Date objects: ${new Date(d).getTime()} === ${new Date(date).getTime()} → ${new Date(d).getTime() === new Date(date).getTime()}`);
+          });
+        }
+        
+        if (clickedIndex < 3) {
+          setError(`Rule-2 requires the clicked date to have at least 3 preceding dates (A, B, C). Current position: ${clickedIndex + 1}, need position 4+`);
           setLoading(false);
           return;
         }
@@ -328,11 +351,20 @@ const Rule2CompactPage = ({ date, selectedUser, selectedUserData, datesList, onB
         setLoadingProgress(20);
         setLoadingMessage('Determining ABCD sequence...');
         
-        // Take the 4 dates BEFORE the clicked date as ABCD sequence
-        const aDay = sortedDates[clickedIndex - 4]; // 4 days before clicked date
-        const bDay = sortedDates[clickedIndex - 3]; // 3 days before clicked date
-        const cDay = sortedDates[clickedIndex - 2]; // 2 days before clicked date
-        const dDay = sortedDates[clickedIndex - 1]; // 1 day before clicked date (D-day source)
+        // 🔄 FIXED: Use the CLICKED date as D-day (analysis source)
+        const dDay = sortedDates[clickedIndex]; // Clicked date becomes D-day (analysis source)
+        const cDay = sortedDates[clickedIndex - 1]; // 1 day before clicked date
+        const bDay = sortedDates[clickedIndex - 2]; // 2 days before clicked date
+        const aDay = sortedDates[clickedIndex - 3]; // 3 days before clicked date
+        
+        // 🔍 DEBUG: Log ABCD sequence calculation
+        console.log('🔗 ABCD SEQUENCE CALCULATION (FIXED):');
+        console.log(`  A-day: sortedDates[${clickedIndex - 3}] = ${aDay}`);
+        console.log(`  B-day: sortedDates[${clickedIndex - 2}] = ${bDay}`);
+        console.log(`  C-day: sortedDates[${clickedIndex - 1}] = ${cDay}`);
+        console.log(`  D-day: sortedDates[${clickedIndex}] = ${dDay} ← ANALYSIS SOURCE (CLICKED DATE)`);
+        console.log(`  ✅ User clicked "${date}" and will see data from "${dDay}"`);
+        console.log('========================================');
 
         setLoadingProgress(30);
         setLoadingMessage('🚀 Pre-loading all date data...');
