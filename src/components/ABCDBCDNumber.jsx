@@ -9,7 +9,7 @@ import * as XLSX from 'xlsx';
 import { validateExcelStructure, generateValidationReport } from '../utils/excelValidation';
 
 // Import required components
-import Rule1Page from './Rule1Page';
+import Rule1PageEnhanced from './Rule1Page_Enhanced';
 import Rule2CompactPage from './Rule2CompactPage';
 import IndexPage from './IndexPage';
 import AddDateModal from './modals/AddDateModal';
@@ -1062,10 +1062,10 @@ function ABCDBCDNumber() {
     debugCurrentData();
   }, [selectedUser]);
 
-  // Conditional render for Rule1Page
+  // Conditional render for Rule1Page (Enhanced version only)
   if (showRule1Page && rule1PageData) {
     return (
-      <Rule1Page
+      <Rule1PageEnhanced
         key={`rule1-${selectedUser}-${datesList.length}-${JSON.stringify(datesList)}`}
         date={rule1PageData.date}
         selectedUser={rule1PageData.selectedUser}
@@ -1252,7 +1252,7 @@ function ABCDBCDNumber() {
                         Index
                       </button>
 
-                      {/* Rule-1 button: available only for dates that are chronologically 5th or later (thisIndex >= 4) */}
+                      {/* Past Days button: available only for dates that are chronologically 5th or later (thisIndex >= 4) */}
                       {rule1Available && (
                         <button
                           onClick={() => rule1Enabled ? handleRule1Click(date) : null}
@@ -1262,9 +1262,9 @@ function ABCDBCDNumber() {
                               ? 'bg-green-500 hover:bg-green-600 text-white'
                               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                           }`}
-                          title={rule1Enabled ? 'Rule-1 Analysis - 4-day rolling window' : 'Rule-1 disabled - requires at least 5 total dates'}
+                          title={rule1Enabled ? 'Past Days Analysis - 4-day rolling window' : 'Past Days disabled - requires at least 5 total dates'}
                         >
-                          Rule-1
+                          Past Days
                         </button>
                       )}
 
