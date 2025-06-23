@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cleanSupabaseService } from '../services/CleanSupabaseService';
 import ProgressBar from './ProgressBar';
+import { performAbcdBcdAnalysis } from '../utils/abcdBcdAnalysis';
 
 const IndexPage = ({
   date,               // clicked date (e.g. "2025-06-05")
@@ -167,8 +168,8 @@ const IndexPage = ({
     }
   };
 
-  // Perform ABCD-BCD analysis for a specific set - Enhanced for partial data
-  const performAbcdBcdAnalysis = async (setName, aDay, bDay, cDay, dDay, hrNumber) => {
+  // Enhanced ABCD-BCD analysis for IndexPage - uses centralized utility
+  const performIndexAbcdBcdAnalysis = async (setName, aDay, bDay, cDay, dDay, hrNumber) => {
     try {
       console.log(`🧮 Performing ABCD-BCD analysis for ${setName} with days A=${aDay}, B=${bDay}, C=${cDay}, D=${dDay}, HR=${hrNumber}`);
       
@@ -190,54 +191,30 @@ const IndexPage = ({
         return { abcdNumbers: [], bcdNumbers: [] };
       }
 
-      // ABCD Analysis: D-day numbers appearing in ≥2 of available A, B, C days
-      const abcdCandidates = dDayNumbers.filter(num => {
-        let count = 0;
-        if (aDayNumbers.length > 0 && aDayNumbers.includes(num)) count++;
-        if (bDayNumbers.length > 0 && bDayNumbers.includes(num)) count++;
-        if (cDayNumbers.length > 0 && cDayNumbers.includes(num)) count++;
-        
-        // Adjust threshold based on available days
-        const availableDays = [aDayNumbers, bDayNumbers, cDayNumbers].filter(arr => arr.length > 0).length;
-        const threshold = Math.min(2, availableDays); // Use 2 or available days, whichever is smaller
-        
-        return count >= threshold;
-      });
-
-      // BCD Analysis: D-day numbers appearing in exclusive B-D or C-D pairs
-      const bcdCandidates = dDayNumbers.filter(num => {
-        const inB = bDayNumbers.length > 0 && bDayNumbers.includes(num);
-        const inC = cDayNumbers.length > 0 && cDayNumbers.includes(num);
-      
-        const bdPairOnly = inB && !inC; // B-D pair but NOT in C
-        const cdPairOnly = inC && !inB; // C-D pair but NOT in B
-        return bdPairOnly || cdPairOnly;
-      });
-
-      // Apply mutual exclusivity - ABCD takes priority over BCD
-      const abcdNumbers = abcdCandidates;
-      const bcdNumbers = bcdCandidates.filter(num => !abcdCandidates.includes(num));
-
-      console.log(`🎯 Analysis results for ${setName}:`, {
-        availableDays: [aDayNumbers, bDayNumbers, cDayNumbers].filter(arr => arr.length > 0).length,
-        aDayNumbers,
+      // ✅ Use enhanced utility function for consistent analysis
+      const analysis = performAbcdBcdAnalysis(
+        aDayNumbers, 
         bDayNumbers, 
-        cDayNumbers,
+        cDayNumbers, 
         dDayNumbers,
-        abcdCandidates,
-        bcdCandidates,
-        finalABCD: abcdNumbers,
-        finalBCD: bcdNumbers,
-        detailedABCDCheck: dDayNumbers.map(num => ({
-          dNumber: num,
-          inA: aDayNumbers.includes(num),
-          inB: bDayNumbers.includes(num), 
-          inC: cDayNumbers.includes(num),
-          appearances: [aDayNumbers.includes(num), bDayNumbers.includes(num), cDayNumbers.includes(num)].filter(Boolean).length
-        }))
+        {
+          includeDetailedAnalysis: false,
+          logResults: true,
+          setName
+        }
+      );
+
+      console.log(`🎯 Enhanced analysis results for ${setName}:`, {
+        availableDays: [aDayNumbers, bDayNumbers, cDayNumbers].filter(arr => arr.length > 0).length,
+        summary: analysis.summary,
+        abcdNumbers: analysis.abcdNumbers,
+        bcdNumbers: analysis.bcdNumbers
       });
 
-      return { abcdNumbers, bcdNumbers };
+      return { 
+        abcdNumbers: analysis.abcdNumbers, 
+        bcdNumbers: analysis.bcdNumbers 
+      };
     } catch (error) {
       console.error('Error performing ABCD-BCD analysis:', error);
       return { abcdNumbers: [], bcdNumbers: [] };
@@ -797,7 +774,7 @@ const IndexPage = ({
         });
         
         try {
-          const result = await performAbcdBcdAnalysis(setName, aDay, bDay, cDay, dDay, activeHR);
+          const result = await performIndexAbcdBcdAnalysis(setName, aDay, bDay, cDay, dDay, activeHR);
           
           // Ensure we always have valid arrays
           analysis[setName] = {

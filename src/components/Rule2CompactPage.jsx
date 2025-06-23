@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { DataService } from '../services/dataService';
 import { Rule2ResultsService } from '../services/rule2ResultsService';
 import ProgressBar from './ProgressBar';
+import { performAbcdBcdAnalysis } from '../utils/abcdBcdAnalysis';
 
 /**
  * Rule2CompactPage - Compact 30-Topic ABCD-BCD Analysis
@@ -98,37 +99,73 @@ const Rule2CompactPage = ({ date, selectedUser, selectedUserData, datesList, onB
   // 🚀 OPTIMIZED: Extract numbers from cached data
   const extractFromDateAndSet = (targetDate, setName) => {
     const cachedData = dateDataCache.get(targetDate);
+    console.log(`🔍 Debug extractFromDateAndSet for ${targetDate}, set ${setName}:`, {
+      cachedData: !!cachedData,
+      hasExcelData: !!cachedData?.excelData,
+      hasHourData: !!cachedData?.hourData,
+      selectedHR
+    });
+    
     if (!cachedData || !cachedData.excelData || !cachedData.hourData) {
+      console.log(`❌ Missing data for ${targetDate}:`, {
+        cachedData: !!cachedData,
+        excelData: !!cachedData?.excelData,
+        hourData: !!cachedData?.hourData
+      });
       return [];
     }
     
     const { sets, planetSelections } = cachedData;
+    console.log(`📊 Data structure for ${targetDate}:`, {
+      availableSets: Object.keys(sets),
+      planetSelections,
+      selectedHR,
+      selectedPlanet: planetSelections[selectedHR]
+    });
+    
     const allNumbers = new Set();
     
     // Find the specific set
     const setData = sets[setName];
     if (setData) {
+      console.log(`📋 Found set ${setName}:`, Object.keys(setData));
+      
       // Use the selected HR for planet selection
       const selectedPlanet = planetSelections[selectedHR];
       
       if (selectedPlanet) {
+        console.log(`🪐 Using planet: ${selectedPlanet}`);
+        
         // Process each element in the set
         Object.entries(setData).forEach(([elementName, planetData]) => {
           const rawString = planetData[selectedPlanet];
+          console.log(`🔍 Element ${elementName}:`, {
+            planetData: Object.keys(planetData),
+            selectedPlanet,
+            rawString
+          });
+          
           if (rawString) {
             const elementNumber = extractElementNumber(rawString);
+            console.log(`🔢 Extracted from "${rawString}": ${elementNumber}`);
             if (elementNumber !== null) {
               allNumbers.add(elementNumber);
             }
           }
         });
+      } else {
+        console.log(`❌ No planet selected for HR ${selectedHR}`);
       }
+    } else {
+      console.log(`❌ Set ${setName} not found. Available sets:`, Object.keys(sets));
     }
     
-    return Array.from(allNumbers).sort((a, b) => a - b);
+    const result = Array.from(allNumbers).sort((a, b) => a - b);
+    console.log(`✅ Final numbers for ${targetDate}, set ${setName}:`, result);
+    return result;
   };
 
-  // 🚀 OPTIMIZED: Process ABCD-BCD analysis for a specific set using cached data
+  // 🚀 ENHANCED: Process ABCD-BCD analysis using centralized utility
   const processSetAnalysis = (setName, aDay, bDay, cDay, dDay) => {
     // Extract numbers from each day for this specific set using cached data
     const dDayNumbers = extractFromDateAndSet(dDay, setName);
@@ -142,52 +179,32 @@ const Rule2CompactPage = ({ date, selectedUser, selectedUserData, datesList, onB
         abcdNumbers: [],
         bcdNumbers: [],
         dDayCount: 0,
+        summary: { dDayCount: 0, abcdCount: 0, bcdCount: 0, totalQualified: 0, qualificationRate: '0.0' },
         error: 'No D-day numbers found'
       };
     }
 
-    // Step 1: ABCD Analysis - D-day numbers appearing in ≥2 of A, B, C days
-    const abcdCandidates = dDayNumbers.filter(num => {
-      let count = 0;
-      if (aDayNumbers.includes(num)) count++;
-      if (bDayNumbers.includes(num)) count++;
-      if (cDayNumbers.includes(num)) count++;
-      return count >= 2;
-    });
-
-    // Step 2: BCD Analysis - D-day numbers appearing in exclusive B-D or C-D pairs
-    const bcdCandidates = dDayNumbers.filter(num => {
-      const inB = bDayNumbers.includes(num);
-      const inC = cDayNumbers.includes(num);
-      
-      // BCD qualification: (B-D pair only) OR (C-D pair only) - exclude if in both B and C
-      const bdPairOnly = inB && !inC; // B-D pair but NOT in C
-      const cdPairOnly = inC && !inB; // C-D pair but NOT in B
-            return bdPairOnly || cdPairOnly;
-    });
-
-    // Step 3: Apply mutual exclusivity - ABCD takes priority over BCD
-    const abcdNumbers = abcdCandidates.sort((a, b) => a - b);
-    const bcdNumbers = bcdCandidates
-      .filter(num => !abcdCandidates.includes(num)) // Exclude numbers already in ABCD
-      .sort((a, b) => a - b);
-
-    console.log(`🔍 ${setName} Analysis:`, {
+    // ✅ Use enhanced utility function for consistent analysis
+    const analysis = performAbcdBcdAnalysis(
+      aDayNumbers, 
+      bDayNumbers, 
+      cDayNumbers, 
       dDayNumbers,
-      abcdCandidates,
-      bcdCandidates,
-      finalABCD: abcdNumbers,
-      finalBCD: bcdNumbers
-    });
+      {
+        includeDetailedAnalysis: false,
+        logResults: true,
+        setName
+      }
+    );
 
+    // Return standardized result format
     return {
       setName,
-      abcdNumbers,
-      bcdNumbers,
+      abcdNumbers: analysis.abcdNumbers,
+      bcdNumbers: analysis.bcdNumbers,
       dDayCount: dDayNumbers.length,
-      aDayCount: aDayNumbers.length,
-      bDayCount: bDayNumbers.length,
-      cDayCount: cDayNumbers.length
+      summary: analysis.summary,
+      error: analysis.error || null
     };
   };
 
@@ -228,13 +245,26 @@ const Rule2CompactPage = ({ date, selectedUser, selectedUserData, datesList, onB
   // 🚀 OPTIMIZED: Get all available sets from cached D-day data
   const getAllAvailableSets = (dDay) => {
     const cachedData = dateDataCache.get(dDay);
-    if (!cachedData || !cachedData.excelData) return [];
+    console.log(`🔍 getAllAvailableSets for ${dDay}:`, {
+      hasCache: !!cachedData,
+      hasExcelData: !!cachedData?.excelData,
+      setsKeys: Object.keys(cachedData?.sets || {})
+    });
+    
+    if (!cachedData || !cachedData.excelData) {
+      console.log(`❌ No cached data or Excel data for ${dDay}`);
+      return [];
+    }
     
     const { sets } = cachedData;
     const availableSetNames = Object.keys(sets);
+    console.log(`📋 Available set names in data:`, availableSetNames);
+    console.log(`📋 TOPIC_ORDER filter:`, TOPIC_ORDER);
     
     // Return sets in the predefined order, only including those that actually exist
-    return TOPIC_ORDER.filter(topicName => availableSetNames.includes(topicName));
+    const filteredSets = TOPIC_ORDER.filter(topicName => availableSetNames.includes(topicName));
+    console.log(`✅ Filtered available sets:`, filteredSets);
+    return filteredSets;
   };
 
   // 🚀 OPTIMIZED: Get available HRs from cached D-day data
@@ -294,6 +324,26 @@ const Rule2CompactPage = ({ date, selectedUser, selectedUserData, datesList, onB
         // 🚀 OPTIMIZATION: Pre-load all date data once instead of repeated fetches
         const allDates = [aDay, bDay, cDay, dDay];
         await preloadDateData(allDates);
+        
+        // 🔍 COMPREHENSIVE DEBUG: Check data loading results
+        console.log('🔍 === DATA PIPELINE DEBUG ===');
+        console.log('📅 Dates to process:', { aDay, bDay, cDay, dDay });
+        console.log('👤 User ID:', userId);
+        console.log('🪐 Selected HR:', selectedHR);
+        
+        // Check what data was actually loaded
+        allDates.forEach(date => {
+          const cachedData = dateDataCache.get(date);
+          console.log(`📊 ${date} data:`, {
+            hasCache: !!cachedData,
+            hasExcelData: !!cachedData?.excelData,
+            hasHourData: !!cachedData?.hourData,
+            setsCount: Object.keys(cachedData?.sets || {}).length,
+            planetSelectionsCount: Object.keys(cachedData?.planetSelections || {}).length,
+            sets: Object.keys(cachedData?.sets || {}),
+            planetSelections: cachedData?.planetSelections
+          });
+        });
         
         setLoadingProgress(40);
         setLoadingMessage('Getting available HRs...');

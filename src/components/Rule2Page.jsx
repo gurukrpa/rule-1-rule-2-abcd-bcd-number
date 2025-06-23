@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { DataService } from '../services/dataService';
 import { Rule2ResultsService } from '../services/rule2ResultsService';
 import ProgressBar from './ProgressBar';
+import { performAbcdBcdAnalysis } from '../utils/abcdBcdAnalysis';
 
 /**
  * Rule2Page - Correct ABCD-BCD Logic Implementation
@@ -224,63 +225,68 @@ const Rule2Page = ({ date, selectedUser, selectedUserData, datesList, onBack }) 
         setLoadingProgress(90);
         setLoadingMessage('Performing ABCD-BCD analysis...');
         
-        // ABCD Analysis: D-day numbers appearing in ≥2 of A, B, C days (NOT counting D-day)
+        // ✅ Use enhanced utility function for consistent ABCD/BCD analysis
+        const analysis = performAbcdBcdAnalysis(
+          aDayNumbers, 
+          bDayNumbers, 
+          cDayNumbers, 
+          dDayNumbers,
+          {
+            includeDetailedAnalysis: true,
+            logResults: true,
+            setName: 'Combined All Topics'
+          }
+        );
+
+        // Extract results from utility function
+        const abcd = analysis.abcdNumbers;
+        const bcd = analysis.bcdNumbers;
+        const { detailedAnalysis: analysisDetails } = analysis;
+
+        // Convert detailed analysis to the format expected by the UI
         const abcdAnalysis = {};
-        const abcd = dDayNumbers.filter(num => {
-          let count = 0;
-          const occurrences = [];
+        const bcdAnalysis = {};
         
-        if (aDayNumbers.includes(num)) {
-          count++;
-          occurrences.push('A');
-        }
-        if (bDayNumbers.includes(num)) {
-          count++;
-          occurrences.push('B');
-        }
-        if (cDayNumbers.includes(num)) {
-          count++;
-          occurrences.push('C');
-        }
-        
-        abcdAnalysis[num] = {
-          count,
-          occurrences,
-          qualified: count >= 2
-        };
-        
-        console.log(`🔍 ABCD: Number ${num} appears in ${count}/3 of A,B,C days (${occurrences.join(', ')})`);
-        return count >= 2;
-      }).sort((a, b) => a - b);
+        Object.entries(analysisDetails).forEach(([num, details]) => {
+          if (details.type === 'ABCD') {
+            abcdAnalysis[num] = {
+              count: details.abcCount,
+              occurrences: details.occurrences,
+              qualified: details.qualified
+            };
+          } else if (details.type === 'BCD') {
+            bcdAnalysis[num] = {
+              inB: details.inB,
+              inC: details.inC,
+              inD: true,
+              bdPairOnly: details.reason === 'B-D pair only',
+              cdPairOnly: details.reason === 'C-D pair only',
+              qualified: details.qualified,
+              excludedReason: null
+            };
+          } else {
+            // For non-qualifying numbers, create entries for both analysis types
+            abcdAnalysis[num] = {
+              count: details.abcCount,
+              occurrences: details.occurrences,
+              qualified: false
+            };
+            bcdAnalysis[num] = {
+              inB: details.inB,
+              inC: details.inC,
+              inD: true,
+              bdPairOnly: details.inB && !details.inC,
+              cdPairOnly: details.inC && !details.inB,
+              qualified: false,
+              excludedReason: details.inB && details.inC ? 'Present in both B and C (goes to ABCD)' : null
+            };
+          }
+        });
 
-      // BCD Analysis: D-day numbers appearing in B-D pairs OR C-D pairs (but NOT both B and C)
-      const bcdAnalysis = {};
-      const bcd = dDayNumbers.filter(num => {
-        const inB = bDayNumbers.includes(num);
-        const inC = cDayNumbers.includes(num);
-        
-        // BCD qualification: (B-D pair only) OR (C-D pair only) - exclude if in both B and C
-        const bdPairOnly = inB && !inC; // B-D pair but NOT in C
-        const cdPairOnly = inC && !inB; // C-D pair but NOT in B
-        const qualified = bdPairOnly || cdPairOnly;
-        
-        bcdAnalysis[num] = {
-          inB,
-          inC,
-          inD: true, // Always true since we're filtering dDayNumbers
-          bdPairOnly,
-          cdPairOnly,
-          qualified,
-          excludedReason: (inB && inC) ? 'Present in both B and C (goes to ABCD)' : null
-        };
-        
-        console.log(`🔍 BCD: Number ${num} - B-D only(${bdPairOnly}), C-D only(${cdPairOnly}) → ${qualified ? 'QUALIFIED' : inB && inC ? 'EXCLUDED (B+C→ABCD)' : 'not qualified'}`);
-        return qualified;
-      }).sort((a, b) => a - b);
-
-        console.log('🎉 Final Results:');
+        console.log('🎉 Enhanced Analysis Results:');
         console.log('ABCD Numbers:', abcd);
         console.log('BCD Numbers:', bcd);
+        console.log('📊 Summary:', analysis.summary);
 
         setLoadingProgress(95);
         setLoadingMessage('Saving results to Supabase...');
