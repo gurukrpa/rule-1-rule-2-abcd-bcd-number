@@ -1342,12 +1342,12 @@ function ABCDBCDNumber() {
           </div>
         </div>
 
-        {/* Date List */}
-        <div className="bg-white rounded-lg shadow-md p-4 mb-4">
-          <h3 className="font-semibold text-gray-800 mb-4">📅 Dates List</h3>
+        {/* Date List - Compact Design */}
+        <div className="bg-white rounded-lg shadow-md p-3 mb-4">
+          <h3 className="font-semibold text-gray-800 mb-3">📅 Dates List</h3>
           
           {datesList.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {datesList.map((date, idx) => {
                 // Sort dates chronologically to get proper indices
                 const sortedDates = [...datesList].sort((a, b) => new Date(a) - new Date(b));
@@ -1369,40 +1369,40 @@ function ABCDBCDNumber() {
                 return (
                   <div
                     key={date}
-                    className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
+                    className={`flex items-center gap-2 p-2.5 rounded-lg border transition-all ${
                       selectedDate === date 
-                        ? 'bg-purple-50 border-purple-300 shadow-md' 
+                        ? 'bg-purple-50 border-purple-300 shadow-sm' 
                         : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
                     }`}
                   >
-                    {/* Date Display */}
+                    {/* Date Display - Compact */}
                     <div 
-                      className="cursor-pointer min-w-[140px]" 
+                      className="cursor-pointer min-w-[120px]" 
                       onClick={() => setSelectedDate(date)}
                     >
-                      <div className="font-bold text-blue-700 text-lg">
+                      <div className="font-bold text-blue-700 text-base">
                         {new Date(date).toLocaleDateString('en-US', {
                           year: 'numeric',
                           month: 'short',
                           day: 'numeric'
                         })}
                       </div>
-                      <div className="flex gap-2 mt-1">
+                      <div className="flex gap-1 mt-0.5">
                         {isNewest && datesList.length > 1 && (
-                          <span className="text-enhanced-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                          <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">
                             Newest
                           </span>
                         )}
                         {isOldest && datesList.length > 1 && (
-                          <span className="text-enhanced-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
+                          <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium">
                             Oldest
                           </span>
                         )}
                       </div>
                     </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex gap-2 flex-wrap">
+                    {/* Action Buttons - Compact Design */}
+                    <div className="flex gap-1.5 flex-wrap">
                       
                       {/* Excel Upload Button */}
                       <div className="relative">
@@ -1415,10 +1415,10 @@ function ABCDBCDNumber() {
                         />
                         <label
                           htmlFor={`excel-upload-${date}`}
-                          className={`px-3 py-2 text-xs font-medium rounded-lg cursor-pointer transition-all ${
+                          className={`px-2 py-1 text-xs font-medium rounded cursor-pointer transition-all ${
                             excelUploaded
-                              ? 'bg-green-100 text-green-800 border-2 border-green-300'
-                              : 'bg-purple-100 text-purple-800 border-2 border-purple-300 hover:bg-purple-200'
+                              ? 'bg-green-100 text-green-700 border border-green-300'
+                              : 'bg-purple-100 text-purple-700 border border-purple-300 hover:bg-purple-200'
                           }`}
                         >
                           📊 Excel
@@ -1430,9 +1430,9 @@ function ABCDBCDNumber() {
                       <button
                         onClick={() => handleHourEntryClick(date)}
                         disabled={false}
-                        className={`px-3 py-2 text-enhanced-xs font-medium rounded-lg transition-all ${
+                        className={`px-2 py-1 text-xs font-medium rounded transition-all ${
                           hourEntryCompleted
-                            ? 'bg-blue-100 text-blue-800 border-2 border-blue-300'
+                            ? 'bg-blue-100 text-blue-700 border border-blue-300'
                             : 'bg-blue-500 hover:bg-blue-600 text-white'
                         }`}
                       >
@@ -1444,7 +1444,7 @@ function ABCDBCDNumber() {
                       <button
                         onClick={() => handleIndexClick(date)}
                         disabled={false}
-                        className={`px-4 py-1 rounded transition-all bg-orange-500 hover:bg-orange-600 text-white`}
+                        className="px-2 py-1 text-xs font-medium rounded transition-all bg-orange-500 hover:bg-orange-600 text-white"
                       >
                         Index
                       </button>
@@ -1454,7 +1454,7 @@ function ABCDBCDNumber() {
                         <button
                           onClick={() => rule1Enabled ? handleRule1Click(date) : null}
                           disabled={!rule1Enabled}
-                          className={`px-4 py-1 rounded transition-all ${
+                          className={`px-2 py-1 text-xs font-medium rounded transition-all ${
                             rule1Enabled
                               ? 'bg-green-500 hover:bg-green-600 text-white'
                               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -1469,7 +1469,7 @@ function ABCDBCDNumber() {
                       {rule2Available && (
                         <button
                           onClick={() => handleRule2Click(date)}
-                          className="px-4 py-1 rounded bg-purple-500 text-white hover:bg-purple-600"
+                          className="px-2 py-1 text-xs font-medium rounded bg-purple-500 text-white hover:bg-purple-600"
                         >
                           Rule-2
                         </button>
@@ -1478,10 +1478,10 @@ function ABCDBCDNumber() {
                       {/* Planets Analysis button: available for all dates */}
                       <button
                         onClick={() => handlePlanetsAnalysisClick(date)}
-                        className="px-4 py-1 rounded bg-cyan-500 text-white hover:bg-cyan-600"
+                        className="px-2 py-1 text-xs font-medium rounded bg-cyan-500 text-white hover:bg-cyan-600"
                         title="Planets Analysis - Target data (left) vs Planets data (right)"
                       >
-                        Planets Analysis
+                        Planets
                       </button>
 
                       {/* DELETE BUTTON: only enabled for the oldest (index=0) or newest (index=last) */}
@@ -1505,7 +1505,7 @@ function ABCDBCDNumber() {
                               }
                             }}
                             disabled={!canDelete}
-                            className={`px-4 py-1 rounded ${
+                            className={`px-2 py-1 text-xs font-medium rounded ${
                               canDelete
                                 ? 'bg-red-500 hover:bg-red-600 text-white'
                                 : 'bg-gray-200 text-gray-500 cursor-not-allowed'
@@ -1517,17 +1517,17 @@ function ABCDBCDNumber() {
                       })()}
                     </div>
 
-                    {/* Status Indicators */}
-                    <div className="ml-auto flex flex-col gap-1">
-                      <div className={`text-xs px-2 py-1 rounded ${
+                    {/* Status Indicators - Compact */}
+                    <div className="ml-auto flex flex-col gap-0.5">
+                      <div className={`text-xs px-1.5 py-0.5 rounded ${
                         excelUploaded ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                       }`}>
                         {excelUploaded ? '📊 Excel ✓' : '📊 No Excel'}
                       </div>
-                      <div className={`text-xs px-2 py-1 rounded ${
+                      <div className={`text-xs px-1.5 py-0.5 rounded ${
                         hourEntryCompleted ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
                       }`}>
-                        {hourEntryCompleted ? '🕐 Hour Entry ✓' : '🕐 Pending'}
+                        {hourEntryCompleted ? '🕐 Hour ✓' : '🕐 Pending'}
                       </div>
                     </div>
                   </div>
@@ -1535,9 +1535,9 @@ function ABCDBCDNumber() {
               })}
             </div>
           ) : (
-            <div className="text-center py-12 text-gray-500">
-              <div className="text-6xl mb-4">📅</div>
-              <h3 className="text-xl font-semibold mb-2">No dates added yet</h3>
+            <div className="text-center py-8 text-gray-500">
+              <div className="text-4xl mb-3">📅</div>
+              <h3 className="text-lg font-semibold mb-1">No dates added yet</h3>
               <p className="text-sm">Click "Add Date" to start your astrological analysis</p>
             </div>
           )}
