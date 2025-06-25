@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
+import { supabase } from '../supabaseClient';
 import { unifiedDataService } from '../services/unifiedDataService';
 import { DataService } from '../services/dataService_new';
 
@@ -37,10 +38,19 @@ function PlanetsAnalysisPage() {
   // Fetch users
   const fetchUsers = async () => {
     try {
-      const usersData = await dataService.getUsers();
-      setUsers(usersData || []);
+      const { data, error } = await supabase
+        .from('users')
+        .select('*');
       
-      if (userId && usersData && usersData.length > 0) {
+      if (error) {
+        console.error('Error fetching users:', error);
+        setError('Failed to fetch users');
+        return;
+      }
+      
+      setUsers(data || []);
+      
+      if (userId && data && data.length > 0) {
         setSelectedUser(userId);
       }
     } catch (error) {
@@ -54,7 +64,7 @@ function PlanetsAnalysisPage() {
     try {
       if (!uid) return;
       
-      const dates = await fallbackDataService.getDates(uid);
+      const dates = await dataService.getDates(uid);
       if (dates && dates.length > 0) {
         const sortedDates = dates.sort((a, b) => new Date(b) - new Date(a));
         setDatesList(sortedDates);
@@ -84,7 +94,7 @@ function PlanetsAnalysisPage() {
     }
 
     try {
-      const excelData = await fallbackDataService.getExcelData(selectedUser, selectedDate);
+      const excelData = await unifiedDataService.getExcelData(selectedUser, selectedDate);
       if (excelData?.data?.sets) {
         const topics = Object.keys(excelData.data.sets);
         setAvailableTopics(topics);
@@ -101,7 +111,7 @@ function PlanetsAnalysisPage() {
       setAvailableTopics([]);
       setSelectedTopics(new Set());
     }
-  }, [selectedUser, selectedDate, fallbackDataService]);
+  }, [selectedUser, selectedDate]);
 
   // Excel upload handling
   const handleExcelUpload = async (event) => {
@@ -133,7 +143,7 @@ function PlanetsAnalysisPage() {
             rawData: jsonData
           };
 
-          await fallbackDataService.saveExcelData(selectedUser, selectedDate, {
+          await unifiedDataService.saveExcelData(selectedUser, selectedDate, {
             data: processedData,
             uploadedAt: new Date().toISOString()
           });
