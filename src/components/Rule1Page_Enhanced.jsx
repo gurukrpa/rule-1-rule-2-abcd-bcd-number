@@ -6,9 +6,11 @@ import { unifiedDataService } from '../services/unifiedDataService';
 import { DataService } from '../services/dataService_new';
 import { useCachedData, useAnalysisCache } from '../hooks/useCachedData';
 import { redisCache } from '../services/redisClient';
+import { Rule2ResultsService } from '../services/rule2ResultsService';
+import rule2AnalysisService from '../services/rule2AnalysisService';
 import ProgressBar from './ProgressBar';
 
-function Rule1PageEnhanced({ date, selectedUser, datesList, onBack, users }) {
+function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack, users }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedUserData, setSelectedUserData] = useState(null);
@@ -298,9 +300,9 @@ function Rule1PageEnhanced({ date, selectedUser, datesList, onBack, users }) {
   const buildAllDaysData = async () => {
     try {
       setLoading(true);
-      console.log(`🔍 [Rule-1 Enhanced] Loading data for user ${selectedUser}, date ${date}`);
+      console.log(`🔍 [Rule-1 Enhanced] Loading data for user ${selectedUser}, display date: ${date}, analysis date: ${analysisDate || date}`);
 
-      // Check cache first
+      // Check cache first using the display date (since UI is keyed to display date)
       const cacheKey = `rule1_data_${selectedUser}_${date}`;
       const cachedData = await getCachedAnalysis(cacheKey);
       if (cachedData && cacheHit) {
@@ -314,7 +316,17 @@ function Rule1PageEnhanced({ date, selectedUser, datesList, onBack, users }) {
 
       // Sort all dates ascending (oldest → newest)
       const sortedDates = [...datesList].sort((a, b) => new Date(a) - new Date(b));
-      const targetIdx = sortedDates.indexOf(date);
+      
+      // FIXED: Use analysisDate for position calculation if provided (Past Days rule2page logic)
+      const targetAnalysisDate = analysisDate || date;
+      const targetIdx = sortedDates.indexOf(targetAnalysisDate);
+      
+      console.log(`🔄 [Rule-1 Enhanced] FIXED Past Days Logic:`, {
+        displayDate: date,
+        analysisDate: targetAnalysisDate,
+        targetIndex: targetIdx,
+        message: analysisDate ? `Display: ${date}, Analyze: ${analysisDate} (rule2page logic)` : `Standard mode: ${date}`
+      });
 
       // Show ALL available dates for complete historical analysis
       let windowDates = sortedDates;
@@ -452,12 +464,153 @@ function Rule1PageEnhanced({ date, selectedUser, datesList, onBack, users }) {
     }
   };
 
+  // Load Rule-2 ABCD/BCD analysis results for display using real-time analysis
+  const loadRule2AnalysisResults = async () => {
+    try {
+      console.log('🔍 [Rule1Page] Loading Rule-2 ABCD/BCD analysis results using real-time analysis...');
+      
+      // Get all available dates
+      const availableDates = Object.keys(allDaysData).sort((a, b) => new Date(a) - new Date(b));
+      
+      if (availableDates.length === 0) {
+        console.log('⚠️ [Rule1Page] No dates available for Rule-2 analysis');
+        return;
+      }
+      
+      // ✅ IMPLEMENTATION: Past Days should show ABCD/BCD numbers using (N-1) pattern
+      // For each date in Past Days, calculate ABCD/BCD numbers from the PREVIOUS date using rule2page logic
+      console.log('🔄 [Rule1Page] Implementing (N-1) day pattern for Past Days...');
+      
+      const analysisData = {};
+      
+      // Process each date to get ABCD/BCD numbers from the previous date
+      for (let i = 0; i < availableDates.length; i++) {
+        const currentDate = availableDates[i];
+        
+        // ✅ PAST DAYS LOGIC: Show ABCD/BCD numbers from PREVIOUS date (N-1 pattern)
+        // 5th day Past Days → Show 4th day's ABCD/BCD numbers
+        // 6th day Past Days → Show 5th day's ABCD/BCD numbers
+        if (i > 0) { // Skip first date as it has no previous date
+          const previousDate = availableDates[i - 1]; // N-1 day
+          
+          console.log(`📅 [Rule1Page] Processing Past Days: "${currentDate}" shows ABCD/BCD from "${previousDate}"`);
+          console.log(`📊 [Rule1Page] Available dates for analysis: [${availableDates.slice(0, i + 1).join(', ')}]`);
+          
+          try {
+            // ✅ Use real-time Rule2 analysis logic instead of cached database results
+            // IMPORTANT: Use all dates up to and INCLUDING the previous date for Rule2 analysis
+            const datesForAnalysis = availableDates.slice(0, i + 1); // Include the previous date
+            
+            console.log(`🔧 [Rule1Page] Calling rule2AnalysisService.performRule2Analysis with:`);
+            console.log(`   - User: ${selectedUser}`);
+            console.log(`   - Trigger Date: ${previousDate}`);
+            console.log(`   - Dates List: [${datesForAnalysis.join(', ')}]`);
+            console.log(`   - HR: ${activeHR || 1}`);
+            
+            const rule2Analysis = await rule2AnalysisService.performRule2Analysis(
+              selectedUser, 
+              previousDate, // Analyze the PREVIOUS date (N-1)
+              datesForAnalysis, // Use dates up to and including the previous date
+              activeHR || 1
+            );
+            
+            if (rule2Analysis.success) {
+              console.log(`✅ [Rule1Page] Real-time analysis SUCCESS for "${previousDate}" (shown in "${currentDate}"):`);
+              console.log(`   📊 ABCD Numbers: [${rule2Analysis.abcdNumbers.join(', ')}] (${rule2Analysis.abcdNumbers.length} total)`);
+              console.log(`   📊 BCD Numbers: [${rule2Analysis.bcdNumbers.join(', ')}] (${rule2Analysis.bcdNumbers.length} total)`);
+              console.log(`   📊 Analysis Date: ${rule2Analysis.analysisDate}`);
+              console.log(`   📊 Summary:`, rule2Analysis.summary);
+              
+              // ✅ IMPORTANT: Store topic-specific ABCD/BCD numbers, not overall combined numbers
+              console.log(`🎯 [Rule1Page] Expected specific numbers - ABCD: [7, 10], BCD: [3, 6, 8] (from D-1 Set-1 Matrix)`);
+              console.log(`🎯 [Rule1Page] Received overall numbers - ABCD: [${rule2Analysis.abcdNumbers.join(', ')}], BCD: [${rule2Analysis.bcdNumbers.join(', ')}]`);
+              
+              // ✅ FIX: Get topic-specific ABCD/BCD numbers instead of overall combined results
+              console.log(`🔧 [Rule1Page] Getting individual topic analyses instead of overall analysis...`);
+              
+              // Extract topic-specific results from the Rule2 analysis
+              const topicResults = rule2Analysis.setResults || [];
+              console.log(`📊 [Rule1Page] Found ${topicResults.length} topic-specific results`);
+              
+              // Process each topic individually (like Rule2CompactPage does)
+              topicResults.forEach(topicResult => {
+                const topicName = topicResult.setName;
+                
+                if (!analysisData[topicName]) {
+                  analysisData[topicName] = {};
+                }
+                
+                console.log(`🔍 [Rule1Page] Topic "${topicName}" individual analysis:`, {
+                  abcdCount: topicResult.abcdNumbers.length,
+                  bcdCount: topicResult.bcdNumbers.length,
+                  abcdNumbers: topicResult.abcdNumbers,
+                  bcdNumbers: topicResult.bcdNumbers
+                });
+                
+                // Store topic-specific Rule-2 results for this date
+                analysisData[topicName][currentDate] = {
+                  abcdNumbers: topicResult.abcdNumbers || [],
+                  bcdNumbers: topicResult.bcdNumbers || [],
+                  source: 'rule2_topic_specific',
+                  date: currentDate,
+                  analysisDate: previousDate, // Track which date was actually analyzed
+                  pattern: 'N-1', // Mark as Past Days N-1 pattern
+                  topicName: topicName
+                };
+              });
+              
+              console.log(`✅ [Rule1Page] Successfully stored topic-specific ABCD/BCD data for ${topicResults.length} topics on date "${currentDate}"`);
+            } else {
+              console.error(`❌ [Rule1Page] Real-time analysis FAILED for "${previousDate}":`, rule2Analysis.error);
+              console.log(`❌ [Rule1Page] Analysis details:`, rule2Analysis);
+            }
+          } catch (analysisError) {
+            console.error(`❌ [Rule1Page] Error in real-time analysis for "${previousDate}":`, analysisError);
+          }
+        } else {
+          console.log(`⚠️ [Rule1Page] Skipping first date "${currentDate}" - no previous date for N-1 pattern`);
+        }
+      }
+      
+      // Update abcdBcdAnalysis state with real-time Rule-2 results
+      if (Object.keys(analysisData).length > 0) {
+        console.log(`🎯 [Rule1Page] Setting real-time ABCD/BCD analysis data for ${Object.keys(analysisData).length} topics`);
+        console.log(`📊 [Rule1Page] Past Days dates processed:`, Object.keys(analysisData[availableTopics[0]] || {}));
+        
+        // Debug: Show a sample of the analysis data structure
+        const firstTopic = availableTopics[0];
+        if (firstTopic && analysisData[firstTopic]) {
+          console.log(`🔍 [Rule1Page] Sample analysis data for topic "${firstTopic}":`, analysisData[firstTopic]);
+        }
+        
+        setAbcdBcdAnalysis(analysisData);
+        console.log(`✅ [Rule1Page] abcdBcdAnalysis state updated successfully`);
+      } else {
+        console.log('ℹ️ [Rule1Page] No real-time ABCD/BCD numbers generated for any dates');
+        console.log('🔍 [Rule1Page] This could mean:');
+        console.log('   - No dates had sufficient data for Rule2 analysis');
+        console.log('   - All Rule2 analyses failed');
+        console.log('   - Not enough dates available (need at least 4 dates for Rule2)');
+      }
+      
+    } catch (error) {
+      console.error('❌ [Rule1Page] Error loading real-time Rule-2 analysis results:', error);
+    }
+  };
+
   // Initialize data loading
   useEffect(() => {
     if (selectedUser && datesList && date) {
       buildAllDaysData();
     }
   }, [selectedUser, datesList, date]);
+
+  // Load Rule-2 analysis results after data is loaded
+  useEffect(() => {
+    if (Object.keys(allDaysData).length > 0 && availableTopics.length > 0 && selectedUser) {
+      loadRule2AnalysisResults();
+    }
+  }, [allDaysData, availableTopics, selectedUser]);
 
   // Color coding function for ABCD/BCD numbers
   const renderColorCodedDayNumber = (displayValue, setName, dateKey) => {
@@ -468,14 +621,35 @@ function Rule1PageEnhanced({ date, selectedUser, datesList, onBack, users }) {
     const elementNumber = extractElementNumber(displayValue);
     if (elementNumber === null) return displayValue;
 
-    // Check if we have analysis data for this set
+    // Check if we have analysis data for this set and date
     const setAnalysis = abcdBcdAnalysis[setName];
-    if (!setAnalysis) return displayValue;
+    if (!setAnalysis) {
+      return displayValue;
+    }
+    
+    if (!setAnalysis[dateKey]) {
+      return displayValue;
+    }
 
-    const { abcdNumbers, bcdNumbers } = setAnalysis;
+    const dateAnalysis = setAnalysis[dateKey];
+    const abcdNumbers = dateAnalysis.abcdNumbers || [];
+    const bcdNumbers = dateAnalysis.bcdNumbers || [];
+    
+    // 🔍 DETAILED DEBUG: Only log when we find a match
+    if (abcdNumbers.includes(elementNumber) || bcdNumbers.includes(elementNumber)) {
+      console.log(`🎯 [Rule1Page] MATCH FOUND! Element ${elementNumber} in "${setName}" on "${dateKey}":`, {
+        displayValue,
+        elementNumber,
+        abcdNumbers,
+        bcdNumbers,
+        isInAbcd: abcdNumbers.includes(elementNumber),
+        isInBcd: bcdNumbers.includes(elementNumber)
+      });
+    }
     
     // Check if this number is in ABCD or BCD results
     if (abcdNumbers.includes(elementNumber)) {
+      console.log(`✅ [Rule1Page] Rendering ABCD tag for number ${elementNumber} (expected: 7, 10)`);
       return (
         <div className="flex items-center justify-center gap-1">
           <span className="text-data-value">{displayValue}</span>
@@ -485,6 +659,7 @@ function Rule1PageEnhanced({ date, selectedUser, datesList, onBack, users }) {
         </div>
       );
     } else if (bcdNumbers.includes(elementNumber)) {
+      console.log(`✅ [Rule1Page] Rendering BCD tag for number ${elementNumber} (expected: 3, 6, 8)`);
       return (
         <div className="flex items-center justify-center gap-1">
           <span className="text-data-value">{displayValue}</span>
@@ -546,6 +721,10 @@ function Rule1PageEnhanced({ date, selectedUser, datesList, onBack, users }) {
               <div className="text-sm text-purple-800 mt-1">
                 <p>👤 User ID: {selectedUser}</p>
                 <p>📅 Target Date: {date}</p>
+                {analysisDate && analysisDate !== date && (
+                  <p>🔍 Analysis Source: {analysisDate} (rule2page logic)</p>
+                )}
+                <p>📊 ABCD/BCD Pattern: (N-1) Past Days - Real-time Topic-Specific Rule2 Analysis</p>
                 <p>🪟 {windowType}</p>
               </div>
             </div>
@@ -670,7 +849,13 @@ function Rule1PageEnhanced({ date, selectedUser, datesList, onBack, users }) {
                           Element
                         </th>
                         {availableDates.map(dateKey => {
-                          const formattedDate = new Date(dateKey).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                          // Format date as DD-M-YY (e.g., "1-6-25")
+                          const dateObj = new Date(dateKey);
+                          const day = dateObj.getDate();
+                          const month = dateObj.getMonth() + 1; // getMonth() returns 0-11
+                          const year = dateObj.getFullYear().toString().slice(-2); // Get last 2 digits of year
+                          const formattedDate = `${day}-${month}-${year}`;
+                          
                           const planetAbbr = (() => {
                             const dayData = allDaysData[dateKey];
                             if (dayData?.success && dayData.hrData[activeHR]) {
@@ -679,12 +864,52 @@ function Rule1PageEnhanced({ date, selectedUser, datesList, onBack, users }) {
                             return '';
                           })();
                           
+                          // Get ABCD/BCD numbers for this date and topic
+                          const getAbcdBcdForHeader = () => {
+                            const setAnalysis = abcdBcdAnalysis[setName];
+                            if (!setAnalysis || !setAnalysis[dateKey]) {
+                              return { abcdNumbers: [], bcdNumbers: [] };
+                            }
+                            
+                            const dateAnalysis = setAnalysis[dateKey];
+                            return {
+                              abcdNumbers: dateAnalysis.abcdNumbers || [],
+                              bcdNumbers: dateAnalysis.bcdNumbers || []
+                            };
+                          };
+                          
+                          const { abcdNumbers, bcdNumbers } = getAbcdBcdForHeader();
+                          const hasAbcdBcdData = abcdNumbers.length > 0 || bcdNumbers.length > 0;
+                          
                           return (
-                            <th key={dateKey} className={`border border-gray-300 px-4 py-2 text-center font-medium text-xs ${
+                            <th key={dateKey} className={`border border-gray-300 px-4 py-2 text-center font-medium text-sm ${
                               dateKey === date ? 'bg-blue-500 text-white' : 'text-gray-700'
                             }`}>
-                              <div>{formattedDate}-{planetAbbr}({availableDates.indexOf(dateKey) < 4 ? String.fromCharCode(65 + availableDates.indexOf(dateKey)) : 'D'})</div>
+                              <div className="text-base font-semibold">{formattedDate} {planetAbbr}</div>
                               {dateKey === date && <div className="text-xs font-bold">TARGET</div>}
+                              
+                              {/* Display ABCD/BCD numbers in header */}
+                              {hasAbcdBcdData && (
+                                <div className="mt-1 text-xs">
+                                  {abcdNumbers.length > 0 && (
+                                    <div className={`${dateKey === date ? 'text-green-200' : 'text-green-600'} font-medium`}>
+                                      ABCD: [{abcdNumbers.join(', ')}]
+                                    </div>
+                                  )}
+                                  {bcdNumbers.length > 0 && (
+                                    <div className={`${dateKey === date ? 'text-blue-200' : 'text-blue-600'} font-medium`}>
+                                      BCD: [{bcdNumbers.join(', ')}]
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              
+                              {/* Show analysis pattern for Past Days */}
+                              {hasAbcdBcdData && dateKey !== date && (
+                                <div className="text-xs text-gray-500 mt-1">
+                                  (N-1 Pattern)
+                                </div>
+                              )}
                             </th>
                           );
                         })}

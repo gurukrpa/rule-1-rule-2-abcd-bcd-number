@@ -920,7 +920,10 @@ function ABCDBCDNumber() {
     setRule2PageData(null);
   };
 
-  // Handle Rule1 (Past Days) navigation
+  // Handle Rule1 (Past Days) navigation - FIXED for 4th date rule2page logic
+  // ✅ REQUIREMENT IMPLEMENTATION:
+  // 1. 5th date: ABCD/BCD numbers should be present IN the 5th date (Rule2 handles this correctly)
+  // 2. Past Days: Should show ABCD/BCD numbers from 4th date using rule2page logic
   const handleRule1Click = (date) => {
     console.log('🕰️ handleRule1Click called with date:', date);
     console.log('🕰️ Current datesList:', datesList);
@@ -936,14 +939,24 @@ function ABCDBCDNumber() {
     const sortedDates = [...datesList].sort((a, b) => new Date(a) - new Date(b));
     const idx = sortedDates.indexOf(date);
     
+    // FIXED: Past Days should show 4th date ABCD/BCD numbers using rule2page logic
+    // Requirements: Past Days should show ABCD/BCD numbers from 4th date using rule2page logic
     if (idx < 4) {
       setError('Past Days requires at least 5 dates. This is only the ' + (idx + 1) + getOrdinalSuffix(idx + 1) + ' date chronologically.');
       return;
     }
     
+    // FIXED: For Past Days, use 4th date data but keep clicked date for display
+    // Find the 4th date chronologically (index 3 in sorted array) for analysis
+    const fourthDate = sortedDates[3]; // 4th date (index 3) for ABCD/BCD analysis
+    
     console.log('✅ Past Days validation passed, showing Rule1PageEnhanced');
+    console.log(`🔄 FIXED: Past Days → Display: "${date}", Analysis: "${fourthDate}" (rule2page logic)`);
+    console.log(`📅 User clicked: "${date}" → Show this date as Target, but analyze: "${fourthDate}"`);
+    
     setRule1PageData({
-      date,
+      date: date, // FIXED: Keep clicked date for display (Target Date)
+      analysisDate: fourthDate, // FIXED: Use 4th date for ABCD/BCD analysis
       selectedUser
     });
     setShowRule1Page(true);
@@ -1096,6 +1109,7 @@ function ABCDBCDNumber() {
       <Rule1PageEnhanced
         key={`rule1-${selectedUser}-${datesList.length}-${JSON.stringify(datesList)}`}
         date={rule1PageData.date}
+        analysisDate={rule1PageData.analysisDate}
         selectedUser={rule1PageData.selectedUser}
         datesList={datesList}
         onBack={handleBackFromRule1}
