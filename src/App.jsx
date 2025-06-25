@@ -20,6 +20,7 @@ import SimpleProtectedRoute from './components/SimpleProtectedRoute';
 import DayDetails from './components/DayDetails';
 import NumberGen from './components/NumberGen';
 import ABCDBCDNumber from './components/ABCDBCDNumber';
+import PlanetsAnalysisPage from './components/PlanetsAnalysisPage';
 import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
@@ -122,6 +123,18 @@ function App() {
             <Route path="/abcd-number/:userId" element={
               <ErrorBoundary>
                 <ABCDBCDNumber />
+              </ErrorBoundary>
+            } />
+            
+            <Route path="/planets-analysis" element={
+              <ErrorBoundary>
+                <PlanetsAnalysisPage />
+              </ErrorBoundary>
+            } />
+            
+            <Route path="/planets-analysis/:userId" element={
+              <ErrorBoundary>
+                <PlanetsAnalysisPage />
               </ErrorBoundary>
             } />
             
