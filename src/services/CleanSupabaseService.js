@@ -76,9 +76,16 @@ class CleanSupabaseService {
   async saveExcelData(userId, date, excelData) {
     try {
       console.log(`📤 Saving Excel data for ${userId} on ${date}`);
+      console.log(`🔍 Excel data structure:`, {
+        hasDirectSets: !!excelData.sets,
+        hasDataProperty: !!excelData.data,
+        hasDataSets: !!excelData.data?.sets,
+        structure: Object.keys(excelData)
+      });
       
-      // Validate data structure
-      if (!excelData.sets || Object.keys(excelData.sets).length === 0) {
+      // Validate data structure - check both possible formats
+      const sets = excelData.sets || excelData.data?.sets;
+      if (!sets || Object.keys(sets).length === 0) {
         throw new Error('Excel data must contain sets/topics');
       }
 
@@ -88,7 +95,7 @@ class CleanSupabaseService {
           user_id: userId,
           date: date,
           file_name: excelData.fileName || 'Unknown',
-          data: { sets: excelData.sets } // Store as JSON in 'data' column
+          data: { sets: sets } // Store as JSON in 'data' column
         }, {
           onConflict: 'user_id,date'  // Specify composite key for conflict resolution
         })
@@ -97,7 +104,7 @@ class CleanSupabaseService {
 
       if (error) throw error;
       
-      console.log(`✅ Excel data saved: ${Object.keys(excelData.sets).length} sets`);
+      console.log(`✅ Excel data saved: ${Object.keys(sets).length} sets`);
       return data;
     } catch (error) {
       console.error('❌ Error saving Excel data:', error);
@@ -228,10 +235,20 @@ class CleanSupabaseService {
 
       if (error) {
         if (error.code === 'PGRST116') {
-          console.log(`ℹ️ No hour entry found for ${userId} on ${date}`);
+          console.log(`ℹ️ No hour entry found for ${userId} on ${date} (this is normal for new dates)`);
           return null;
         }
-        throw error;
+        
+        // Log detailed error information for debugging
+        console.error(`❌ Hour entry query failed for ${userId} on ${date}:`, {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          statusCode: error.statusCode
+        });
+        
+        throw new Error(`Database query failed: ${error.message || 'Unknown error'}`);
       }
 
       console.log(`✅ Hour entry loaded: ${Object.keys(data.hour_data?.planetSelections || {}).length} HR selections`);
@@ -241,8 +258,11 @@ class CleanSupabaseService {
         date: data.date_key
       };
     } catch (error) {
-      console.error('❌ Error getting hour entry:', error);
-      throw error;
+      if (error.message?.includes('Database query failed')) {
+        throw error; // Re-throw our custom error
+      }
+      console.error('❌ Unexpected error getting hour entry:', error);
+      throw new Error(`Unexpected error: ${error.message || 'Unknown error'}`);
     }
   }
 

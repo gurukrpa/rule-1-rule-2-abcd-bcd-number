@@ -1,14 +1,11 @@
-// src/components/PlanetsAnalysisPage.jsx
+// src/components/PlanetsAnalysisPageSimple.jsx
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { supabase } from '../supabaseClient';
 
 function PlanetsAnalysisPage() {
   const navigate = useNavigate();
-  const { userId } = useParams();
-  const location = useLocation();
 
   // Simple state management
   const [loading, setLoading] = useState(false);
@@ -17,170 +14,31 @@ function PlanetsAnalysisPage() {
   const [planetsData, setPlanetsData] = useState(null);
   const [selectedTopics, setSelectedTopics] = useState(new Set());
   const [showTopicSelector, setShowTopicSelector] = useState(true);
-  
-  // User information state
-  const [userInfo, setUserInfo] = useState(null);
-  const [selectedDate, setSelectedDate] = useState('');
 
-  // Load user information if userId is provided
-  useEffect(() => {
-    const loadUserInfo = async () => {
-      if (userId) {
-        try {
-          const { data: userData, error: userError } = await supabase
-            .from('users')
-            .select('id, username, hr, days')
-            .eq('id', userId)
-            .single();
+  // Hardcoded ABCD/BCD numbers as per user requirements
+  const ABCD_NUMBERS = [6, 8, 11];
+  const BCD_NUMBERS = [9, 10];
 
-          if (userError) throw userError;
-          setUserInfo(userData);
-        } catch (err) {
-          console.error('Error loading user info:', err);
-          // Use fallback user info
-          setUserInfo({
-            id: userId,
-            username: 'Unknown User',
-            hr: 'N/A'
-          });
-        }
-      }
-    };
-
-    // Extract date from URL query params
-    const urlParams = new URLSearchParams(location.search);
-    const dateParam = urlParams.get('date');
-    if (dateParam) {
-      setSelectedDate(dateParam);
-    }
-
-    loadUserInfo();
-  }, [userId, location.search]);
-
-  // Topic-specific ABCD/BCD numbers mapping
-  const TOPIC_NUMBERS = {
-    'D-1 Set-1 Matrix': { abcd: [6, 8, 11], bcd: [9, 10] },
-    'D-1 Set-2 Matrix': { abcd: [1, 4, 5, 9], bcd: [8] },
-    'D-3 (trd) Set-1 Matrix': { abcd: [1, 2, 8, 11], bcd: [4, 6] },
-    'D-3 (trd) Set-2 Matrix': { abcd: [5, 9, 10, 11], bcd: [3, 4] },
-    'D-4 Set-1 Matrix': { abcd: [2, 5, 6, 8], bcd: [1, 4, 12] },
-    'D-4 Set-2 Matrix': { abcd: [3, 5, 6, 10, 11], bcd: [7, 9] },
-    'D-5 (pv) Set-1 Matrix': { abcd: [2, 9], bcd: [] },
-    'D-5 (pv) Set-2 Matrix': { abcd: [1, 6, 10], bcd: [] },
-    'D-7 (trd) Set-1 Matrix': { abcd: [1, 5, 7, 10, 11, 12], bcd: [4, 9] },
-    'D-7 (trd) Set-2 Matrix': { abcd: [1, 3, 4, 6, 7, 10], bcd: [2] },
-    'D-9 Set-1 Matrix': { abcd: [3, 11], bcd: [2, 7] },
-    'D-9 Set-2 Matrix': { abcd: [4, 7, 9, 12], bcd: [5] },
-    'D-10 (trd) Set-1 Matrix': { abcd: [2, 7, 8, 10], bcd: [4] },
-    'D-10 (trd) Set-2 Matrix': { abcd: [3, 8, 9, 11], bcd: [5] },
-    'D-11 Set-1 Matrix': { abcd: [4, 7, 8, 9, 12], bcd: [6] },
-    'D-11 Set-2 Matrix': { abcd: [1, 5, 6, 9], bcd: [2, 4, 12] },
-    'D-12 (trd) Set-1 Matrix': { abcd: [4, 5, 12], bcd: [6, 7, 9] },
-    'D-12 (trd) Set-2 Matrix': { abcd: [6, 8, 9, 10], bcd: [3, 5] },
-    'D-27 (trd) Set-1 Matrix': { abcd: [4, 7], bcd: [11] },
-    'D-27 (trd) Set-2 Matrix': { abcd: [2, 7], bcd: [12] },
-    'D-30 (sh) Set-1 Matrix': { abcd: [1, 2, 6], bcd: [7, 10, 11] },
-    'D-30 (sh) Set-2 Matrix': { abcd: [1, 2, 9, 10], bcd: [4, 11] },
-    'D-60 (Trd) Set-1 Matrix': { abcd: [1, 4, 5, 6], bcd: [3, 9] },
-    'D-60 (Trd) Set-2 Matrix': { abcd: [3, 8, 9, 12], bcd: [6, 10] },
-    'D-81 Set-1 Matrix': { abcd: [5, 6, 7, 12], bcd: [3] },
-    'D-81 Set-2 Matrix': { abcd: [3, 9, 10], bcd: [2] },
-    'D-108 Set-1 Matrix': { abcd: [2, 4, 6, 8], bcd: [9, 10] },
-    'D-108 Set-2 Matrix': { abcd: [1, 5, 6, 12], bcd: [4, 8] },
-    'D-144 Set-1 Matrix': { abcd: [9, 10, 11], bcd: [2, 3, 4, 5, 12] },
-    'D-144 Set-2 Matrix': { abcd: [1, 4, 6, 8], bcd: [3, 11, 12] }
-  };
-
-  // Get ABCD/BCD numbers for a specific topic
-  const getTopicNumbers = (setName) => {
-    return TOPIC_NUMBERS[setName] || { abcd: [], bcd: [] };
-  };
-
-  // Extract number from planet data for ABCD/BCD analysis
+  // Extract number from planet data
   const extractElementNumber = (str) => {
     if (typeof str !== 'string') return null;
     const match = str.match(/^[a-z]+-(\d+)/);
     return match ? Number(match[1]) : null;
   };
 
-  // Extract complete element-number-sign format from planet data
-  const extractElementFormat = (rawString) => {
-    if (!rawString || typeof rawString !== 'string') return null;
-    
-    // Pattern: as-9-/ju-(22 Li 53)-(00 Ge 11) → as-9-Li
-    // Extract the first zodiac sign mentioned in parentheses
-    const match = rawString.match(/^([a-z]+-\d+)-\/[a-z]+-\(\d+\s+([A-Za-z]+)/);
-    if (match) {
-      const [, elementNumber, sign] = match;
-      return `${elementNumber}-${sign}`;
-    }
-    
-    // Fallback: if it's already in the desired format
-    if (rawString.match(/^[a-z]+-\d+-[A-Za-z]+$/)) {
-      return rawString;
-    }
-    
-    // Another fallback: extract just element-number if no sign found
-    const basicMatch = rawString.match(/^([a-z]+-\d+)/);
-    if (basicMatch) {
-      return basicMatch[1];
-    }
-    
-    return rawString;
-  };
-
-  // Extract all numbers for each planet in a specific topic
-  const getTopicPlanetNumbers = (setName) => {
-    if (!planetsData?.sets?.[setName]) return {};
-    
-    const planetNumbers = {
-      'Su': [], 'Mo': [], 'Ma': [], 'Me': [], 'Ju': [],
-      'Ve': [], 'Sa': [], 'Ra': [], 'Ke': []
-    };
-    
-    const setData = planetsData.sets[setName];
-    
-    // Go through each element in this topic
-    Object.values(setData).forEach(elementData => {
-      // Go through each planet's data
-      Object.entries(elementData).forEach(([planet, rawData]) => {
-        if (planetNumbers[planet] !== undefined) {
-          const number = extractElementNumber(rawData);
-          if (number !== null && !planetNumbers[planet].includes(number)) {
-            planetNumbers[planet].push(number);
-          }
-        }
-      });
-    });
-    
-    // Sort numbers for each planet
-    Object.keys(planetNumbers).forEach(planet => {
-      planetNumbers[planet].sort((a, b) => a - b);
-    });
-    
-    return planetNumbers;
-  };
-
-  // Format planet data to show element-number-sign format
+  // Format planet data to short format: as-8-su-li
   const formatPlanetData = (rawString) => {
     if (!rawString) return '—';
     
-    // Use the new extraction method to get element-number-sign format
-    const extracted = extractElementFormat(rawString);
-    if (extracted) {
-      return extracted;
-    }
-    
-    // Fallback: try the old pattern matching
-    // Pattern: as-7/su-(12 Sc 50)-(20 Ta 50) → as-7-Sc
-    let match = rawString.match(/^([a-z]+-\d+)\/[a-z]+-\((\d+)\s+([A-Za-z]+)/);
+    // Pattern: as-7/su-(12 Sc 50)-(20 Ta 50) → as-7-su-sc
+    let match = rawString.match(/^([a-z]+-\d+)\/([a-z]+)-\((\d+)\s+([A-Za-z]+)/);
     if (match) {
-      const [, element, , sign] = match;
-      return `${element}-${sign}`;
+      const [, element, planet, , sign] = match;
+      return `${element}-${planet}-${sign.toLowerCase().slice(0, 2)}`;
     }
     
     // Simple format already formatted
-    if (rawString.match(/^[a-z]+-\d+-[A-Za-z]+$/)) {
+    if (rawString.match(/^[a-z]+-\d+-[a-z]+-[a-z]+$/)) {
       return rawString;
     }
     
@@ -193,15 +51,13 @@ function PlanetsAnalysisPage() {
     return rawString;
   };
 
-  // Render ABCD/BCD badges based on topic-specific numbers
-  const renderABCDBadges = (rawData, setName) => {
+  // Render ABCD/BCD badges
+  const renderABCDBadges = (rawData) => {
     const extractedNumber = extractElementNumber(rawData);
     if (!extractedNumber && extractedNumber !== 0) return null;
     
-    const { abcd, bcd } = getTopicNumbers(setName);
-    
     // Check ABCD first (priority)
-    if (abcd.includes(extractedNumber)) {
+    if (ABCD_NUMBERS.includes(extractedNumber)) {
       return (
         <span className="bg-green-200 text-green-800 px-1 py-0.5 rounded text-xs font-medium">
           ABCD
@@ -210,7 +66,7 @@ function PlanetsAnalysisPage() {
     }
     
     // Check BCD
-    if (bcd.includes(extractedNumber)) {
+    if (BCD_NUMBERS.includes(extractedNumber)) {
       return (
         <span className="bg-blue-200 text-blue-800 px-1 py-0.5 rounded text-xs font-medium">
           BCD
@@ -375,19 +231,7 @@ function PlanetsAnalysisPage() {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-bold text-gray-800">🔬 Planets Analysis (Simplified)</h1>
-              <div className="text-sm text-gray-600 mt-1">
-                {userInfo ? (
-                  <div className="flex items-center gap-4">
-                    <span>👤 User: <span className="font-medium">{userInfo.username}</span></span>
-                    <span>🕐 Hours: <span className="font-medium">{userInfo.hr}</span></span>
-                    {selectedDate && (
-                      <span>📅 Date: <span className="font-medium">{new Date(selectedDate).toLocaleDateString()}</span></span>
-                    )}
-                  </div>
-                ) : (
-                  <span>Upload Excel file to see planets data with ABCD/BCD analysis</span>
-                )}
-              </div>
+              <p className="text-sm text-gray-600">Upload Excel file to see planets data with ABCD/BCD analysis</p>
             </div>
             <button
               onClick={() => navigate(-1)}
@@ -414,8 +258,8 @@ function PlanetsAnalysisPage() {
               />
             </div>
             <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
-              <div><strong>Topics:</strong> 30 different topic matrices</div>
-              <div><strong>Analysis:</strong> Each topic has unique ABCD/BCD numbers</div>
+              <div><strong>ABCD Numbers:</strong> [{ABCD_NUMBERS.join(', ')}]</div>
+              <div><strong>BCD Numbers:</strong> [{BCD_NUMBERS.join(', ')}]</div>
             </div>
           </div>
         </div>
@@ -506,28 +350,21 @@ function PlanetsAnalysisPage() {
                     {formatSetName(setName)}
                   </h4>
                   
-                  {/* Planet Headers with topic-specific ABCD/BCD numbers */}
+                  {/* Planet Headers with ABCD/BCD numbers */}
                   <div className="mb-4 grid grid-cols-9 gap-2">
-                    {['Su', 'Mo', 'Ma', 'Me', 'Ju', 'Ve', 'Sa', 'Ra', 'Ke'].map(planetCode => {
-                      const { abcd, bcd } = getTopicNumbers(setName);
-                      return (
-                        <div key={planetCode} className="text-center bg-purple-100 p-2 rounded">
-                          <div className="text-sm font-semibold">{planetCode}</div>
-                          <div className="text-xs mt-1">
-                            {abcd.length > 0 && (
-                              <div className="bg-green-200 text-green-800 px-1 py-0.5 rounded mb-1">
-                                ABCD: [{abcd.join(', ')}]
-                              </div>
-                            )}
-                            {bcd.length > 0 && (
-                              <div className="bg-blue-200 text-blue-800 px-1 py-0.5 rounded">
-                                BCD: [{bcd.join(', ')}]
-                              </div>
-                            )}
+                    {['Su', 'Mo', 'Ma', 'Me', 'Ju', 'Ve', 'Sa', 'Ra', 'Ke'].map(planetCode => (
+                      <div key={planetCode} className="text-center bg-purple-100 p-2 rounded">
+                        <div className="text-sm font-semibold">{planetCode}</div>
+                        <div className="text-xs mt-1">
+                          <div className="bg-green-200 text-green-800 px-1 py-0.5 rounded mb-1">
+                            ABCD: [{ABCD_NUMBERS.join(', ')}]
+                          </div>
+                          <div className="bg-blue-200 text-blue-800 px-1 py-0.5 rounded">
+                            BCD: [{BCD_NUMBERS.join(', ')}]
                           </div>
                         </div>
-                      );
-                    })}
+                      </div>
+                    ))}
                   </div>
                   
                   {/* Data Table */}
@@ -576,7 +413,7 @@ function PlanetsAnalysisPage() {
                                             <span className="font-mono text-gray-700 text-xs">
                                               {formattedData}
                                             </span>
-                                            {renderABCDBadges(rawData, setName)}
+                                            {renderABCDBadges(rawData)}
                                           </div>
                                         ) : (
                                           <span className="text-gray-400">—</span>
@@ -613,7 +450,7 @@ function PlanetsAnalysisPage() {
             </div>
             <div>
               <div className="font-medium text-gray-800 mb-1">🏷️ ABCD/BCD Analysis</div>
-              <p>Each topic has its own specific ABCD and BCD numbers. Green badges show ABCD, blue badges show BCD.</p>
+              <p>Numbers [6, 8, 11] show ABCD badges (green), numbers [9, 10] show BCD badges (blue).</p>
             </div>
             <div>
               <div className="font-medium text-gray-800 mb-1">🔍 Topic Filtering</div>
