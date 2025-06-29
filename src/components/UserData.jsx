@@ -7,7 +7,7 @@ import AddNewDate from './AddNewDate';
 import ExcelUpload from './ExcelUpload';
 import * as XLSX from 'xlsx'; // Import the xlsx library
 import ExcelJS from 'exceljs'; // Import the exceljs library
-import { cleanSupabaseService } from '../services/CleanSupabaseService'; // Import CleanSupabaseService
+import cleanSupabaseService, { PAGE_CONTEXTS } from '../services/CleanSupabaseServiceWithSeparateStorage'; // ✅ True independence service
 
 function UserData() {
   const navigate = useNavigate();
@@ -42,10 +42,10 @@ function UserData() {
         if (userError) throw userError;
         setUser(userData);
 
-        // ✅ Load dates from user_dates table first (single source of truth)
-        console.log('📅 Loading dates from user_dates table for user:', userId);
-        const userDates = await cleanSupabaseService.getUserDates(userId);
-        console.log('📅 Loaded dates from user_dates table:', userDates);
+        // ✅ Load dates from user_dates_userdata table (UserData page specific - TRUE INDEPENDENCE)
+        console.log('📅 Loading dates from user_dates_userdata table for user:', userId);
+        const userDates = await cleanSupabaseService.getUserDates(userId, PAGE_CONTEXTS.USERDATA);
+        console.log('📅 Loaded dates from user_dates_userdata table:', userDates);
 
         // Fetch HR data
         const { data: hrData, error: hrError } = await supabase
@@ -141,10 +141,10 @@ function UserData() {
 
       if (insertError) throw insertError;
 
-      // ✅ Save date to user_dates table using CleanSupabaseService
-      console.log('💾 Adding date to user_dates table:', newDate);
-      await cleanSupabaseService.addUserDate(userId, newDate);
-      console.log('✅ Date added to user_dates table successfully');
+      // ✅ Save date to user_dates_userdata table (UserData page specific - TRUE INDEPENDENCE)
+      console.log('💾 Adding date to user_dates_userdata table:', newDate);
+      await cleanSupabaseService.addUserDate(userId, newDate, PAGE_CONTEXTS.USERDATA);
+      console.log('✅ Date added to user_dates_userdata table successfully');
 
       // Update local state
       setDates(prev => ({
@@ -185,13 +185,13 @@ function UserData() {
 
       setHrData(updatedData);
 
-      // ✅ Save updated dates to user_dates table
+      // ✅ Save updated dates to user_dates_userdata table (UserData page specific - TRUE INDEPENDENCE)
       const updatedDates = { ...dates, [day]: value };
       const allDates = Object.values(updatedDates).filter(Boolean);
       if (allDates.length > 0) {
-        console.log('💾 Saving updated dates to user_dates table:', allDates);
-        await cleanSupabaseService.saveUserDates(userId, allDates);
-        console.log('✅ Updated dates saved to user_dates table successfully');
+        console.log('💾 Saving updated dates to user_dates_userdata table:', allDates);
+        await cleanSupabaseService.saveUserDates(userId, allDates, PAGE_CONTEXTS.USERDATA);
+        console.log('✅ Updated dates saved to user_dates_userdata table successfully');
       }
     } catch (error) {
       console.error('❌ Error updating date:', error);
@@ -393,12 +393,12 @@ function UserData() {
         }
       }
 
-      // ✅ Save all dates to user_dates table to ensure persistence
+      // ✅ Save all dates to user_dates_userdata table (UserData page specific - TRUE INDEPENDENCE)
       const allDates = Object.values(dates).filter(Boolean);
       if (allDates.length > 0) {
-        console.log('💾 Saving dates to user_dates table:', allDates);
-        await cleanSupabaseService.saveUserDates(userId, allDates);
-        console.log('✅ Dates saved to user_dates table successfully');
+        console.log('💾 Saving dates to user_dates_userdata table:', allDates);
+        await cleanSupabaseService.saveUserDates(userId, allDates, PAGE_CONTEXTS.USERDATA);
+        console.log('✅ Dates saved to user_dates_userdata table successfully');
       }
 
       // --- End saving to 'house' table ---

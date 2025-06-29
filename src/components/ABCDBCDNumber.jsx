@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-// Using CleanSupabaseService singleton instance for data operations
-import cleanSupabaseService from '../services/CleanSupabaseService';
+// Using CleanSupabaseService with separate storage for true independence
+import cleanSupabaseService, { PAGE_CONTEXTS } from '../services/CleanSupabaseServiceWithSeparateStorage'; // ✅ True independence service
 import * as XLSX from 'xlsx';
 // Import strict Excel validation
 import { validateExcelStructure, generateValidationReport } from '../utils/excelValidation';
@@ -164,11 +164,10 @@ function ABCDBCDNumber() {
   // Cache stats for UI display (disabled for Supabase-only testing)
   const [cacheStats, setCacheStats] = useState(null);
 
-  // Use the real DataService instead of local state-based approach
-  // This ensures data is saved to Supabase/localStorage where IndexPage can read it
+  // ✅ DataService with ABCD page context for TRUE INDEPENDENCE from UserData page
   const dataService = {
-    saveDates: (uid, dates) => cleanSupabaseService.saveUserDates(uid, dates),
-    getDates: (uid) => cleanSupabaseService.getUserDates(uid),
+    saveDates: (uid, dates) => cleanSupabaseService.saveUserDates(uid, dates, PAGE_CONTEXTS.ABCD),
+    getDates: (uid) => cleanSupabaseService.getUserDates(uid, PAGE_CONTEXTS.ABCD),
     
     // Use CleanSupabaseService for proper data persistence
     hasExcelData: (userId, date) => cleanSupabaseService.hasExcelData(userId, date),
@@ -279,8 +278,9 @@ function ABCDBCDNumber() {
     try {
       console.log('📅 Loading user dates for:', uid);
       
-      const dates = await cleanSupabaseService.getUserDates(uid);
-      console.log('📅 Loaded dates from database:', dates);
+      // ✅ Load dates from user_dates_abcd table (ABCD page specific - TRUE INDEPENDENCE)
+      const dates = await cleanSupabaseService.getUserDates(uid, PAGE_CONTEXTS.ABCD);
+      console.log('📅 Loaded dates from user_dates_abcd table:', dates);
       
       if (dates && dates.length > 0) {
         const sorted = dates.sort((a, b) => new Date(b) - new Date(a));
@@ -349,10 +349,10 @@ function ABCDBCDNumber() {
         return;
       }
       
-      // ✅ Use CleanSupabaseService's dedicated addUserDate method
-      console.log('💾 Adding new date using CleanSupabaseService:', iso);
-      await cleanSupabaseService.addUserDate(selectedUser, iso);
-      console.log('✅ Date added successfully to database');
+      // ✅ Use CleanSupabaseService's dedicated addUserDate method with ABCD context
+      console.log('💾 Adding new date using CleanSupabaseService for ABCD page:', iso);
+      await cleanSupabaseService.addUserDate(selectedUser, iso, PAGE_CONTEXTS.ABCD);
+      console.log('✅ Date added successfully to user_dates_abcd table');
       
       // ✅ Reload dates from database to ensure UI is in sync
       await loadUserDates(selectedUser);
@@ -378,10 +378,10 @@ function ABCDBCDNumber() {
       console.log('🗑️ Starting date removal process for:', dateToRemove);
       
       if (datesList.length <= 1) {
-        // ✅ Use CleanSupabaseService's dedicated removeUserDate method for single date
-        console.log('🗑️ Removing last date using CleanSupabaseService:', dateToRemove);
-        await cleanSupabaseService.removeUserDate(selectedUser, dateToRemove);
-        console.log('✅ Last date removed successfully from database');
+        // ✅ Use CleanSupabaseService's dedicated removeUserDate method for single date with ABCD context
+        console.log('🗑️ Removing last date using CleanSupabaseService for ABCD page:', dateToRemove);
+        await cleanSupabaseService.removeUserDate(selectedUser, dateToRemove, PAGE_CONTEXTS.ABCD);
+        console.log('✅ Last date removed successfully from user_dates_abcd table');
         
         // ✅ Reload dates from database to ensure UI is in sync
         await loadUserDates(selectedUser);
@@ -400,10 +400,10 @@ function ABCDBCDNumber() {
         return;
       }
       
-      // ✅ Use CleanSupabaseService's dedicated removeUserDate method
-      console.log('🗑️ Removing date using CleanSupabaseService:', dateToRemove);
-      await cleanSupabaseService.removeUserDate(selectedUser, dateToRemove);
-      console.log('✅ Date removed successfully from database');
+      // ✅ Use CleanSupabaseService's dedicated removeUserDate method with ABCD context
+      console.log('🗑️ Removing date using CleanSupabaseService for ABCD page:', dateToRemove);
+      await cleanSupabaseService.removeUserDate(selectedUser, dateToRemove, PAGE_CONTEXTS.ABCD);
+      console.log('✅ Date removed successfully from user_dates_abcd table');
       
       // ✅ Reload dates from database to ensure UI is in sync
       await loadUserDates(selectedUser);
