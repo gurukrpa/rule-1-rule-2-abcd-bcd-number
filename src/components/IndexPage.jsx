@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { cleanSupabaseService } from '../services/CleanSupabaseService';
 import ProgressBar from './ProgressBar';
 import { performAbcdBcdAnalysis } from '../utils/abcdBcdAnalysis';
-import ABCDBCDAnalyzer, { quickAnalyze, createAnalyzer } from '../../abcd-bcd-analyzer-script';
+import ABCDBCDAnalyzer, { quickAnalyze, createAnalyzer } from '../utils/abcd-bcd-analyzer-script.js';
 
 const IndexPage = ({
   date,               // clicked date (e.g. "2025-06-05")
