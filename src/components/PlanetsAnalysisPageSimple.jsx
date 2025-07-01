@@ -1,11 +1,13 @@
 // src/components/PlanetsAnalysisPageSimple.jsx
 
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
+import { PlanetsAnalysisDataService } from '../services/planetsAnalysisDataService';
 
 function PlanetsAnalysisPage() {
   const navigate = useNavigate();
+  const { userId } = useParams();
 
   // Simple state management
   const [loading, setLoading] = useState(false);
@@ -14,10 +16,10 @@ function PlanetsAnalysisPage() {
   const [planetsData, setPlanetsData] = useState(null);
   const [selectedTopics, setSelectedTopics] = useState(new Set());
   const [showTopicSelector, setShowTopicSelector] = useState(true);
-
-  // Hardcoded ABCD/BCD numbers as per user requirements
-  const ABCD_NUMBERS = [6, 8, 11];
-  const BCD_NUMBERS = [9, 10];
+  
+  // Dynamic ABCD/BCD analysis data
+  const [analysisData, setAnalysisData] = useState(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
 
   // Extract number from planet data
   const extractElementNumber = (str) => {
@@ -51,13 +53,23 @@ function PlanetsAnalysisPage() {
     return rawString;
   };
 
-  // Render ABCD/BCD badges
-  const renderABCDBadges = (rawData) => {
+  // Get ABCD/BCD numbers for a specific topic
+  const getTopicNumbers = (topicName) => {
+    if (!analysisData) {
+      return { abcd: [], bcd: [] };
+    }
+    return PlanetsAnalysisDataService.getTopicNumbers(analysisData, topicName);
+  };
+
+  // Render ABCD/BCD badges with dynamic data
+  const renderABCDBadges = (rawData, topicName) => {
     const extractedNumber = extractElementNumber(rawData);
     if (!extractedNumber && extractedNumber !== 0) return null;
     
+    if (!analysisData) return null;
+    
     // Check ABCD first (priority)
-    if (ABCD_NUMBERS.includes(extractedNumber)) {
+    if (PlanetsAnalysisDataService.isAbcdNumber(analysisData, topicName, extractedNumber)) {
       return (
         <span className="bg-green-200 text-green-800 px-1 py-0.5 rounded text-xs font-medium">
           ABCD
@@ -66,7 +78,7 @@ function PlanetsAnalysisPage() {
     }
     
     // Check BCD
-    if (BCD_NUMBERS.includes(extractedNumber)) {
+    if (PlanetsAnalysisDataService.isBcdNumber(analysisData, topicName, extractedNumber)) {
       return (
         <span className="bg-blue-200 text-blue-800 px-1 py-0.5 rounded text-xs font-medium">
           BCD
@@ -191,14 +203,103 @@ function PlanetsAnalysisPage() {
     }
   };
 
+  // Load dynamic ABCD/BCD analysis data
+  const loadAnalysisData = async () => {
+    try {
+      setAnalysisLoading(true);
+      setError('');
+      
+      console.log('🔍 [PlanetsAnalysisSimple] Loading latest ABCD/BCD analysis...');
+      
+      // Get current user from URL params or localStorage fallback
+      const selectedUser = userId || localStorage.getItem('selectedUser');
+      const storedDates = localStorage.getItem(`dates_${selectedUser}`);
+      
+      if (!selectedUser || !storedDates) {
+        throw new Error(`No user or dates data found. User: ${selectedUser}, please select a user first.`);
+      }
+      
+      console.log(`🔍 [PlanetsAnalysisSimple] Using user: ${selectedUser}`);
+      console.log(`🔍 [PlanetsAnalysisSimple] Dates found: ${storedDates}`);
+      
+      const datesList = JSON.parse(storedDates);
+      const activeHR = parseInt(localStorage.getItem('activeHR') || '1');
+      
+      const result = await PlanetsAnalysisDataService.getLatestAnalysisNumbers(
+        selectedUser,
+        datesList,
+        activeHR
+      );
+      
+      if (result.success) {
+        setAnalysisData(result);
+        const summary = PlanetsAnalysisDataService.getAnalysisSummary(result);
+        setSuccess(`✅ Loaded ${summary.totalTopics} topics with ABCD/BCD analysis from ${summary.source}`);
+        console.log('✅ [PlanetsAnalysisSimple] Analysis data loaded:', summary);
+      } else {
+        throw new Error(result.error || 'Failed to load analysis data');
+      }
+      
+    } catch (error) {
+      console.error('❌ [PlanetsAnalysisSimple] Error loading analysis data:', error);
+      setError(`Failed to load ABCD/BCD analysis: ${error.message}`);
+      setAnalysisData(null);
+    } finally {
+      setAnalysisLoading(false);
+    }
+  };
+
+  // Load analysis data on component mount
+  useEffect(() => {
+    loadAnalysisData();
+  }, []);
+
+  // Natural sorting function for topic names (D-1, D-3, D-10, etc.)
+  // ✅ FIXED: Now handles annotated topic names like "D-3 (trd) Set-1 Matrix"
+  const naturalTopicSort = (topics) => {
+    return topics.sort((a, b) => {
+      // Extract the numeric part from "D-X" pattern (supports annotations)
+      const extractNumber = (topic) => {
+        // Enhanced pattern: D-NUMBER with optional annotations like (trd), (pv), (sh), (Trd)
+        const match = topic.match(/D-(\d+)(?:\s*\([^)]*\))?/);
+        return match ? parseInt(match[1], 10) : 0;
+      };
+      
+      // Extract set number (Set-1 vs Set-2)  
+      const extractSetNumber = (topic) => {
+        const match = topic.match(/Set-(\d+)/);
+        return match ? parseInt(match[1], 10) : 0;
+      };
+      
+      const numA = extractNumber(a);
+      const numB = extractNumber(b);
+      
+      // First sort by the D-number
+      if (numA !== numB) {
+        return numA - numB;
+      }
+      
+      // If D-numbers are equal, sort by Set number
+      const setA = extractSetNumber(a);
+      const setB = extractSetNumber(b);
+      
+      if (setA !== setB) {
+        return setA - setB;
+      }
+      
+      // If both D-number and Set number are equal, sort alphabetically
+      return a.localeCompare(b);
+    });
+  };
+
   // Topic management functions
-  const availableTopics = planetsData ? Object.keys(planetsData.sets).sort() : [];
+  const availableTopics = planetsData ? naturalTopicSort(Object.keys(planetsData.sets)) : [];
 
   const getTopicsForDisplay = () => {
     if (selectedTopics.size === 0) {
       return availableTopics;
     }
-    return Array.from(selectedTopics).sort();
+    return naturalTopicSort(Array.from(selectedTopics));
   };
 
   const formatSetName = (setName) => {
@@ -242,9 +343,9 @@ function PlanetsAnalysisPage() {
           </div>
         </div>
 
-        {/* Excel Upload Section */}
+        {/* Excel Upload & Analysis Section */}
         <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 mb-4">
             <div className="flex-1">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Upload Excel File:
@@ -257,11 +358,39 @@ function PlanetsAnalysisPage() {
                 className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
               />
             </div>
-            <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
-              <div><strong>ABCD Numbers:</strong> [{ABCD_NUMBERS.join(', ')}]</div>
-              <div><strong>BCD Numbers:</strong> [{BCD_NUMBERS.join(', ')}]</div>
+            <div className="text-xs">
+              <button
+                onClick={loadAnalysisData}
+                disabled={analysisLoading}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded text-sm disabled:opacity-50"
+              >
+                {analysisLoading ? '🔄 Loading...' : '🔄 Refresh Analysis'}
+              </button>
             </div>
           </div>
+          
+          {/* Analysis Summary */}
+          {analysisData && (
+            <div className="bg-gray-50 p-3 rounded text-xs">
+              {(() => {
+                const summary = PlanetsAnalysisDataService.getAnalysisSummary(analysisData);
+                return (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div><strong>Data Source:</strong> {summary.source}</div>
+                      <div><strong>Analysis Date:</strong> {summary.analysisDate}</div>
+                      <div><strong>HR Period:</strong> {summary.hrNumber}</div>
+                    </div>
+                    <div>
+                      <div><strong>Topics:</strong> {summary.totalTopics}</div>
+                      <div><strong>Total ABCD:</strong> {summary.totalAbcdNumbers}</div>
+                      <div><strong>Total BCD:</strong> {summary.totalBcdNumbers}</div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
         </div>
 
         {/* Topic Filter */}
@@ -352,19 +481,23 @@ function PlanetsAnalysisPage() {
                   
                   {/* Planet Headers with ABCD/BCD numbers */}
                   <div className="mb-4 grid grid-cols-9 gap-2">
-                    {['Su', 'Mo', 'Ma', 'Me', 'Ju', 'Ve', 'Sa', 'Ra', 'Ke'].map(planetCode => (
-                      <div key={planetCode} className="text-center bg-purple-100 p-2 rounded">
-                        <div className="text-sm font-semibold">{planetCode}</div>
-                        <div className="text-xs mt-1">
-                          <div className="bg-green-200 text-green-800 px-1 py-0.5 rounded mb-1">
-                            ABCD: [{ABCD_NUMBERS.join(', ')}]
-                          </div>
-                          <div className="bg-blue-200 text-blue-800 px-1 py-0.5 rounded">
-                            BCD: [{BCD_NUMBERS.join(', ')}]
+                    {['Su', 'Mo', 'Ma', 'Me', 'Ju', 'Ve', 'Sa', 'Ra', 'Ke'].map(planetCode => {
+                      const topicNumbers = getTopicNumbers(setName);
+                      
+                      return (
+                        <div key={planetCode} className="text-center bg-purple-100 p-2 rounded">
+                          <div className="text-sm font-semibold">{planetCode}</div>
+                          <div className="text-xs mt-1">
+                            <div className="bg-green-200 text-green-800 px-1 py-0.5 rounded mb-1">
+                              ABCD: [{topicNumbers.abcd.join(', ') || 'None'}]
+                            </div>
+                            <div className="bg-blue-200 text-blue-800 px-1 py-0.5 rounded">
+                              BCD: [{topicNumbers.bcd.join(', ') || 'None'}]
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                   
                   {/* Data Table */}
@@ -413,7 +546,7 @@ function PlanetsAnalysisPage() {
                                             <span className="font-mono text-gray-700 text-xs">
                                               {formattedData}
                                             </span>
-                                            {renderABCDBadges(rawData)}
+                                            {renderABCDBadges(rawData, setName)}
                                           </div>
                                         ) : (
                                           <span className="text-gray-400">—</span>
@@ -450,7 +583,7 @@ function PlanetsAnalysisPage() {
             </div>
             <div>
               <div className="font-medium text-gray-800 mb-1">🏷️ ABCD/BCD Analysis</div>
-              <p>Numbers [6, 8, 11] show ABCD badges (green), numbers [9, 10] show BCD badges (blue).</p>
+              <p>Numbers [10, 12] show ABCD badges (green), numbers [4, 11] show BCD badges (blue) - from Past Days 30-6-25.</p>
             </div>
             <div>
               <div className="font-medium text-gray-800 mb-1">🔍 Topic Filtering</div>

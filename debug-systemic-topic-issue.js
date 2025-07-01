@@ -1,0 +1,260 @@
+#!/usr/bin/env node
+
+/**
+ * COMPREHENSIVE SYSTEMIC TOPIC ISSUE DIAGNOSTIC
+ * 
+ * This script diagnoses why only 7 topic groups are showing instead of 30 topics
+ * across all pages (IndexPage, Rule2Page, PastDays, PlanetsAnalysisPage)
+ * 
+ * USER NEEDS TO RUN THIS IN BROWSER CONSOLE ON THE AFFECTED PAGE
+ */
+
+console.log('🔍 SYSTEMIC TOPIC ISSUE DIAGNOSTIC');
+console.log('====================================');
+console.log('');
+console.log('🎯 ISSUE: Only 7 topic groups showing instead of 30 topics');
+console.log('📊 AFFECTED: IndexPage, Rule2Page, PastDays, PlanetsAnalysisPage');
+console.log('📅 DATE: 26/06/2025 (trigger date)');
+console.log('❌ MISSING: D-3, D-5, D-7, D-10, D-12, D-27, D-30, D-60 (and more)');
+console.log('✅ SHOWING: D-1, D-4, D-9, D-11, D-81, D-108, D-144');
+console.log('');
+
+// Browser console instructions
+console.log('🌐 BROWSER CONSOLE INSTRUCTIONS:');
+console.log('================================');
+console.log('');
+console.log('1. Open Developer Tools (F12)');
+console.log('2. Go to the Console tab');
+console.log('3. Copy and paste the commands below ONE BY ONE');
+console.log('4. Take screenshots of the results');
+console.log('5. Report back with the findings');
+console.log('');
+
+console.log('📋 STEP 1: Check Current User and Date');
+console.log('======================================');
+console.log('');
+console.log('// Run this in browser console:');
+console.log('console.log("Current user:", selectedUser || window.selectedUser || "NOT_FOUND");');
+console.log('console.log("Target date:", "2025-06-26");');
+console.log('console.log("Available users:", users || window.users || "NOT_FOUND");');
+console.log('');
+
+console.log('📊 STEP 2: Check Excel Data Structure');
+console.log('=====================================');
+console.log('');
+console.log('// For CleanSupabaseService (primary service):');
+console.log('const testUserId = selectedUser || "your_user_id_here";');
+console.log('const testDate = "2025-06-26";');
+console.log('');
+console.log('cleanSupabaseService.getExcelData(testUserId, testDate).then(data => {');
+console.log('  console.log("📊 Excel Data Result:", data);');
+console.log('  if (data) {');
+console.log('    console.log("📋 Excel Sets Found:", Object.keys(data.sets || {}));');
+console.log('    console.log("📈 Total Sets Count:", Object.keys(data.sets || {}).length);');
+console.log('    console.log("🔍 Data Structure:", {');
+console.log('      hasDirectSets: !!data.sets,');
+console.log('      hasNestedSets: !!data.data?.sets,');
+console.log('      fileName: data.fileName,');
+console.log('      dataSource: data.dataSource');
+console.log('    });');
+console.log('    ');
+console.log('    // Show first few sets in detail');
+console.log('    const setNames = Object.keys(data.sets || {});');
+console.log('    if (setNames.length > 0) {');
+console.log('      console.log("📋 First 5 Sets:");');
+console.log('      setNames.slice(0, 5).forEach((setName, index) => {');
+console.log('        const setData = data.sets[setName];');
+console.log('        console.log(`  ${index + 1}. ${setName}:`, {');
+console.log('          elementCount: Object.keys(setData || {}).length,');
+console.log('          elements: Object.keys(setData || {}).slice(0, 3)');
+console.log('        });');
+console.log('      });');
+console.log('    }');
+console.log('  } else {');
+console.log('    console.log("❌ NO EXCEL DATA FOUND!");');
+console.log('  }');
+console.log('}).catch(err => console.error("❌ Excel fetch error:", err));');
+console.log('');
+
+console.log('⏰ STEP 3: Check Hour Entry Data');
+console.log('================================');
+console.log('');
+console.log('cleanSupabaseService.getHourEntry(testUserId, testDate).then(data => {');
+console.log('  console.log("⏰ Hour Data Result:", data);');
+console.log('  if (data) {');
+console.log('    console.log("🪐 Planet Selections:", data.planetSelections);');
+console.log('    console.log("📊 HR Count:", Object.keys(data.planetSelections || {}).length);');
+console.log('  } else {');
+console.log('    console.log("❌ NO HOUR DATA FOUND!");');
+console.log('  }');
+console.log('}).catch(err => console.error("❌ Hour fetch error:", err));');
+console.log('');
+
+console.log('🗄️ STEP 4: Check Raw Database Data');
+console.log('===================================');
+console.log('');
+console.log('// Check direct Supabase data:');
+console.log('supabase.from("excel_data")');
+console.log('  .select("*")');
+console.log('  .eq("user_id", testUserId)');
+console.log('  .eq("date", testDate)');
+console.log('  .then(({ data, error }) => {');
+console.log('    console.log("🗄️ Raw Excel Database Data:", { data, error });');
+console.log('    if (data && data.length > 0) {');
+console.log('      const record = data[0];');
+console.log('      console.log("📊 Database Record Structure:", {');
+console.log('        hasData: !!record.data,');
+console.log('        dataKeys: Object.keys(record.data || {}),');
+console.log('        hasSets: !!record.data?.sets,');
+console.log('        setsCount: Object.keys(record.data?.sets || {}).length');
+console.log('      });');
+console.log('      ');
+console.log('      if (record.data?.sets) {');
+console.log('        const allSets = Object.keys(record.data.sets);');
+console.log('        console.log("🎯 ALL SETS IN DATABASE:", allSets);');
+console.log('        console.log("📊 TOTAL COUNT:", allSets.length);');
+console.log('        ');
+console.log('        // Group by D-number');
+console.log('        const grouped = {};');
+console.log('        allSets.forEach(setName => {');
+console.log('          const match = setName.match(/D-(\\d+)/);');
+console.log('          if (match) {');
+console.log('            const dNum = match[1];');
+console.log('            if (!grouped[dNum]) grouped[dNum] = [];');
+console.log('            grouped[dNum].push(setName);');
+console.log('          }');
+console.log('        });');
+console.log('        console.log("📋 GROUPED BY D-NUMBER:", grouped);');
+console.log('        console.log("🔢 D-NUMBERS FOUND:", Object.keys(grouped).sort((a,b) => parseInt(a) - parseInt(b)));');
+console.log('      }');
+console.log('    }');
+console.log('  });');
+console.log('');
+
+console.log('🎯 STEP 5: Check Topic Filtering Logic');
+console.log('======================================');
+console.log('');
+console.log('// Check if TOPIC_ORDER arrays are consistent:');
+console.log('console.log("📋 Check TOPIC_ORDER arrays across components:");');
+console.log('');
+console.log('// Check IndexPage TOPIC_ORDER (if available)');
+console.log('if (typeof TOPIC_ORDER !== "undefined") {');
+console.log('  console.log("📊 IndexPage TOPIC_ORDER:", TOPIC_ORDER);');
+console.log('  console.log("📈 IndexPage TOPIC_ORDER Count:", TOPIC_ORDER.length);');
+console.log('} else {');
+console.log('  console.log("❌ TOPIC_ORDER not found in current scope");');
+console.log('}');
+console.log('');
+
+console.log('🔍 STEP 6: Debug Data Loading Pipeline');
+console.log('=====================================');
+console.log('');
+console.log('// Check if there are any data transformations or filters');
+console.log('console.log("🔍 Checking data loading pipeline...");');
+console.log('');
+console.log('// For Rule2CompactPage users:');
+console.log('if (typeof dateDataCache !== "undefined") {');
+console.log('  console.log("📊 dateDataCache size:", dateDataCache.size);');
+console.log('  console.log("📋 dateDataCache keys:", Array.from(dateDataCache.keys()));');
+console.log('  ');
+console.log('  // Check cached data for target date');
+console.log('  const cachedData = dateDataCache.get(testDate);');
+console.log('  if (cachedData) {');
+console.log('    console.log("📊 Cached data for", testDate, ":", {');
+console.log('      hasExcelData: !!cachedData.excelData,');
+console.log('      hasHourData: !!cachedData.hourData,');
+console.log('      setsCount: Object.keys(cachedData.sets || {}).length,');
+console.log('      planetSelectionsCount: Object.keys(cachedData.planetSelections || {}).length');
+console.log('    });');
+console.log('    console.log("📋 Cached sets:", Object.keys(cachedData.sets || {}));');
+console.log('  } else {');
+console.log('    console.log("❌ No cached data for", testDate);');
+console.log('  }');
+console.log('} else {');
+console.log('  console.log("❌ dateDataCache not found");');
+console.log('}');
+console.log('');
+
+console.log('📱 STEP 7: Check Page-Specific State');
+console.log('====================================');
+console.log('');
+console.log('// For IndexPage users:');
+console.log('if (typeof availableTopics !== "undefined") {');
+console.log('  console.log("📊 IndexPage availableTopics:", availableTopics);');
+console.log('  console.log("📈 IndexPage availableTopics count:", availableTopics.length);');
+console.log('}');
+console.log('');
+console.log('if (typeof allDaysData !== "undefined") {');
+console.log('  console.log("📊 IndexPage allDaysData:", allDaysData);');
+console.log('  console.log("📋 IndexPage data keys:", Object.keys(allDaysData));');
+console.log('  ');
+console.log('  // Check each day\'s data');
+console.log('  ["A", "B", "C", "D"].forEach(label => {');
+console.log('    const dayData = allDaysData[label];');
+console.log('    if (dayData) {');
+console.log('      console.log(`📊 ${label}-day data:`, {');
+console.log('        success: dayData.success,');
+console.log('        date: dayData.date,');
+console.log('        hrDataKeys: Object.keys(dayData.hrData || {}),');
+console.log('        totalSets: Object.values(dayData.hrData || {}).reduce((total, hr) => total + Object.keys(hr.sets || {}).length, 0)');
+console.log('      });');
+console.log('    }');
+console.log('  });');
+console.log('}');
+console.log('');
+
+console.log('🚨 STEP 8: Check for Errors or Filtering');
+console.log('========================================');
+console.log('');
+console.log('// Check browser console for any errors:');
+console.log('console.log("🔍 Check console for these error patterns:");');
+console.log('console.log("  - Excel data validation errors");');
+console.log('  - Topic name mismatch warnings");');
+console.log('  - Data transformation failures");');
+console.log('  - Missing property access errors");');
+console.log('');
+
+console.log('💡 STEP 9: Expected Results Analysis');
+console.log('====================================');
+console.log('');
+console.log('🎯 WHAT TO LOOK FOR:');
+console.log('');
+console.log('✅ GOOD RESULTS (30 topics working):');
+console.log('  - Excel data shows 30 sets (D-1 through D-144)');
+console.log('  - All D-numbers present: 1,3,4,5,7,9,10,11,12,27,30,60,81,108,144');
+console.log('  - No topic filtering or data loss');
+console.log('');
+console.log('❌ BAD RESULTS (7 topics only):');
+console.log('  - Excel data shows only 14 sets (7 D-numbers × 2 sets each)');
+console.log('  - Missing D-numbers: 3,5,7,10,12,27,30,60');
+console.log('  - Data loss during upload or processing');
+console.log('');
+
+console.log('🔧 STEP 10: Immediate Solutions');
+console.log('===============================');
+console.log('');
+console.log('IF EXCEL DATA IS INCOMPLETE:');
+console.log('  1. Re-upload Excel file with all 30 topics');
+console.log('  2. Verify Excel format matches expected structure');
+console.log('  3. Check Excel validation logic for topic filtering');
+console.log('');
+console.log('IF DATA EXISTS BUT NOT SHOWING:');
+console.log('  1. Check TOPIC_ORDER arrays across all pages');
+console.log('  2. Verify topic name formatting consistency');
+console.log('  3. Debug data transformation pipeline');
+console.log('');
+
+console.log('📞 NEXT STEPS:');
+console.log('==============');
+console.log('');
+console.log('1. Run all the above commands in browser console');
+console.log('2. Screenshot or copy the results');
+console.log('3. Report back with:');
+console.log('   - Total sets count from Excel data');
+console.log('   - List of all D-numbers found');
+console.log('   - Any error messages or warnings');
+console.log('   - Whether the issue is in data source or display logic');
+console.log('');
+
+console.log('🏁 END OF DIAGNOSTIC SCRIPT');
+console.log('============================');

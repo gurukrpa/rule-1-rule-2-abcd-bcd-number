@@ -47,32 +47,62 @@ const IndexPage = ({
     console.log('🎯 ABCD/BCD Analyzer initialized');
   }, []);
 
-  // Define the 30-topic order in ascending numerical order (same as Rule2CompactPage)
+  // ✅ FIXED: Topic matching utility to handle annotated names from database
+  const createTopicMatcher = (expectedTopics, availableTopics) => {
+    // Create a mapping from expected topics to available (annotated) topics
+    const topicMap = new Map();
+    
+    expectedTopics.forEach(expectedTopic => {
+      // Extract D-number and Set number from expected topic
+      const expectedMatch = expectedTopic.match(/D-(\d+)\s+Set-(\d+)/);
+      if (expectedMatch) {
+        const [, dNumber, setNumber] = expectedMatch;
+        
+        // Find matching topic in available topics (may have annotations)
+        const matchingTopic = availableTopics.find(availableTopic => {
+          const availableMatch = availableTopic.match(/D-(\d+)(?:\s*\([^)]*\))?\s+Set-(\d+)/);
+          if (availableMatch) {
+            const [, availableDNumber, availableSetNumber] = availableMatch;
+            return dNumber === availableDNumber && setNumber === availableSetNumber;
+          }
+          return false;
+        });
+        
+        if (matchingTopic) {
+          topicMap.set(expectedTopic, matchingTopic);
+        }
+      }
+    });
+    
+    return topicMap;
+  };
+
+  // Define the 30-topic order in ascending numerical order (FIXED: removed annotations to match Excel format)
   const TOPIC_ORDER = [
     'D-1 Set-1 Matrix',
     'D-1 Set-2 Matrix',
-    'D-3 (trd) Set-1 Matrix',
-    'D-3 (trd) Set-2 Matrix',
+    'D-3 Set-1 Matrix',
+    'D-3 Set-2 Matrix',
     'D-4 Set-1 Matrix',
     'D-4 Set-2 Matrix',
-    'D-5 (pv) Set-1 Matrix',
-    'D-5 (pv) Set-2 Matrix',
-    'D-7 (trd) Set-1 Matrix',
-    'D-7 (trd) Set-2 Matrix',
+    'D-5 Set-1 Matrix',
+    'D-5 Set-2 Matrix',
+    'D-7 Set-1 Matrix',
+    'D-7 Set-2 Matrix',
     'D-9 Set-1 Matrix',
     'D-9 Set-2 Matrix',
-    'D-10 (trd) Set-1 Matrix',
-    'D-10 (trd) Set-2 Matrix',
+    'D-10 Set-1 Matrix',
+    'D-10 Set-2 Matrix',
     'D-11 Set-1 Matrix',
     'D-11 Set-2 Matrix',
-    'D-12 (trd) Set-1 Matrix',
-    'D-12 (trd) Set-2 Matrix',
-    'D-27 (trd) Set-1 Matrix',
-    'D-27 (trd) Set-2 Matrix',
-    'D-30 (sh) Set-1 Matrix',
-    'D-30 (sh) Set-2 Matrix',
-    'D-60 (Trd) Set-1 Matrix',
-    'D-60 (Trd) Set-2 Matrix',
+    'D-12 Set-1 Matrix',
+    'D-12 Set-2 Matrix',
+    'D-27 Set-1 Matrix',
+    'D-27 Set-2 Matrix',
+    'D-30 Set-1 Matrix',
+    'D-30 Set-2 Matrix',
+    'D-60 Set-1 Matrix',
+    'D-60 Set-2 Matrix',
     'D-81 Set-1 Matrix',
     'D-81 Set-2 Matrix',
     'D-108 Set-1 Matrix',
@@ -374,18 +404,24 @@ const IndexPage = ({
         }
       });
 
-      // Use predefined TOPIC_ORDER, filtering to only include topics that actually exist in data
-      // This ensures comprehensive topic discovery like Rule2CompactPage
-      const orderedTopics = TOPIC_ORDER.filter(topicName => discoveredSets.has(topicName));
+      // ✅ FIXED: Use smart topic matching to handle annotated names from database
+      const discoveredTopicsArray = Array.from(discoveredSets);
+      const topicMatcher = createTopicMatcher(TOPIC_ORDER, discoveredTopicsArray);
       
-      console.log(`📊 [IndexPage] Topic Discovery (Rule2CompactPage Method):`, {
+      // Get ordered topics using the actual annotated names from database
+      const orderedTopics = TOPIC_ORDER
+        .filter(expectedTopic => topicMatcher.has(expectedTopic))
+        .map(expectedTopic => topicMatcher.get(expectedTopic));
+      
+      console.log(`📊 [IndexPage] Topic Discovery (FIXED with Smart Matching):`, {
         allDaysDataKeys: Object.keys(allDaysData),
-        discoveredSetsRaw: Array.from(discoveredSets),
+        discoveredSetsRaw: discoveredTopicsArray,
         discoveredSetsCount: discoveredSets.size,
         orderedTopicsCount: orderedTopics.length,
         orderedTopics,
-        missingFromOrder: Array.from(discoveredSets).filter(set => !TOPIC_ORDER.includes(set)),
-        notInData: TOPIC_ORDER.filter(topic => !discoveredSets.has(topic))
+        topicMappings: Array.from(topicMatcher.entries()).slice(0, 5), // Show first 5 mappings
+        missingFromOrder: discoveredTopicsArray.filter(set => !Array.from(topicMatcher.values()).includes(set)),
+        notInData: TOPIC_ORDER.filter(topic => !topicMatcher.has(topic))
       });
       
       setAvailableTopics(orderedTopics);
@@ -792,10 +828,20 @@ const IndexPage = ({
         }
       });
 
-      // Use predefined TOPIC_ORDER to ensure comprehensive analysis
-      const orderedSets = TOPIC_ORDER.filter(topicName => discoveredSets.has(topicName));
+      // ✅ FIXED: Use smart topic matching for ABCD analysis too
+      const discoveredTopicsArray = Array.from(discoveredSets);
+      const topicMatcherForAnalysis = createTopicMatcher(TOPIC_ORDER, discoveredTopicsArray);
       
-      console.log('🎯 [ABCD-DEBUG] Sets to analyze:', orderedSets);
+      // Get ordered sets using the actual annotated names from database
+      const orderedSets = TOPIC_ORDER
+        .filter(expectedTopic => topicMatcherForAnalysis.has(expectedTopic))
+        .map(expectedTopic => topicMatcherForAnalysis.get(expectedTopic));
+      
+      console.log('🎯 [ABCD-DEBUG] Sets to analyze (FIXED with Smart Matching):', {
+        orderedSetsCount: orderedSets.length,
+        orderedSets: orderedSets.slice(0, 5), // Show first 5
+        topicMappings: Array.from(topicMatcherForAnalysis.entries()).slice(0, 3) // Show first 3 mappings
+      });
 
       if (orderedSets.length === 0) {
         console.log('❌ [ABCD-DEBUG] No sets found for analysis');

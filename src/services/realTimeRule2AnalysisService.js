@@ -2,7 +2,7 @@
 // Real-time Rule2 analysis service for Past Days
 // Uses the same logic as Rule2CompactPage but without UI dependencies
 
-import { CleanSupabaseService } from './CleanSupabaseService';
+import { cleanSupabaseService } from './CleanSupabaseService';
 import { performAbcdBcdAnalysis } from '../utils/abcdBcdAnalysis';
 
 export class RealTimeRule2AnalysisService {
@@ -49,8 +49,8 @@ export class RealTimeRule2AnalysisService {
       
       for (const date of allDates) {
         try {
-          const excelData = await CleanSupabaseService.getExcelData(userId, date);
-          const hourData = await CleanSupabaseService.getHourEntry(userId, date);
+          const excelData = await cleanSupabaseService.getExcelData(userId, date);
+          const hourData = await cleanSupabaseService.getHourEntry(userId, date);
           
           dateDataCache[date] = {
             excel: excelData,

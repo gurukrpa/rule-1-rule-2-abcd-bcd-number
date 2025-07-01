@@ -49,32 +49,62 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
   
   console.log('🔥 Rule1Page using unified data service:', unifiedDataService.getServiceInfo());
 
-  // Define the 30-topic order in ascending numerical order
+  // ✅ FIXED: Topic matching utility to handle annotated names from database
+  const createTopicMatcher = (expectedTopics, availableTopics) => {
+    // Create a mapping from expected topics to available (annotated) topics
+    const topicMap = new Map();
+    
+    expectedTopics.forEach(expectedTopic => {
+      // Extract D-number and Set number from expected topic
+      const expectedMatch = expectedTopic.match(/D-(\d+)\s+Set-(\d+)/);
+      if (expectedMatch) {
+        const [, dNumber, setNumber] = expectedMatch;
+        
+        // Find matching topic in available topics (may have annotations)
+        const matchingTopic = availableTopics.find(availableTopic => {
+          const availableMatch = availableTopic.match(/D-(\d+)(?:\s*\([^)]*\))?\s+Set-(\d+)/);
+          if (availableMatch) {
+            const [, availableDNumber, availableSetNumber] = availableMatch;
+            return dNumber === availableDNumber && setNumber === availableSetNumber;
+          }
+          return false;
+        });
+        
+        if (matchingTopic) {
+          topicMap.set(expectedTopic, matchingTopic);
+        }
+      }
+    });
+    
+    return topicMap;
+  };
+
+  // Define the 30-topic order in ascending numerical order (FIXED: removed annotations to match Excel format)
   const TOPIC_ORDER = [
     'D-1 Set-1 Matrix',
     'D-1 Set-2 Matrix',
-    'D-3 (trd) Set-1 Matrix',
-    'D-3 (trd) Set-2 Matrix',
+    'D-3 Set-1 Matrix',
+    'D-3 Set-2 Matrix',
     'D-4 Set-1 Matrix',
     'D-4 Set-2 Matrix',
-    'D-5 (pv) Set-1 Matrix',
-    'D-5 (pv) Set-2 Matrix',
-    'D-7 (trd) Set-1 Matrix',
-    'D-7 (trd) Set-2 Matrix',
+    'D-5 Set-1 Matrix',
+    'D-5 Set-2 Matrix',
+    'D-7 Set-1 Matrix',
+    'D-7 Set-2 Matrix',
     'D-9 Set-1 Matrix',
     'D-9 Set-2 Matrix',
-    'D-10 (trd) Set-1 Matrix',
-    'D-10 (trd) Set-2 Matrix',
+    'D-10 Set-1 Matrix',
+    'D-10 Set-2 Matrix',
     'D-11 Set-1 Matrix',
     'D-11 Set-2 Matrix',
-    'D-12 (trd) Set-1 Matrix',
-    'D-12 (trd) Set-2 Matrix',
-    'D-27 (trd) Set-1 Matrix',
-    'D-27 (trd) Set-2 Matrix',
-    'D-30 (sh) Set-1 Matrix',
-    'D-30 (sh) Set-2 Matrix',
-    'D-60 (Trd) Set-1 Matrix',
-    'D-60 (Trd) Set-2 Matrix',
+    'D-12 Set-1 Matrix',
+    'D-12 Set-2 Matrix',
+    'D-27 Set-1 Matrix',
+    'D-27 Set-2 Matrix',
+    'D-30 Set-1 Matrix',
+    'D-30 Set-2 Matrix',
+    'D-60 Set-1 Matrix',
+    'D-60 Set-2 Matrix',
     'D-81 Set-1 Matrix',
     'D-81 Set-2 Matrix',
     'D-108 Set-1 Matrix',
@@ -99,6 +129,34 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
     // Look for pattern: element-NUMBER- and return everything up to and including the dash
     const match = str.match(/^([a-z]+-\d+-)/);
     return match ? match[1] : null;
+  };
+
+  // Extract compact format: element-number-zodiac (e.g., as-8-sc)
+  const extractCompactFormat = (str) => {
+    if (typeof str !== 'string') return str;
+    
+    // Pattern: as-8-/mo-(06 Sc 18)-(16 Ge 04) → as-8-sc
+    // Extract element-number and first zodiac sign abbreviation
+    const match = str.match(/^([a-z]+-\d+)-\/[a-z]+-\(\d+\s+([A-Za-z]+)/);
+    if (match) {
+      const [, elementNumber, sign] = match;
+      // Convert zodiac sign to lowercase and take first 2 characters
+      const signAbbr = sign.toLowerCase().slice(0, 2);
+      return `${elementNumber}-${signAbbr}`;
+    }
+    
+    // If already in compact format, return as is
+    if (str.match(/^[a-z]+-\d+-[a-z]{2}$/)) {
+      return str;
+    }
+    
+    // Fallback: try to extract just element-number
+    const basicMatch = str.match(/^([a-z]+-\d+)/);
+    if (basicMatch) {
+      return basicMatch[1];
+    }
+    
+    return str;
   };
 
   // Extract element prefix with first zodiac sign
@@ -444,7 +502,26 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
         }
       });
 
-      const orderedTopics = TOPIC_ORDER.filter(topicName => discoveredSets.has(topicName));
+      // ✅ FIXED: Use smart topic matching to handle annotated names from database
+      const discoveredTopicsArray = Array.from(discoveredSets);
+      const topicMatcher = createTopicMatcher(TOPIC_ORDER, discoveredTopicsArray);
+      
+      // Get ordered topics using the actual annotated names from database
+      const orderedTopics = TOPIC_ORDER
+        .filter(expectedTopic => topicMatcher.has(expectedTopic))
+        .map(expectedTopic => topicMatcher.get(expectedTopic));
+      
+      // Debug logging for the fix
+      console.log(`🎯 [Rule1Page] Topic Discovery (FIXED with Smart Matching):`, {
+        discoveredSetsRaw: discoveredTopicsArray,
+        discoveredSetsCount: discoveredSets.size,
+        orderedTopicsCount: orderedTopics.length,
+        orderedTopics: orderedTopics.slice(0, 5), // Show first 5
+        topicMappings: Array.from(topicMatcher.entries()).slice(0, 3), // Show first 3 mappings
+        expectedTotal: 30,
+        actualFound: orderedTopics.length,
+        missingCount: 30 - orderedTopics.length
+      });
       setAvailableTopics(orderedTopics);
       setSelectedTopics(new Set(orderedTopics));
 
@@ -711,8 +788,8 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
   const topicsToDisplay = getTopicsForDisplay();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className="container mx-auto px-4 py-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 w-full">
+      <div className="w-full px-6 py-6">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-lg p-4 mb-6 border-t-4 border-purple-600">
           <div className="flex items-center justify-between">
@@ -824,8 +901,8 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
         )}
 
         {/* Matrix Display */}
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          <div className="p-4 bg-gray-50 border-b">
+        <div className="bg-white rounded-lg shadow-lg w-full">
+          <div className="p-4 bg-gray-50 border-b sticky top-0 z-10">
             <h2 className="text-xl font-bold text-gray-800">
               📋 Rule-1 Matrix Analysis
               {activeHR && ` - HR ${activeHR}`}
@@ -835,17 +912,18 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
             </p>
           </div>
           
-          <div className="overflow-x-auto max-h-screen">
+          <div className="p-4 space-y-6">
             {topicsToDisplay.length > 0 ? (
               topicsToDisplay.map(setName => (
-                <div key={setName} className="mb-8">
-                  <div className="bg-blue-100 p-3 font-bold text-lg">
+                <div key={setName} className="bg-white border border-gray-200 rounded-lg shadow-sm">
+                  <div className="bg-blue-100 p-3 font-bold text-lg rounded-t-lg border-b border-gray-200 sticky top-[88px] z-[5]">
                     📊 {formatSetName(setName)}
                   </div>
-                  <table className="w-full border-collapse">
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse min-w-max">
                     <thead className="bg-gray-100">
                       <tr>
-                        <th className="border border-gray-300 px-4 py-2 text-left font-medium text-gray-700">
+                        <th className="border border-gray-300 px-4 py-2 text-left font-medium text-gray-700 min-w-[120px]">
                           Element
                         </th>
                         {availableDates.map(dateKey => {
@@ -882,7 +960,7 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
                           const hasAbcdBcdData = abcdNumbers.length > 0 || bcdNumbers.length > 0;
                           
                           return (
-                            <th key={dateKey} className={`border border-gray-300 px-4 py-2 text-center font-medium text-sm ${
+                            <th key={dateKey} className={`border border-gray-300 px-3 py-2 text-center font-medium text-sm min-w-[140px] ${
                               dateKey === date ? 'bg-blue-500 text-white' : 'text-gray-700'
                             }`}>
                               <div className="text-base font-semibold">{formattedDate} {planetAbbr}</div>
@@ -921,7 +999,7 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
                         
                         return elementNames.map(elName => (
                           <tr key={elName} className="hover:bg-gray-50">
-                            <td className="border border-gray-300 px-4 py-2 font-medium bg-blue-200">
+                            <td className="border border-gray-300 px-4 py-2 font-medium bg-blue-200 min-w-[120px]">
                               {elName}
                             </td>
                             {availableDates.map(dateKey => {
@@ -933,10 +1011,12 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
                               if (dayData?.success && dayData.hrData[activeHR]?.sets[setName] && dayData.hrData[activeHR].sets[setName][elName]) {
                                 const elementData = dayData.hrData[activeHR].sets[setName][elName];
                                 hasData = elementData.hasData;
-                                cellValue = elementData.rawData || '—';
+                                // Apply compact formatting to the raw data
+                                const rawData = elementData.rawData || '—';
+                                cellValue = rawData === '—' ? rawData : extractCompactFormat(rawData);
                               }
                               
-                              const baseClass = 'border border-gray-300 px-4 py-2 text-center font-mono text-sm';
+                              const baseClass = 'border border-gray-300 px-3 py-2 text-center font-mono text-sm min-w-[140px]';
                               const isTargetDate = dateKey === date;
                               
                               return (
@@ -959,6 +1039,7 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
                       })()}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               ))
             ) : (

@@ -58,8 +58,46 @@ export const buildTargetData = (excelData, hourData, activeHR) => {
   return result;
 };
 
+// Natural sorting function for topic names (D-1, D-3, D-10, etc.)
+// ✅ FIXED: Now handles annotated topic names like "D-3 (trd) Set-1 Matrix"
+const naturalTopicSort = (topics) => {
+  return topics.sort((a, b) => {
+    // Extract the numeric part from "D-X" pattern (supports annotations)
+    const extractNumber = (topic) => {
+      // Enhanced pattern: D-NUMBER with optional annotations like (trd), (pv), (sh), (Trd)
+      const match = topic.match(/D-(\d+)(?:\s*\([^)]*\))?/);
+      return match ? parseInt(match[1], 10) : 0;
+    };
+    
+    // Extract set number (Set-1 vs Set-2)
+    const extractSetNumber = (topic) => {
+      const match = topic.match(/Set-(\d+)/);
+      return match ? parseInt(match[1], 10) : 0;
+    };
+    
+    const numA = extractNumber(a);
+    const numB = extractNumber(b);
+    
+    // First sort by the D-number
+    if (numA !== numB) {
+      return numA - numB;
+    }
+    
+    // If D-numbers are equal, sort by Set number
+    const setA = extractSetNumber(a);
+    const setB = extractSetNumber(b);
+    
+    if (setA !== setB) {
+      return setA - setB;
+    }
+    
+    // If both D-number and Set number are equal, sort alphabetically
+    return a.localeCompare(b);
+  });
+};
+
 export const extractAvailableTopics = (planetsData) => {
   if (!planetsData?.data?.sets) return [];
   
-  return Object.keys(planetsData.data.sets).sort();
+  return naturalTopicSort(Object.keys(planetsData.data.sets));
 };

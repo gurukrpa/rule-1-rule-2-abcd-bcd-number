@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planets Analysis Debug Console</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background: #f5f5f5; 
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+        }
+        .debug-section { 
+            margin: 20px 0; 
+            padding: 15px; 
+            border: 1px solid #ddd; 
+            border-radius: 5px; 
+            background: #f9f9f9; 
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        .warning { background-color: #fff3cd; border-color: #ffeeba; }
+        pre { 
+            background: #f8f9fa; 
+            padding: 10px; 
+            border-radius: 3px; 
+            overflow: auto; 
+            max-height: 300px; 
+        }
+        button { 
+            padding: 8px 16px; 
+            margin: 5px; 
+            border: none; 
+            border-radius: 3px; 
+            cursor: pointer; 
+            font-size: 14px; 
+        }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-warning { background: #ffc107; color: black; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-info { background: #17a2b8; color: white; }
+        
+        .test-links {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+        .test-link {
+            background: #6c757d;
+            color: white;
+            padding: 8px 12px;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .test-link:hover {
+            background: #5a6268;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-good { background: #28a745; }
+        .status-bad { background: #dc3545; }
+        .status-unknown { background: #6c757d; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Planets Analysis Dynamic Loading Debug Console</h1>
+        <p>This tool helps diagnose why ABCD/BCD numbers aren't loading dynamically.</p>
+
+        <div class="test-links">
+            <a href="http://localhost:5173/planets-analysis" class="test-link" target="_blank">
+                🚀 Open Planets Analysis
+            </a>
+            <a href="http://localhost:5173/planets-analysis/planets-test-user-2025" class="test-link" target="_blank">
+                👤 With Test User
+            </a>
+            <a href="http://localhost:5173/rule2-compact" class="test-link" target="_blank">
+                📊 Rule2 Page
+            </a>
+            <a href="http://localhost:5173/past-days" class="test-link" target="_blank">
+                📅 Past Days
+            </a>
+        </div>
+
+        <div class="debug-section info">
+            <h3>🎯 Quick Actions</h3>
+            <button class="btn-primary" onclick="checkCurrentState()">1. Check Current State</button>
+            <button class="btn-success" onclick="testDynamicService()">2. Test Dynamic Service</button>
+            <button class="btn-warning" onclick="createTestData()">3. Create Test Data</button>
+            <button class="btn-danger" onclick="clearAndReset()">4. Clear & Reset</button>
+            <button class="btn-info" onclick="showExpectedValues()">5. Show Expected Values</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `debug-section ${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const icon = {
+                'success': '✅',
+                'error': '❌', 
+                'warning': '⚠️',
+                'info': 'ℹ️'
+            }[type] || 'ℹ️';
+            
+            div.innerHTML = `
+                <h4>${icon} [${timestamp}] ${type.toUpperCase()}</h4>
+                <pre>${typeof message === 'object' ? JSON.stringify(message, null, 2) : message}</pre>
+            `;
+            results.appendChild(div);
+            
+            // Auto-scroll to bottom
+            div.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function checkCurrentState() {
+            log('🔍 Checking current browser state...', 'info');
+            
+            // Check localStorage
+            const selectedUser = localStorage.getItem('selectedUser');
+            const activeHR = localStorage.getItem('activeHR');
+            
+            log(`Current User: ${selectedUser || 'NOT SET'}`, selectedUser ? 'success' : 'error');
+            log(`Active HR: ${activeHR || 'NOT SET'}`, activeHR ? 'success' : 'warning');
+            
+            if (selectedUser) {
+                const dates = localStorage.getItem(\`dates_\${selectedUser}\`);
+                log(\`Dates for \${selectedUser}: \${dates || 'NOT SET'}\`, dates ? 'success' : 'error');
+                
+                if (dates) {
+                    try {
+                        const datesList = JSON.parse(dates);
+                        const latestDate = datesList.sort((a, b) => new Date(a) - new Date(b))[datesList.length - 1];
+                        log(\`Latest date: \${latestDate}\`, 'info');
+                        log(\`Total dates: \${datesList.length}\`, 'info');
+                    } catch (e) {
+                        log(\`Error parsing dates: \${e.message}\`, 'error');
+                    }
+                }
+            }
+
+            // Check URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const userId = urlParams.get('userId') || 'NOT_IN_URL';
+            log(\`User ID in URL: \${userId}\`, 'info');
+            
+            // Check if on correct page
+            const currentPath = window.location.pathname;
+            log(\`Current path: \${currentPath}\`, 'info');
+            
+            // Show current vs expected
+            log('CURRENT STATUS:\\n- Component shows: [6, 8, 11] and [9, 10] (hardcoded)\\n- Expected: [10, 12] and [4, 11] (dynamic)\\n- Target date: 2025-06-30', 'warning');
+        }
+
+        async function testDynamicService() {
+            log('🧪 Testing dynamic service loading...', 'info');
+            
+            const selectedUser = localStorage.getItem('selectedUser') || 'planets-test-user-2025';
+            const dates = localStorage.getItem(\`dates_\${selectedUser}\`);
+            
+            if (!dates) {
+                log('❌ No dates found. Creating test dates...', 'warning');
+                
+                // Create test dates
+                const testDates = ['2025-06-26', '2025-06-27', '2025-06-28', '2025-06-29', '2025-06-30'];
+                localStorage.setItem(\`dates_\${selectedUser}\`, JSON.stringify(testDates));
+                localStorage.setItem('selectedUser', selectedUser);
+                localStorage.setItem('activeHR', '1');
+                
+                log(\`✅ Created test setup for user: \${selectedUser}\`, 'success');
+                log(\`📅 Test dates: \${testDates.join(', ')}\`, 'success');
+            }
+
+            // Test if service is available
+            if (typeof window.PlanetsAnalysisDataService !== 'undefined') {
+                log('✅ PlanetsAnalysisDataService is available in global scope', 'success');
+                
+                try {
+                    const datesList = JSON.parse(localStorage.getItem(\`dates_\${selectedUser}\`) || '[]');
+                    const result = await window.PlanetsAnalysisDataService.getLatestAnalysisNumbers(
+                        selectedUser,
+                        datesList,
+                        1
+                    );
+                    
+                    log('Service call result:', 'info');
+                    log(result, 'info');
+                    
+                    if (result.success) {
+                        log('✅ Service call successful!', 'success');
+                        log(\`Data source: \${result.data.dataSource}\`, 'success');
+                        log(\`Analysis date: \${result.data.analysisDate}\`, 'success');
+                        log(\`Total topics: \${result.data.totalTopics}\`, 'success');
+                        
+                        // Check specific topic numbers
+                        const topicNumbers = result.data.topicNumbers;
+                        if (topicNumbers && Object.keys(topicNumbers).length > 0) {
+                            const firstTopic = Object.keys(topicNumbers)[0];
+                            const numbers = topicNumbers[firstTopic];
+                            log(\`First topic (\${firstTopic}):\\n- ABCD: [\${numbers.abcd.join(', ')}]\\n- BCD: [\${numbers.bcd.join(', ')}]\`, 'success');
+                        }
+                    } else {
+                        log(\`❌ Service call failed: \${result.error}\`, 'error');
+                    }
+                } catch (error) {
+                    log(\`❌ Service test error: \${error.message}\`, 'error');
+                }
+            } else {
+                log('❌ PlanetsAnalysisDataService not available in global scope', 'error');
+                log('This means the service is not properly exported or imported', 'warning');
+            }
+        }
+
+        async function createTestData() {
+            log('🔧 Creating test data for planets analysis...', 'info');
+            
+            const testUser = 'planets-test-user-2025';
+            const testDates = ['2025-06-26', '2025-06-27', '2025-06-28', '2025-06-29', '2025-06-30'];
+            
+            // Set localStorage data
+            localStorage.setItem('selectedUser', testUser);
+            localStorage.setItem('activeHR', '1');
+            localStorage.setItem(\`dates_\${testUser}\`, JSON.stringify(testDates));
+            
+            log(\`✅ Set user: \${testUser}\`, 'success');
+            log(\`✅ Set dates: \${testDates.join(', ')}\`, 'success');
+            log(\`✅ Set active HR: 1\`, 'success');
+            
+            // If supabase is available, create database test data
+            if (typeof supabase !== 'undefined') {
+                log('🗄️ Supabase available, creating database test data...', 'info');
+                
+                try {
+                    // Create user
+                    await supabase.from('users').upsert({
+                        id: testUser,
+                        username: 'PlanetsTestUser2025',
+                        hr: 12,
+                        name: 'Test User for Planets Analysis'
+                    }, { onConflict: 'id' });
+                    
+                    // Create user dates
+                    await supabase.from('user_dates').upsert({
+                        user_id: testUser,
+                        dates: testDates,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'user_id' });
+                    
+                    log('✅ Database test data created', 'success');
+                } catch (error) {
+                    log(\`⚠️ Database creation failed: \${error.message}\`, 'warning');
+                }
+            } else {
+                log('⚠️ Supabase not available - only localStorage data created', 'warning');
+            }
+            
+            log('🎯 Test data creation complete! Now refresh the Planets Analysis page.', 'success');
+        }
+
+        function clearAndReset() {
+            log('🧹 Clearing all test data...', 'warning');
+            
+            // Clear localStorage
+            const keys = Object.keys(localStorage).filter(key => 
+                key.includes('planets-test-user') || 
+                key.includes('selectedUser') || 
+                key.includes('activeHR') ||
+                key.includes('dates_')
+            );
+            
+            keys.forEach(key => {
+                localStorage.removeItem(key);
+                log(\`Removed: \${key}\`, 'info');
+            });
+            
+            log('✅ localStorage cleared', 'success');
+            log('🔄 Refresh the page to start fresh', 'info');
+        }
+
+        function showExpectedValues() {
+            log('🎯 Expected ABCD/BCD Values for Planets Analysis', 'info');
+            
+            const expected = \`
+CURRENT ISSUE:
+- PlanetsAnalysisPageSimple.jsx shows: [6, 8, 11] and [9, 10]
+- These are hardcoded fallback values
+
+EXPECTED DYNAMIC VALUES:
+- ABCD numbers: [10, 12] 
+- BCD numbers: [4, 11]
+- Source: Database analysis for date 2025-06-30
+- User: planets-test-user-2025
+
+VERIFICATION STEPS:
+1. Check browser console for service call logs
+2. Verify localStorage has correct user/dates
+3. Confirm database has analysis results for target date
+4. Check that PlanetsAnalysisDataService.getLatestAnalysisNumbers() returns success
+
+DEBUG IN BROWSER CONSOLE:
+// Check service directly
+const result = await PlanetsAnalysisDataService.getLatestAnalysisNumbers(
+  'planets-test-user-2025',
+  ['2025-06-26', '2025-06-27', '2025-06-28', '2025-06-29', '2025-06-30'],
+  1
+);
+console.log('Service result:', result);
+            \`;
+            
+            log(expected, 'warning');
+        }
+
+        // Auto-run initial check
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                log('🚀 Planets Analysis Debug Console Ready', 'success');
+                log('Click the buttons above to run diagnostics', 'info');
+            }, 500);
+        });
+    </script>
+</body>
+</html>

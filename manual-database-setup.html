@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manual Database Setup for ABCD/BCD Numbers</title>
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      max-width: 1200px; 
+      margin: 0 auto; 
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container { 
+      background: white; 
+      padding: 20px; 
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .section { 
+      margin-bottom: 30px; 
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    .success { background-color: #d4edda; border-color: #c3e6cb; }
+    .error { background-color: #f8d7da; border-color: #f5c6cb; }
+    .info { background-color: #d1ecf1; border-color: #bee5eb; }
+    button { 
+      background: #007bff; 
+      color: white; 
+      border: none; 
+      padding: 10px 20px; 
+      border-radius: 4px; 
+      cursor: pointer;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+    button:hover { background: #0056b3; }
+    button:disabled { background: #6c757d; cursor: not-allowed; }
+    .code { 
+      background: #f8f9fa; 
+      padding: 10px; 
+      border-radius: 4px; 
+      font-family: monospace;
+      white-space: pre-wrap;
+      border: 1px solid #e9ecef;
+    }
+    .log { 
+      height: 200px; 
+      overflow-y: auto; 
+      background: #f8f9fa; 
+      padding: 10px; 
+      border: 1px solid #e9ecef;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+    }
+    .sample-data {
+      max-height: 300px;
+      overflow-y: auto;
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🗄️ Manual Database Setup for ABCD/BCD Numbers</h1>
+    <p>This tool helps you create and populate the Supabase database table for dynamic ABCD/BCD numbers.</p>
+
+    <!-- Status Section -->
+    <div class="section info">
+      <h3>📊 Current Status</h3>
+      <div id="status">🔄 Initializing...</div>
+    </div>
+
+    <!-- Database Connection Test -->
+    <div class="section">
+      <h3>🔗 Step 1: Test Database Connection</h3>
+      <button onclick="testConnection()">Test Supabase Connection</button>
+      <div id="connection-status"></div>
+    </div>
+
+    <!-- Table Creation -->
+    <div class="section">
+      <h3>📝 Step 2: Create Table</h3>
+      <p>Click to create the <code>topic_abcd_bcd_numbers</code> table:</p>
+      <button onclick="createTable()">Create Database Table</button>
+      <div id="table-status"></div>
+    </div>
+
+    <!-- Data Insertion -->
+    <div class="section">
+      <h3>📥 Step 3: Insert ABCD/BCD Data</h3>
+      <p>Insert the 30 topic configurations with ABCD/BCD numbers:</p>
+      <button onclick="insertData()">Insert ABCD/BCD Numbers</button>
+      <div id="insert-status"></div>
+    </div>
+
+    <!-- Verification -->
+    <div class="section">
+      <h3>🔍 Step 4: Verify Data</h3>
+      <button onclick="verifyData()">Verify Database Contents</button>
+      <div id="verify-status"></div>
+      <div class="sample-data" id="sample-data" style="display: none;"></div>
+    </div>
+
+    <!-- Test Integration -->
+    <div class="section">
+      <h3>🧪 Step 5: Test Component Integration</h3>
+      <button onclick="testComponentIntegration()">Test PlanetsAnalysisPage</button>
+      <div id="component-status"></div>
+    </div>
+
+    <!-- Console Log -->
+    <div class="section">
+      <h3>📋 Console Log</h3>
+      <div class="log" id="console-log"></div>
+      <button onclick="clearLog()">Clear Log</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.skypack.dev/@supabase/supabase-js@2';
+
+    // Get Supabase credentials from the app's environment
+    let supabase = null;
+    
+    // Helper function to log messages
+    function log(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const logElement = document.getElementById('console-log');
+      const logLine = `[${timestamp}] ${message}\n`;
+      logElement.textContent += logLine;
+      logElement.scrollTop = logElement.scrollHeight;
+      
+      console.log(message);
+    }
+
+    // Initialize Supabase client from window environment
+    function initializeSupabase() {
+      try {
+        // Try to get credentials from the parent window or local storage
+        const supabaseUrl = localStorage.getItem('VITE_SUPABASE_URL') || 
+                           window.parent?.localStorage?.getItem('VITE_SUPABASE_URL');
+        const supabaseKey = localStorage.getItem('VITE_SUPABASE_ANON_KEY') || 
+                           window.parent?.localStorage?.getItem('VITE_SUPABASE_ANON_KEY');
+
+        if (!supabaseUrl || !supabaseKey) {
+          // Try to extract from the main app if it's available
+          if (window.parent && window.parent !== window) {
+            log('🔄 Trying to get Supabase credentials from parent window...');
+            return false;
+          }
+          
+          log('❌ Supabase credentials not found. Please ensure the app is running.', 'error');
+          document.getElementById('status').innerHTML = '❌ Please run this from within the main application';
+          return false;
+        }
+
+        supabase = createClient(supabaseUrl, supabaseKey);
+        log('✅ Supabase client initialized');
+        document.getElementById('status').innerHTML = '✅ Ready for database setup';
+        return true;
+      } catch (error) {
+        log(`❌ Failed to initialize Supabase: ${error.message}`, 'error');
+        document.getElementById('status').innerHTML = '❌ Initialization failed';
+        return false;
+      }
+    }
+
+    // Test database connection
+    window.testConnection = async function() {
+      if (!supabase) {
+        if (!initializeSupabase()) return;
+      }
+
+      try {
+        log('🔗 Testing Supabase connection...');
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          throw error;
+        }
+
+        log('✅ Supabase connection successful');
+        document.getElementById('connection-status').innerHTML = '<div class="success">✅ Connection successful</div>';
+      } catch (error) {
+        log(`❌ Connection failed: ${error.message}`, 'error');
+        document.getElementById('connection-status').innerHTML = `<div class="error">❌ Connection failed: ${error.message}</div>`;
+      }
+    };
+
+    // Create the database table
+    window.createTable = async function() {
+      if (!supabase) {
+        log('❌ Supabase not initialized', 'error');
+        return;
+      }
+
+      try {
+        log('📝 Creating topic_abcd_bcd_numbers table...');
+        
+        // Check if table exists first
+        const { data: existingData, error: checkError } = await supabase
+          .from('topic_abcd_bcd_numbers')
+          .select('count(*)')
+          .limit(1);
+
+        if (!checkError) {
+          log('⚠️ Table already exists');
+          document.getElementById('table-status').innerHTML = '<div class="info">⚠️ Table already exists</div>';
+          return;
+        }
+
+        if (checkError.code !== 'PGRST116') {
+          throw checkError;
+        }
+
+        log('❌ Table creation via client not supported. Please create manually in Supabase Dashboard.');
+        document.getElementById('table-status').innerHTML = `
+          <div class="error">
+            ❌ Table creation requires manual setup in Supabase Dashboard:<br>
+            1. Go to Supabase Dashboard → SQL Editor<br>
+            2. Run the CREATE-ABCD-BCD-TABLE.sql script<br>
+            3. Come back and click "Insert ABCD/BCD Numbers"
+          </div>
+        `;
+      } catch (error) {
+        log(`❌ Table creation failed: ${error.message}`, 'error');
+        document.getElementById('table-status').innerHTML = `<div class="error">❌ Failed: ${error.message}</div>`;
+      }
+    };
+
+    // Insert ABCD/BCD data
+    window.insertData = async function() {
+      if (!supabase) {
+        log('❌ Supabase not initialized', 'error');
+        return;
+      }
+
+      const topicData = [
+        {
+          topic_name: 'D-1 Set-1 Matrix',
+          abcd_numbers: [10, 12],
+          bcd_numbers: [4, 11],
+          notes: 'Updated with dynamic numbers from analysis'
+        },
+        {
+          topic_name: 'D-1 Set-2 Matrix',
+          abcd_numbers: [10, 12],
+          bcd_numbers: [4, 11],
+          notes: 'Updated with dynamic numbers from analysis'
+        },
+        {
+          topic_name: 'D-3 (trd) Set-1 Matrix',
+          abcd_numbers: [1, 2, 8, 11],
+          bcd_numbers: [4, 6],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-3 (trd) Set-2 Matrix',
+          abcd_numbers: [5, 9, 10, 11],
+          bcd_numbers: [3, 4],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-4 Set-1 Matrix',
+          abcd_numbers: [2, 5, 6, 8],
+          bcd_numbers: [1, 4, 12],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-4 Set-2 Matrix',
+          abcd_numbers: [3, 5, 6, 10, 11],
+          bcd_numbers: [7, 9],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-5 (pv) Set-1 Matrix',
+          abcd_numbers: [2, 9],
+          bcd_numbers: [],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-5 (pv) Set-2 Matrix',
+          abcd_numbers: [1, 6, 10],
+          bcd_numbers: [],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-7 (trd) Set-1 Matrix',
+          abcd_numbers: [1, 5, 7, 10, 11, 12],
+          bcd_numbers: [4, 9],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-7 (trd) Set-2 Matrix',
+          abcd_numbers: [1, 3, 4, 6, 7, 10],
+          bcd_numbers: [2],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-9 Set-1 Matrix',
+          abcd_numbers: [3, 11],
+          bcd_numbers: [2, 7],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-9 Set-2 Matrix',
+          abcd_numbers: [4, 7, 9, 12],
+          bcd_numbers: [5],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-10 (trd) Set-1 Matrix',
+          abcd_numbers: [2, 7, 8, 10],
+          bcd_numbers: [4],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-10 (trd) Set-2 Matrix',
+          abcd_numbers: [3, 8, 9, 11],
+          bcd_numbers: [5],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-11 Set-1 Matrix',
+          abcd_numbers: [4, 7, 8, 9, 12],
+          bcd_numbers: [6],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-11 Set-2 Matrix',
+          abcd_numbers: [1, 5, 6, 9],
+          bcd_numbers: [2, 4, 12],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-12 (trd) Set-1 Matrix',
+          abcd_numbers: [4, 5, 12],
+          bcd_numbers: [6, 7, 9],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-12 (trd) Set-2 Matrix',
+          abcd_numbers: [6, 8, 9, 10],
+          bcd_numbers: [3, 5],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-27 (trd) Set-1 Matrix',
+          abcd_numbers: [4, 7],
+          bcd_numbers: [11],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-27 (trd) Set-2 Matrix',
+          abcd_numbers: [2, 7],
+          bcd_numbers: [12],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-30 (sh) Set-1 Matrix',
+          abcd_numbers: [1, 2, 6],
+          bcd_numbers: [7, 10, 11],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-30 (sh) Set-2 Matrix',
+          abcd_numbers: [1, 2, 9, 10],
+          bcd_numbers: [4, 11],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-60 (Trd) Set-1 Matrix',
+          abcd_numbers: [1, 4, 5, 6],
+          bcd_numbers: [3, 9],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-60 (Trd) Set-2 Matrix',
+          abcd_numbers: [3, 8, 9, 12],
+          bcd_numbers: [6, 10],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-81 Set-1 Matrix',
+          abcd_numbers: [5, 6, 7, 12],
+          bcd_numbers: [3],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-81 Set-2 Matrix',
+          abcd_numbers: [3, 9, 10],
+          bcd_numbers: [2],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-108 Set-1 Matrix',
+          abcd_numbers: [2, 4, 6, 8],
+          bcd_numbers: [9, 10],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-108 Set-2 Matrix',
+          abcd_numbers: [1, 5, 6, 12],
+          bcd_numbers: [4, 8],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-144 Set-1 Matrix',
+          abcd_numbers: [9, 10, 11],
+          bcd_numbers: [2, 3, 4, 5, 12],
+          notes: 'Default configuration'
+        },
+        {
+          topic_name: 'D-144 Set-2 Matrix',
+          abcd_numbers: [1, 4, 6, 8],
+          bcd_numbers: [3, 11, 12],
+          notes: 'Default configuration'
+        }
+      ];
+
+      try {
+        log('📥 Inserting ABCD/BCD numbers data...');
+        
+        // Try upsert to handle existing data
+        const { data, error } = await supabase
+          .from('topic_abcd_bcd_numbers')
+          .upsert(topicData, { 
+            onConflict: 'topic_name',
+            ignoreDuplicates: false 
+          })
+          .select();
+
+        if (error) {
+          throw error;
+        }
+
+        log(`✅ Successfully inserted/updated ${topicData.length} topic records`);
+        document.getElementById('insert-status').innerHTML = `<div class="success">✅ Successfully inserted ${topicData.length} topics</div>`;
+      } catch (error) {
+        log(`❌ Insert failed: ${error.message}`, 'error');
+        document.getElementById('insert-status').innerHTML = `<div class="error">❌ Failed: ${error.message}</div>`;
+      }
+    };
+
+    // Verify data
+    window.verifyData = async function() {
+      if (!supabase) {
+        log('❌ Supabase not initialized', 'error');
+        return;
+      }
+
+      try {
+        log('🔍 Verifying database contents...');
+        
+        const { data, error } = await supabase
+          .from('topic_abcd_bcd_numbers')
+          .select('topic_name, abcd_numbers, bcd_numbers')
+          .order('topic_name');
+
+        if (error) {
+          throw error;
+        }
+
+        log(`✅ Found ${data.length} topic records in database`);
+        
+        const sampleData = document.getElementById('sample-data');
+        sampleData.style.display = 'block';
+        sampleData.innerHTML = data.map(row => 
+          `${row.topic_name}: ABCD[${row.abcd_numbers.join(', ')}] BCD[${row.bcd_numbers.join(', ')}]`
+        ).join('\n');
+
+        // Check specific records
+        const d1Set1 = data.find(r => r.topic_name === 'D-1 Set-1 Matrix');
+        const d1Set2 = data.find(r => r.topic_name === 'D-1 Set-2 Matrix');
+        
+        if (d1Set1 && d1Set2) {
+          log(`✅ Key records verified:`);
+          log(`  D-1 Set-1: ABCD[${d1Set1.abcd_numbers.join(', ')}] BCD[${d1Set1.bcd_numbers.join(', ')}]`);
+          log(`  D-1 Set-2: ABCD[${d1Set2.abcd_numbers.join(', ')}] BCD[${d1Set2.bcd_numbers.join(', ')}]`);
+        }
+
+        document.getElementById('verify-status').innerHTML = `<div class="success">✅ Verified ${data.length} records</div>`;
+      } catch (error) {
+        log(`❌ Verification failed: ${error.message}`, 'error');
+        document.getElementById('verify-status').innerHTML = `<div class="error">❌ Failed: ${error.message}</div>`;
+      }
+    };
+
+    // Test component integration
+    window.testComponentIntegration = async function() {
+      if (!supabase) {
+        log('❌ Supabase not initialized', 'error');
+        return;
+      }
+
+      try {
+        log('🧪 Testing PlanetsAnalysisPage component integration...');
+        
+        // Simulate the database service call
+        const { data, error } = await supabase
+          .from('topic_abcd_bcd_numbers')
+          .select('topic_name, abcd_numbers, bcd_numbers')
+          .order('topic_name');
+
+        if (error) {
+          throw error;
+        }
+
+        // Convert to the format expected by the component
+        const topicMapping = {};
+        data.forEach(row => {
+          topicMapping[row.topic_name] = {
+            abcd: row.abcd_numbers || [],
+            bcd: row.bcd_numbers || []
+          };
+        });
+
+        log('✅ Component integration test successful');
+        log(`  Topics available: ${Object.keys(topicMapping).length}`);
+        log(`  Sample topic (D-1 Set-1): ${JSON.stringify(topicMapping['D-1 Set-1 Matrix'])}`);
+        
+        document.getElementById('component-status').innerHTML = `
+          <div class="success">
+            ✅ Integration test passed<br>
+            📊 Ready for PlanetsAnalysisPage to use dynamic numbers<br>
+            🔗 <a href="/planets-analysis" target="_blank">Test in PlanetsAnalysisPage</a>
+          </div>
+        `;
+      } catch (error) {
+        log(`❌ Component integration test failed: ${error.message}`, 'error');
+        document.getElementById('component-status').innerHTML = `<div class="error">❌ Failed: ${error.message}</div>`;
+      }
+    };
+
+    // Clear log
+    window.clearLog = function() {
+      document.getElementById('console-log').textContent = '';
+    };
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      log('🚀 Manual Database Setup Tool loaded');
+      log('📋 Next steps:');
+      log('  1. Test connection to verify Supabase access');
+      log('  2. Create table (may require manual SQL in dashboard)');
+      log('  3. Insert ABCD/BCD data');
+      log('  4. Verify data contents');
+      log('  5. Test component integration');
+      
+      initializeSupabase();
+    });
+  </script>
+</body>
+</html>

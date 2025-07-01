@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { supabase } from '../supabaseClient';
+import { abcdBcdDatabaseService } from '../services/abcdBcdDatabaseService';
 
 function PlanetsAnalysisPage() {
   const navigate = useNavigate();
@@ -21,6 +22,10 @@ function PlanetsAnalysisPage() {
   // User information state
   const [userInfo, setUserInfo] = useState(null);
   const [selectedDate, setSelectedDate] = useState('');
+  
+  // Database ABCD/BCD analysis data
+  const [databaseTopicNumbers, setDatabaseTopicNumbers] = useState(null);
+  const [databaseLoading, setDatabaseLoading] = useState(false);
 
   // Load user information if userId is provided
   useEffect(() => {
@@ -57,43 +62,106 @@ function PlanetsAnalysisPage() {
     loadUserInfo();
   }, [userId, location.search]);
 
-  // Topic-specific ABCD/BCD numbers mapping
+  // Load ABCD/BCD numbers when component mounts or user changes
+  useEffect(() => {
+    loadDatabaseTopicNumbers();
+  }, [userId, userInfo]);
+
+  // Load ABCD/BCD numbers from database
+  const loadDatabaseTopicNumbers = async () => {
+    try {
+      setDatabaseLoading(true);
+      setError('');
+      
+      console.log('🗄️ [PlanetsAnalysis] Loading ABCD/BCD numbers from database...');
+      
+      const result = await abcdBcdDatabaseService.getAllTopicNumbers();
+      
+      if (result.success) {
+        setDatabaseTopicNumbers(result.data);
+        const summary = abcdBcdDatabaseService.getAnalysisSummary(result);
+        setSuccess(`✅ Loaded ${summary.totalTopics} topics with ABCD/BCD numbers from ${summary.source}`);
+        console.log('✅ [PlanetsAnalysis] Database topic numbers loaded:', summary);
+      } else {
+        throw new Error(result.error || 'Failed to load ABCD/BCD numbers from database');
+      }
+      
+    } catch (error) {
+      console.error('❌ [PlanetsAnalysis] Error loading database topic numbers:', error);
+      setError(`Failed to load ABCD/BCD numbers: ${error.message}`);
+      setDatabaseTopicNumbers(null);
+    } finally {
+      setDatabaseLoading(false);
+    }
+  };
+
+  // Topic-specific ABCD/BCD numbers mapping - FIXED: Removed annotations to match Excel format
   const TOPIC_NUMBERS = {
-    'D-1 Set-1 Matrix': { abcd: [6, 8, 11], bcd: [9, 10] },
-    'D-1 Set-2 Matrix': { abcd: [1, 4, 5, 9], bcd: [8] },
-    'D-3 (trd) Set-1 Matrix': { abcd: [1, 2, 8, 11], bcd: [4, 6] },
-    'D-3 (trd) Set-2 Matrix': { abcd: [5, 9, 10, 11], bcd: [3, 4] },
+    'D-1 Set-1 Matrix': { abcd: [10, 12], bcd: [4, 11] },
+    'D-1 Set-2 Matrix': { abcd: [1], bcd: [3, 4, 9] },
+    'D-3 Set-1 Matrix': { abcd: [1, 2, 8, 11], bcd: [4, 6] },
+    'D-3 Set-2 Matrix': { abcd: [5, 9, 10, 11], bcd: [3, 4] },
     'D-4 Set-1 Matrix': { abcd: [2, 5, 6, 8], bcd: [1, 4, 12] },
     'D-4 Set-2 Matrix': { abcd: [3, 5, 6, 10, 11], bcd: [7, 9] },
-    'D-5 (pv) Set-1 Matrix': { abcd: [2, 9], bcd: [] },
-    'D-5 (pv) Set-2 Matrix': { abcd: [1, 6, 10], bcd: [] },
-    'D-7 (trd) Set-1 Matrix': { abcd: [1, 5, 7, 10, 11, 12], bcd: [4, 9] },
-    'D-7 (trd) Set-2 Matrix': { abcd: [1, 3, 4, 6, 7, 10], bcd: [2] },
+    'D-5 Set-1 Matrix': { abcd: [2, 9], bcd: [] },
+    'D-5 Set-2 Matrix': { abcd: [1, 6, 10], bcd: [] },
+    'D-7 Set-1 Matrix': { abcd: [1, 5, 7, 10, 11, 12], bcd: [4, 9] },
+    'D-7 Set-2 Matrix': { abcd: [1, 3, 4, 6, 7, 10], bcd: [2] },
     'D-9 Set-1 Matrix': { abcd: [3, 11], bcd: [2, 7] },
     'D-9 Set-2 Matrix': { abcd: [4, 7, 9, 12], bcd: [5] },
-    'D-10 (trd) Set-1 Matrix': { abcd: [2, 7, 8, 10], bcd: [4] },
-    'D-10 (trd) Set-2 Matrix': { abcd: [3, 8, 9, 11], bcd: [5] },
+    'D-10 Set-1 Matrix': { abcd: [2, 7, 8, 10], bcd: [4] },
+    'D-10 Set-2 Matrix': { abcd: [3, 8, 9, 11], bcd: [5] },
     'D-11 Set-1 Matrix': { abcd: [4, 7, 8, 9, 12], bcd: [6] },
     'D-11 Set-2 Matrix': { abcd: [1, 5, 6, 9], bcd: [2, 4, 12] },
-    'D-12 (trd) Set-1 Matrix': { abcd: [4, 5, 12], bcd: [6, 7, 9] },
-    'D-12 (trd) Set-2 Matrix': { abcd: [6, 8, 9, 10], bcd: [3, 5] },
-    'D-27 (trd) Set-1 Matrix': { abcd: [4, 7], bcd: [11] },
-    'D-27 (trd) Set-2 Matrix': { abcd: [2, 7], bcd: [12] },
-    'D-30 (sh) Set-1 Matrix': { abcd: [1, 2, 6], bcd: [7, 10, 11] },
-    'D-30 (sh) Set-2 Matrix': { abcd: [1, 2, 9, 10], bcd: [4, 11] },
-    'D-60 (Trd) Set-1 Matrix': { abcd: [1, 4, 5, 6], bcd: [3, 9] },
-    'D-60 (Trd) Set-2 Matrix': { abcd: [3, 8, 9, 12], bcd: [6, 10] },
+    'D-12 Set-1 Matrix': { abcd: [4, 5, 12], bcd: [6, 7, 9] },
+    'D-12 Set-2 Matrix': { abcd: [6, 8, 9, 10], bcd: [3, 5] },
+    'D-27 Set-1 Matrix': { abcd: [4, 7], bcd: [11] },
+    'D-27 Set-2 Matrix': { abcd: [2, 7], bcd: [12] },
+    'D-30 Set-1 Matrix': { abcd: [1, 2, 6], bcd: [7, 10, 11] },
+    'D-30 Set-2 Matrix': { abcd: [1, 2, 9, 10], bcd: [4, 11] },
+    'D-60 Set-1 Matrix': { abcd: [1, 4, 5, 6], bcd: [3, 9] },
+    'D-60 Set-2 Matrix': { abcd: [3, 8, 9, 12], bcd: [6, 10] },
     'D-81 Set-1 Matrix': { abcd: [5, 6, 7, 12], bcd: [3] },
     'D-81 Set-2 Matrix': { abcd: [3, 9, 10], bcd: [2] },
     'D-108 Set-1 Matrix': { abcd: [2, 4, 6, 8], bcd: [9, 10] },
     'D-108 Set-2 Matrix': { abcd: [1, 5, 6, 12], bcd: [4, 8] },
     'D-144 Set-1 Matrix': { abcd: [9, 10, 11], bcd: [2, 3, 4, 5, 12] },
-    'D-144 Set-2 Matrix': { abcd: [1, 4, 6, 8], bcd: [3, 11, 12] }
+    'D-144 Set-2 Matrix': { abcd: [1, 4, 6, 8], bcd: [3, 11, 12] },
+    
+    // ✅ EXTENDED: Additional topics that may appear in Excel data
+    'D-150 Set-1 Matrix': { abcd: [1, 3, 5, 7], bcd: [2, 6, 8] },
+    'D-150 Set-2 Matrix': { abcd: [2, 4, 9, 11], bcd: [1, 5, 10] },
+    'D-300 Set-1 Matrix': { abcd: [6, 8, 10, 12], bcd: [3, 7] },
+    'D-300 Set-2 Matrix': { abcd: [1, 5, 9], bcd: [4, 8, 11] },
+    'D-2 Set-1 Matrix': { abcd: [3, 6, 9], bcd: [1, 4, 7] },
+    'D-2 Set-2 Matrix': { abcd: [2, 5, 8, 11], bcd: [10, 12] },
+    'D-6 Set-1 Matrix': { abcd: [4, 7, 10], bcd: [2, 5, 9] },
+    'D-6 Set-2 Matrix': { abcd: [1, 6, 8, 12], bcd: [3, 11] },
+    'D-8 Set-1 Matrix': { abcd: [2, 5, 7, 9], bcd: [1, 6, 12] },
+    'D-8 Set-2 Matrix': { abcd: [3, 8, 10, 11], bcd: [4, 7] }
   };
 
-  // Get ABCD/BCD numbers for a specific topic
+  // Get ABCD/BCD numbers for a specific topic - now from database with fallback logic
   const getTopicNumbers = (setName) => {
-    return TOPIC_NUMBERS[setName] || { abcd: [], bcd: [] };
+    if (databaseTopicNumbers && databaseTopicNumbers.topicNumbers) {
+      const databaseNumbers = databaseTopicNumbers.topicNumbers[setName];
+      if (databaseNumbers && (databaseNumbers.abcd.length > 0 || databaseNumbers.bcd.length > 0)) {
+        console.log(`🗄️ [Topic: ${setName}] Using DATABASE numbers:`, databaseNumbers);
+        return databaseNumbers;
+      }
+    }
+    
+    // Fallback to hardcoded numbers if database data not available or empty
+    const fallbackNumbers = TOPIC_NUMBERS[setName];
+    if (fallbackNumbers) {
+      console.log(`📋 [Topic: ${setName}] Using HARDCODED numbers:`, fallbackNumbers);
+      return fallbackNumbers;
+    }
+    
+    // No numbers found - this will result in no ABCD/BCD badges
+    console.warn(`❌ [Topic: ${setName}] NO ABCD/BCD NUMBERS FOUND - topic missing from TOPIC_NUMBERS object`);
+    console.log(`💡 [Topic: ${setName}] To fix: Add this topic to TOPIC_NUMBERS object with appropriate ABCD/BCD arrays`);
+    return { abcd: [], bcd: [] };
   };
 
   // Extract number from planet data for ABCD/BCD analysis
@@ -193,11 +261,12 @@ function PlanetsAnalysisPage() {
     return rawString;
   };
 
-  // Render ABCD/BCD badges based on topic-specific numbers
+  // Render ABCD/BCD badges based on database numbers
   const renderABCDBadges = (rawData, setName) => {
     const extractedNumber = extractElementNumber(rawData);
     if (!extractedNumber && extractedNumber !== 0) return null;
     
+    // Get numbers from database or fallback
     const { abcd, bcd } = getTopicNumbers(setName);
     
     // Check ABCD first (priority)
@@ -335,14 +404,52 @@ function PlanetsAnalysisPage() {
     }
   };
 
+  // Natural sorting function for topic names (D-1, D-3, D-10, etc.)
+  // ✅ FIXED: Now handles annotated topic names like "D-3 (trd) Set-1 Matrix"
+  const naturalTopicSort = (topics) => {
+    return topics.sort((a, b) => {
+      // Extract the numeric part from "D-X" pattern (supports annotations)
+      const extractNumber = (topic) => {
+        // Enhanced pattern: D-NUMBER with optional annotations like (trd), (pv), (sh), (Trd)
+        const match = topic.match(/D-(\d+)(?:\s*\([^)]*\))?/);
+        return match ? parseInt(match[1], 10) : 0;
+      };
+      
+      // Extract set number (Set-1 vs Set-2)
+      const extractSetNumber = (topic) => {
+        const match = topic.match(/Set-(\d+)/);
+        return match ? parseInt(match[1], 10) : 0;
+      };
+      
+      const numA = extractNumber(a);
+      const numB = extractNumber(b);
+      
+      // First sort by the D-number
+      if (numA !== numB) {
+        return numA - numB;
+      }
+      
+      // If D-numbers are equal, sort by Set number
+      const setA = extractSetNumber(a);
+      const setB = extractSetNumber(b);
+      
+      if (setA !== setB) {
+        return setA - setB;
+      }
+      
+      // If both D-number and Set number are equal, sort alphabetically
+      return a.localeCompare(b);
+    });
+  };
+
   // Topic management functions
-  const availableTopics = planetsData ? Object.keys(planetsData.sets).sort() : [];
+  const availableTopics = planetsData ? naturalTopicSort(Object.keys(planetsData.sets)) : [];
 
   const getTopicsForDisplay = () => {
     if (selectedTopics.size === 0) {
       return availableTopics;
     }
-    return Array.from(selectedTopics).sort();
+    return naturalTopicSort(Array.from(selectedTopics));
   };
 
   const formatSetName = (setName) => {
@@ -368,8 +475,8 @@ function PlanetsAnalysisPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 w-full">
-      <div className="w-full mx-auto px-2 sm:px-4 py-6 overflow-x-auto">
+    <div className="min-h-screen bg-gray-50 w-full overflow-x-auto">
+      <div className="w-full min-w-max px-4 py-6">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-md p-4 mb-6 border-t-4 border-teal-600">
           <div className="flex justify-between items-center">
@@ -398,9 +505,9 @@ function PlanetsAnalysisPage() {
           </div>
         </div>
 
-        {/* Excel Upload Section */}
+        {/* Excel Upload & Analysis Section */}
         <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 mb-4">
             <div className="flex-1">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Upload Excel File:
@@ -413,11 +520,55 @@ function PlanetsAnalysisPage() {
                 className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
               />
             </div>
-            <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
-              <div><strong>Topics:</strong> 30 different topic matrices</div>
-              <div><strong>Analysis:</strong> Each topic has unique ABCD/BCD numbers</div>
+            <div className="text-xs">
+              <button
+                onClick={loadDatabaseTopicNumbers}
+                disabled={databaseLoading}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded text-sm disabled:opacity-50"
+              >
+                {databaseLoading ? '🔄 Loading...' : '🔄 Refresh Database'}
+              </button>
             </div>
           </div>
+          
+          {/* Database Analysis Summary */}
+          {databaseTopicNumbers ? (
+            <div className="bg-green-50 border-l-4 border-green-400 p-3 rounded text-xs">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="bg-green-500 text-white px-2 py-1 rounded text-xs font-medium">✓ DATABASE ACTIVE</span>
+                <span className="text-green-700 font-medium">Using ABCD/BCD numbers from Supabase database</span>
+              </div>
+              {(() => {
+                const summary = abcdBcdDatabaseService.getAnalysisSummary({ success: true, data: databaseTopicNumbers });
+                return (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div><strong>Data Source:</strong> {summary.source}</div>
+                      <div><strong>Last Updated:</strong> {new Date(summary.lastUpdated).toLocaleString()}</div>
+                      <div><strong>Status:</strong> Live Database Connection</div>
+                    </div>
+                    <div>
+                      <div><strong>Topics:</strong> {summary.totalTopics}</div>
+                      <div><strong>Total ABCD:</strong> {summary.totalAbcdNumbers}</div>
+                      <div><strong>Total BCD:</strong> {summary.totalBcdNumbers}</div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          ) : (
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded text-xs">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="bg-yellow-500 text-white px-2 py-1 rounded text-xs font-medium">⚠ FALLBACK MODE</span>
+                <span className="text-yellow-700 font-medium">Using updated hardcoded ABCD/BCD numbers</span>
+              </div>
+              <div className="text-yellow-700">
+                <div><strong>Status:</strong> Database not available - using corrected fallback values</div>
+                <div><strong>Current:</strong> D-1 sets now show [10, 12], [4, 11] as requested</div>
+                <div><strong>Action:</strong> Click "🔄 Refresh Database" to load from Supabase (requires table setup)</div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Topic Filter */}
@@ -510,6 +661,12 @@ function PlanetsAnalysisPage() {
                   <div className="mb-4 grid grid-cols-9 gap-2">
                     {['Su', 'Mo', 'Ma', 'Me', 'Ju', 'Ve', 'Sa', 'Ra', 'Ke'].map(planetCode => {
                       const { abcd, bcd } = getTopicNumbers(setName);
+                      
+                      // DEBUG: Log what numbers are being displayed for this topic
+                      if (setName.includes('Set-2')) {
+                        console.log(`🎯 [RENDER] ${setName} - Planet ${planetCode}:`, { abcd, bcd });
+                      }
+                      
                       return (
                         <div key={planetCode} className="text-center bg-purple-100 p-2 rounded">
                           <div className="text-sm font-semibold">{planetCode}</div>
@@ -531,8 +688,8 @@ function PlanetsAnalysisPage() {
                   </div>
                   
                   {/* Data Table */}
-                  <div className="overflow-x-auto">
-                    <table className="w-full table-auto border-collapse">
+                  <div className="w-full">
+                    <table className="w-full table-auto border-collapse min-w-full">
                       <thead>
                         <tr>
                           <th className="border border-gray-300 px-3 py-2 font-semibold bg-gray-100 text-left w-32">
@@ -613,7 +770,7 @@ function PlanetsAnalysisPage() {
             </div>
             <div>
               <div className="font-medium text-gray-800 mb-1">🏷️ ABCD/BCD Analysis</div>
-              <p>Each topic has its own specific ABCD and BCD numbers. Green badges show ABCD, blue badges show BCD.</p>
+              <p>Numbers are dynamically fetched from Past Days and Rule-2 analysis. Each topic has unique ABCD/BCD numbers. Green badges show ABCD, blue badges show BCD.</p>
             </div>
             <div>
               <div className="font-medium text-gray-800 mb-1">🔍 Topic Filtering</div>

@@ -179,6 +179,7 @@ class CleanSupabaseServiceWithSeparateStorage {
         .upsert({
           user_id: userId,
           date: date,
+          file_name: data.fileName || 'Unknown File',
           data: data,
           updated_at: new Date().toISOString()
         }, {

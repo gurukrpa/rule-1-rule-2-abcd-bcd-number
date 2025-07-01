@@ -230,32 +230,62 @@ const Rule2CompactPage = ({ date, selectedUser, selectedUserData, datesList, onB
     };
   };
 
-  // Define the 30-topic order in ascending numerical order
+  // ✅ FIXED: Topic matching utility to handle annotated names from database
+  const createTopicMatcher = (expectedTopics, availableTopics) => {
+    // Create a mapping from expected topics to available (annotated) topics
+    const topicMap = new Map();
+    
+    expectedTopics.forEach(expectedTopic => {
+      // Extract D-number and Set number from expected topic
+      const expectedMatch = expectedTopic.match(/D-(\d+)\s+Set-(\d+)/);
+      if (expectedMatch) {
+        const [, dNumber, setNumber] = expectedMatch;
+        
+        // Find matching topic in available topics (may have annotations)
+        const matchingTopic = availableTopics.find(availableTopic => {
+          const availableMatch = availableTopic.match(/D-(\d+)(?:\s*\([^)]*\))?\s+Set-(\d+)/);
+          if (availableMatch) {
+            const [, availableDNumber, availableSetNumber] = availableMatch;
+            return dNumber === availableDNumber && setNumber === availableSetNumber;
+          }
+          return false;
+        });
+        
+        if (matchingTopic) {
+          topicMap.set(expectedTopic, matchingTopic);
+        }
+      }
+    });
+    
+    return topicMap;
+  };
+
+  // Define the 30-topic order in ascending numerical order (FIXED: removed annotations to match Excel format)
   const TOPIC_ORDER = [
     'D-1 Set-1 Matrix',
     'D-1 Set-2 Matrix',
-    'D-3 (trd) Set-1 Matrix',
-    'D-3 (trd) Set-2 Matrix',
+    'D-3 Set-1 Matrix',
+    'D-3 Set-2 Matrix',
     'D-4 Set-1 Matrix',
     'D-4 Set-2 Matrix',
-    'D-5 (pv) Set-1 Matrix',
-    'D-5 (pv) Set-2 Matrix',
-    'D-7 (trd) Set-1 Matrix',
-    'D-7 (trd) Set-2 Matrix',
+    'D-5 Set-1 Matrix',
+    'D-5 Set-2 Matrix',
+    'D-7 Set-1 Matrix',
+    'D-7 Set-2 Matrix',
     'D-9 Set-1 Matrix',
     'D-9 Set-2 Matrix',
-    'D-10 (trd) Set-1 Matrix',
-    'D-10 (trd) Set-2 Matrix',
+    'D-10 Set-1 Matrix',
+    'D-10 Set-2 Matrix',
     'D-11 Set-1 Matrix',
     'D-11 Set-2 Matrix',
-    'D-12 (trd) Set-1 Matrix',
-    'D-12 (trd) Set-2 Matrix',
-    'D-27 (trd) Set-1 Matrix',
-    'D-27 (trd) Set-2 Matrix',
-    'D-30 (sh) Set-1 Matrix',
-    'D-30 (sh) Set-2 Matrix',
-    'D-60 (Trd) Set-1 Matrix',
-    'D-60 (Trd) Set-2 Matrix',
+    'D-12 Set-1 Matrix',
+    'D-12 Set-2 Matrix',
+    'D-27 Set-1 Matrix',
+    'D-27 Set-2 Matrix',
+    'D-30 Set-1 Matrix',
+    'D-30 Set-2 Matrix',
+    'D-60 Set-1 Matrix',
+    'D-60 Set-2 Matrix',
     'D-81 Set-1 Matrix',
     'D-81 Set-2 Matrix',
     'D-108 Set-1 Matrix',
@@ -283,9 +313,20 @@ const Rule2CompactPage = ({ date, selectedUser, selectedUserData, datesList, onB
     console.log(`📋 Available set names in data:`, availableSetNames);
     console.log(`📋 TOPIC_ORDER filter:`, TOPIC_ORDER);
     
-    // Return sets in the predefined order, only including those that actually exist
-    const filteredSets = TOPIC_ORDER.filter(topicName => availableSetNames.includes(topicName));
-    console.log(`✅ Filtered available sets:`, filteredSets);
+    // ✅ FIXED: Use smart topic matching to handle annotated names from database
+    const topicMatcher = createTopicMatcher(TOPIC_ORDER, availableSetNames);
+    
+    // Get ordered sets using the actual annotated names from database
+    const filteredSets = TOPIC_ORDER
+      .filter(expectedTopic => topicMatcher.has(expectedTopic))
+      .map(expectedTopic => topicMatcher.get(expectedTopic));
+    
+    console.log(`✅ Filtered available sets (FIXED with Smart Matching):`, {
+      filteredSetsCount: filteredSets.length,
+      filteredSets: filteredSets.slice(0, 5), // Show first 5
+      topicMappings: Array.from(topicMatcher.entries()).slice(0, 3) // Show first 3 mappings
+    });
+    
     return filteredSets;
   };
 
@@ -678,7 +719,7 @@ const Rule2CompactPage = ({ date, selectedUser, selectedUserData, datesList, onB
         {/* Compact Results Section */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            📋 30-Topic Single-Row Results
+            📋 Below ABCD/BCD numbers is for next day.
           </h2>
           
           <div className="space-y-2 font-mono text-sm">
