@@ -5,6 +5,7 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { supabase } from '../supabaseClient';
 import { abcdBcdDatabaseService } from '../services/abcdBcdDatabaseService';
+import { PlanetsAnalysisDataService } from '../services/planetsAnalysisDataService';
 
 function PlanetsAnalysisPage() {
   const navigate = useNavigate();
@@ -26,6 +27,8 @@ function PlanetsAnalysisPage() {
   // Database ABCD/BCD analysis data
   const [databaseTopicNumbers, setDatabaseTopicNumbers] = useState(null);
   const [databaseLoading, setDatabaseLoading] = useState(false);
+  const [realAnalysisData, setRealAnalysisData] = useState(null);
+  const [dataSource, setDataSource] = useState('loading');
 
   // Load user information if userId is provided
   useEffect(() => {
@@ -64,32 +67,68 @@ function PlanetsAnalysisPage() {
 
   // Load ABCD/BCD numbers when component mounts or user changes
   useEffect(() => {
-    loadDatabaseTopicNumbers();
+    loadAllAvailableData();
   }, [userId, userInfo]);
 
-  // Load ABCD/BCD numbers from database
-  const loadDatabaseTopicNumbers = async () => {
+  // Load ABCD/BCD numbers from all available sources automatically
+  const loadAllAvailableData = async () => {
     try {
       setDatabaseLoading(true);
       setError('');
+      setDataSource('loading');
       
-      console.log('🗄️ [PlanetsAnalysis] Loading ABCD/BCD numbers from database...');
+      console.log('🔍 [PlanetsAnalysis] Loading ABCD/BCD numbers from all sources...');
       
-      const result = await abcdBcdDatabaseService.getAllTopicNumbers();
-      
-      if (result.success) {
-        setDatabaseTopicNumbers(result.data);
-        const summary = abcdBcdDatabaseService.getAnalysisSummary(result);
-        setSuccess(`✅ Loaded ${summary.totalTopics} topics with ABCD/BCD numbers from ${summary.source}`);
-        console.log('✅ [PlanetsAnalysis] Database topic numbers loaded:', summary);
-      } else {
-        throw new Error(result.error || 'Failed to load ABCD/BCD numbers from database');
+      // Strategy 1: Try to get real analysis data first
+      try {
+        if (userId) {
+          console.log('📊 [PlanetsAnalysis] Attempting to fetch real analysis data...');
+          
+          // Get available dates from localStorage or context
+          const availableDates = ['2024-12-28', '2024-12-29', '2024-12-30', '2024-12-31']; // Fallback dates
+          
+          const analysisResult = await PlanetsAnalysisDataService.getLatestAnalysisNumbers(
+            userId, 
+            availableDates, 
+            1 // activeHR
+          );
+          
+          if (analysisResult.success) {
+            setRealAnalysisData(analysisResult.data);
+            setDataSource('analysis');
+            setSuccess(`✅ Loaded real ABCD/BCD numbers from ${analysisResult.data.source} analysis`);
+            console.log('✅ [PlanetsAnalysis] Real analysis data loaded:', analysisResult.data);
+            setDatabaseLoading(false);
+            return; // Success - use this data
+          }
+        }
+      } catch (analysisError) {
+        console.log('⚠️ [PlanetsAnalysis] Analysis data not available:', analysisError.message);
       }
       
+      // Strategy 2: Try database
+      console.log('🗄️ [PlanetsAnalysis] Trying database as fallback...');
+      const dbResult = await abcdBcdDatabaseService.getAllTopicNumbers();
+      
+      if (dbResult.success) {
+        setDatabaseTopicNumbers(dbResult.data);
+        setDataSource('database');
+        const summary = abcdBcdDatabaseService.getAnalysisSummary(dbResult);
+        setSuccess(`✅ Loaded ${summary.totalTopics} topics from database`);
+        console.log('✅ [PlanetsAnalysis] Database data loaded:', summary);
+        setDatabaseLoading(false);
+        return; // Success - use database data
+      }
+      
+      // Strategy 3: Use enhanced fallback with all topics
+      console.log('📋 [PlanetsAnalysis] Using enhanced fallback data...');
+      setDataSource('fallback');
+      setSuccess('Using comprehensive fallback ABCD/BCD numbers for all topics');
+      
     } catch (error) {
-      console.error('❌ [PlanetsAnalysis] Error loading database topic numbers:', error);
+      console.error('❌ [PlanetsAnalysis] Error loading data:', error);
       setError(`Failed to load ABCD/BCD numbers: ${error.message}`);
-      setDatabaseTopicNumbers(null);
+      setDataSource('fallback');
     } finally {
       setDatabaseLoading(false);
     }

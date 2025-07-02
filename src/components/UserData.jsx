@@ -165,6 +165,80 @@ function UserData() {
     }
   };
 
+  const canDeleteDate = (day) => {
+    const allDays = Object.keys(dates).map(Number).sort((a, b) => a - b);
+    if (allDays.length <= 1) return false; // Can't delete if only one date
+    
+    const dayNum = parseInt(day);
+    const oldestDay = allDays[0];
+    const newestDay = allDays[allDays.length - 1];
+    
+    // Can only delete oldest or newest date
+    return dayNum === oldestDay || dayNum === newestDay;
+  };
+
+  const handleDeleteDate = async (day) => {
+    try {
+      setSaving(true);
+      setError(null);
+
+      const dayNum = parseInt(day);
+      const dateToDelete = dates[day];
+      
+      if (!canDeleteDate(day)) {
+        setError('Can only delete the oldest (first) or newest (last) date to maintain sequence integrity');
+        return;
+      }
+
+      // Confirm deletion
+      const confirmMessage = `Are you sure you want to delete Day-${day} (${dateToDelete})?\n\nThis will permanently remove all data for this date.`;
+      if (!window.confirm(confirmMessage)) {
+        return;
+      }
+
+      // Delete from hr_data table
+      const { error: hrDataError } = await supabase
+        .from('hr_data')
+        .delete()
+        .eq('user_id', userId)
+        .eq('date', dateToDelete);
+
+      if (hrDataError) throw hrDataError;
+
+      // Delete from house table
+      const { error: houseError } = await supabase
+        .from('house')
+        .delete()
+        .eq('user_id', userId)
+        .eq('date', dateToDelete);
+
+      if (houseError) throw houseError;
+
+      // Remove date from user_dates_userdata table
+      console.log('🗑️ Removing date from user_dates_userdata table:', dateToDelete);
+      await cleanSupabaseService.removeUserDate(userId, dateToDelete, PAGE_CONTEXTS.USERDATA);
+      console.log('✅ Date removed from user_dates_userdata table successfully');
+
+      // Update local state
+      const updatedDates = { ...dates };
+      delete updatedDates[day];
+      
+      // Update hrData to remove entries for this date
+      const updatedHrData = hrData.filter(item => item.date !== dateToDelete);
+      
+      setDates(updatedDates);
+      setHrData(updatedHrData);
+      setSuccess(`Date Day-${day} (${dateToDelete}) deleted successfully!`);
+      setTimeout(() => setSuccess(null), 3000);
+
+    } catch (error) {
+      console.error('❌ Error deleting date:', error);
+      setError('Error deleting date: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleDateChange = async (day, value) => {
     try {
       setDates(prev => ({
@@ -201,6 +275,8 @@ function UserData() {
 
   const handlePlanetChange = (hr, day, value) => {
     try {
+      console.log(`🔍 [UserData] Planet change: HR-${hr}, Day-${day}, Selected: "${value}"`);
+      
       const updatedData = [...hrData];
 
       // Update planet selection
@@ -211,23 +287,71 @@ function UserData() {
 
       if (planetEntry) {
         planetEntry.planet_house = value;
+        console.log(`✅ [UserData] Updated main planet entry for DAY-${day}`);
       }
 
       // Update division houses if Excel data exists
       if (excelData && value) {
+        console.log(`🔍 [UserData] Processing Excel data for planet: "${value}"`);
+        console.log(`🔍 [UserData] Excel data structure:`, {
+          hasExcelData: !!excelData,
+          planetKeys: Object.keys(excelData),
+          requestedPlanet: value,
+          planetDataExists: !!excelData[value]
+        });
+        
         const planetData = excelData[value];
         if (planetData) {
+          console.log(`✅ [UserData] Found planet data for "${value}":`, planetData);
+          console.log(`✅ [UserData] Available divisions for "${value}":`, Object.keys(planetData));
+          
+          let divisionUpdates = 0;
+          let missingEntries = 0;
+          
           divisions.forEach(division => {
-            const divisionEntry = updatedData.find(
+            console.log(`🔍 [UserData] Processing division: ${division}`);
+            console.log(`🔍 [UserData] Looking for: HR-${hr}, Topic: ${division}, Date: ${dates[day]}`);
+            
+            let divisionEntry = updatedData.find(
               item => item.hr_number === `HR-${hr}` &&
                      item.topic === division &&
                      item.date === dates[day]
             );
 
+            // ✅ AUTO-CREATE missing division entries
+            if (!divisionEntry) {
+              console.log(`⚠️ [UserData] Division entry missing, creating: ${division}`);
+              divisionEntry = {
+                user_id: userId,
+                hr_number: `HR-${hr}`,
+                topic: division,
+                date: dates[day],
+                planet_house: null
+              };
+              updatedData.push(divisionEntry);
+              missingEntries++;
+            }
+
             if (divisionEntry) {
-              divisionEntry.planet_house = planetData[division] || null;
+              const houseValue = planetData[division];
+              divisionEntry.planet_house = houseValue || null;
+              console.log(`  ✅ [UserData] ${division}: "${houseValue}"`);
+              divisionUpdates++;
             }
           });
+          
+          console.log(`📊 [UserData] SUMMARY: Updated ${divisionUpdates} divisions, Created ${missingEntries} missing entries`);
+          
+        } else {
+          console.log(`❌ [UserData] No planet data found for "${value}" in Excel data`);
+          console.log(`❌ [UserData] Available planets:`, Object.keys(excelData));
+        }
+      } else {
+        if (!excelData) {
+          console.log(`⚠️ [UserData] No Excel data available`);
+        }
+        if (!value) {
+          console.log(`⚠️ [UserData] No planet value selected`);
         }
       }
 
@@ -239,7 +363,25 @@ function UserData() {
   };
 
   const handleExcelUpload = (data, fileName) => {
-    console.log('Received data from ExcelUpload component:', data);
+    console.log('🔍 [UserData] Received data from ExcelUpload component:', data);
+    console.log('🔍 [UserData] Data structure analysis:');
+    console.log('  - Top level keys:', Object.keys(data));
+    console.log('  - Sample planet data:', Object.entries(data).slice(0, 3));
+    
+    // ✅ Specific Ketu debugging
+    if (data.Ke) {
+      console.log('✅ [UserData] Ketu (Ke) data found:', data.Ke);
+      console.log('✅ [UserData] Ketu divisions:', Object.keys(data.Ke));
+    } else {
+      console.log('❌ [UserData] Ketu (Ke) data NOT found in Excel upload');
+      console.log('❌ [UserData] Available planets:', Object.keys(data));
+    }
+    
+    // ✅ Make data available in browser console for debugging
+    window.excelData = data;
+    window.excelFileName = fileName;
+    console.log('🔧 [UserData] Excel data now available in console as: window.excelData');
+    
     setExcelData(data);
     setExcelFileName(fileName);
     setExcelGroupCounts({});
@@ -381,13 +523,38 @@ function UserData() {
 
       // Insert new house counts into 'house' table
       if (houseCountData.length > 0) {
+        // Try upsert first, fallback to delete+insert if constraint doesn't exist
         const { error: insertError } = await supabase
-          .from('house') // Still targeting the 'house' table here
+          .from('house')
           .upsert(houseCountData, {
-            onConflict: 'user_id,hr_number,day_number,date,topic'  // Specify composite key for conflict resolution
+            onConflict: 'user_id,hr_number,day_number,date,topic'
           });
 
-        if (insertError) {
+        if (insertError && insertError.message.includes('no unique or exclusion constraint')) {
+          console.log('⚠️ Constraint not found, using delete+insert approach...');
+          
+          // Alternative approach: delete existing records then insert new ones
+          const datesToUpdate = [...new Set(houseCountData.map(item => item.date))];
+          
+          // Delete existing records for these dates and user
+          await supabase
+            .from('house')
+            .delete()
+            .eq('user_id', userId)
+            .in('date', datesToUpdate);
+          
+          // Insert new records
+          const { error: insertError2 } = await supabase
+            .from('house')
+            .insert(houseCountData);
+            
+          if (insertError2) {
+            console.error('Insert error into house table (fallback method):', insertError2);
+            throw insertError2;
+          }
+          
+          console.log('✅ Successfully saved house data using delete+insert method');
+        } else if (insertError) {
           console.error('Insert error into house table:', insertError);
           throw insertError;
         }
@@ -571,6 +738,12 @@ function UserData() {
   useEffect(() => {
     if (hrData.length > 0 && Object.keys(dates).length > 0) {
       calculateSameGroups();
+      
+      // ✅ Make data available in browser console for debugging
+      window.hrData = hrData;
+      window.dates = dates;
+      console.log('🔧 [UserData] HR data now available in console as: window.hrData');
+      console.log('🔧 [UserData] Dates now available in console as: window.dates');
     }
   }, [hrData, dates]);
 
@@ -764,6 +937,10 @@ function UserData() {
               onDataUploaded={handleExcelUpload}
               showIcon={true}
               isUploaded={!!excelData}
+              formatConfig={{
+                rowRange: { start: 3, end: 20 },
+                expectedPlanets: 10
+              }}
             />
             <AddNewDate
               onAddDate={handleAddDate}
@@ -846,11 +1023,28 @@ function UserData() {
                         {Object.entries(allDates).map(([day, date]) => (
                           <th key={day} className="w-40 p-0 text-left text-xs font-medium text-gray-500 bg-gray-50 border border-gray-200">
                             <div className="flex flex-col">
-                              <div className="flex items-center justify-between p-2 space-x-4">
-                                <span>HR-{hr}</span> {/* Add HR number above each date */}
+                              <div className="flex items-center justify-between p-2 space-x-2">
+                                <span>HR-{hr}</span>
+                                {canDeleteDate(day) && (
+                                  <button
+                                    onClick={() => handleDeleteDate(day)}
+                                    className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded text-xs"
+                                    title={`Delete Day-${day} (${Object.keys(dates).length <= 1 ? 'Cannot delete - only one date' : 'Click to delete this date'})`}
+                                    disabled={saving}
+                                  >
+                                    🗑️
+                                  </button>
+                                )}
                               </div>
-                              <div className="flex items-center justify-between p-2 space-x-4">
-                                <span>Day-{day}</span>
+                              <div className="flex items-center justify-between p-2 space-x-2">
+                                <span className={canDeleteDate(day) ? 'text-red-600 font-medium' : ''}>
+                                  Day-{day}
+                                  {canDeleteDate(day) && (
+                                    <span className="text-xs text-red-500 block">
+                                      {parseInt(day) === Math.min(...Object.keys(dates).map(Number)) ? '(Oldest)' : '(Newest)'}
+                                    </span>
+                                  )}
+                                </span>
                                 <input
                                   type="date"
                                   value={date || ''}

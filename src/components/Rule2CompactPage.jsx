@@ -719,7 +719,7 @@ const Rule2CompactPage = ({ date, selectedUser, selectedUserData, datesList, onB
         {/* Compact Results Section */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            📋 Below ABCD/BCD numbers is for next day.
+            📋 30-Topic Single-Row Results
           </h2>
           
           <div className="space-y-2 font-mono text-sm">

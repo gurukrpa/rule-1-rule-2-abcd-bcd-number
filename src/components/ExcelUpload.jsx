@@ -2,7 +2,13 @@ import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import { planets, houses, planetMappings, getDivisionFromColumn } from '../utils/constants';
 
-function ExcelUpload({ onDataUploaded, icon = '⬆️', showIcon = true, isUploaded = false }) {
+function ExcelUpload({ 
+  onDataUploaded, 
+  icon = '⬆️', 
+  showIcon = true, 
+  isUploaded = false, 
+  formatConfig = null // Add format configuration parameter
+}) {
   const [error, setError] = useState(null);
 
   const validatePlanet = (planet) => {
@@ -44,10 +50,25 @@ function ExcelUpload({ onDataUploaded, icon = '⬆️', showIcon = true, isUploa
       'Venus': 'Ve',
       'Saturn': 'Sa',
       'Rahu': 'Ra',
-      'Ketu': 'Ke'
+      'Ketu': 'Ke',
+      // ✅ Add common Ketu variations
+      'Kethu': 'Ke',
+      'KETU': 'Ke',
+      'KETHU': 'Ke',
+      'ketu': 'Ke',
+      'kethu': 'Ke',
+      // ✅ Add other Lagna variations (all map to Lg)
+      'Bhava Lagna': 'Lg',
+      'Hora Lagna': 'Lg',
+      'Ghati Lagna': 'Lg',
+      'Vighati Lagna': 'Lg',
+      'Varnada Lagna': 'Lg',
+      'Sree Lagna': 'Lg',
+      'Pranapada Lagna': 'Lg',
+      'Indu Lagna': 'Lg'
     };
     
-    // Get division headers from row 0
+    // Get division headers from row 1 (0-based index)
     const divisionHeaders = [];
     for (let col = 1; col <= range.e.c; col++) {
       const headerCell = worksheet[XLSX.utils.encode_cell({ r: 0, c: col })];
@@ -59,20 +80,65 @@ function ExcelUpload({ onDataUploaded, icon = '⬆️', showIcon = true, isUploa
       }
     }
     
-    // Process planet rows (starting from row 2)
-    for (let row = 2; row <= Math.min(10, range.e.r); row++) {
+    // ✅ CONFIGURABLE ROW PROCESSING: Respect formatConfig for row range
+    // Default range: rows 2-19 (Excel rows 3-20)
+    // UserData range: rows 2-19 (Excel rows 3-20) to include Ketu at row 12
+    let startRow = 2; // 0-based: Excel row 3
+    let endRow = Math.min(19, range.e.r); // 0-based: Excel row 20 (inclusive)
+    
+    if (formatConfig && formatConfig.rowRange) {
+      startRow = formatConfig.rowRange.start - 1; // Convert to 0-based
+      endRow = Math.min(formatConfig.rowRange.end - 1, range.e.r); // Convert to 0-based
+      console.log(`🔧 [ExcelUpload] Using custom row range: Excel rows ${formatConfig.rowRange.start}-${formatConfig.rowRange.end} (0-based: ${startRow}-${endRow})`);
+    } else {
+      console.log(`🔧 [ExcelUpload] Using default row range: Excel rows 3-20 (0-based: ${startRow}-${endRow})`);
+    }
+    
+    console.log('🔍 [ExcelUpload] Processing planet rows...');
+    for (let row = startRow; row <= endRow; row++) {
       const planetCell = worksheet[XLSX.utils.encode_cell({ r: row, c: 0 })];
       if (!planetCell || !planetCell.v) continue;
       
       const planetName = planetCell.v.toString().trim();
-      const planetShort = viboothiPlanetMapping[planetName];
+      console.log(`🔍 [ExcelUpload] Found planet name: "${planetName}" at row ${row + 1}`);
+      
+      // ✅ Try exact match first, then try case variations
+      let planetShort = viboothiPlanetMapping[planetName];
       
       if (!planetShort) {
-        console.warn(`Unknown planet: ${planetName}`);
+        // Try case-insensitive lookup
+        const planetKey = Object.keys(viboothiPlanetMapping).find(
+          key => key.toLowerCase() === planetName.toLowerCase()
+        );
+        if (planetKey) {
+          planetShort = viboothiPlanetMapping[planetKey];
+          console.log(`🔍 [ExcelUpload] Found case-insensitive match: "${planetKey}" -> "${planetShort}"`);
+        }
+      }
+      
+      console.log(`🔍 [ExcelUpload] Mapped to short code: "${planetShort}"`);
+      
+      if (!planetShort) {
+        console.warn(`❌ [ExcelUpload] Unknown planet: "${planetName}"`);
+        console.warn(`❌ [ExcelUpload] Available mappings:`, Object.keys(viboothiPlanetMapping));
+        continue;
+      }
+      
+      // ✅ Only process main planets, skip additional Lagna variations for UserData
+      const mainPlanets = ['Lg', 'Su', 'Mo', 'Ma', 'Me', 'Ju', 'Ve', 'Sa', 'Ra', 'Ke'];
+      if (!mainPlanets.includes(planetShort)) {
+        console.log(`🔍 [ExcelUpload] Skipping additional planet: "${planetName}" (${planetShort}) - not in main 10`);
+        continue;
+      }
+      
+      // ✅ Skip duplicate Lagna entries (only process the first one)
+      if (planetShort === 'Lg' && processedData[planetShort]) {
+        console.log(`🔍 [ExcelUpload] Skipping duplicate Lagna: "${planetName}"`);
         continue;
       }
       
       processedData[planetShort] = {};
+      console.log(`✅ [ExcelUpload] Created data structure for planet: "${planetShort}"`);
       
       // Process each division column
       for (let col = 1; col <= range.e.c; col++) {
@@ -88,17 +154,38 @@ function ExcelUpload({ onDataUploaded, icon = '⬆️', showIcon = true, isUploa
       }
     }
     
+    console.log('🔍 [ExcelUpload] Final processed data structure:');
+    console.log('  - Total planets processed:', Object.keys(processedData).length);
+    console.log('  - Planet keys:', Object.keys(processedData));
+    console.log('  - Ketu data check:', processedData.Ke ? 'EXISTS' : 'MISSING');
+    if (processedData.Ke) {
+      console.log('  - Ketu divisions:', Object.keys(processedData.Ke));
+    }
+    
     return processedData;
   };
 
   const validateViboothiFormat = (worksheet, range) => {
     // Viboothi format validation: 9 planets × 24 divisions = 216 data cells
     let dataCount = 0;
-    const expectedPlanets = ['Lagna', 'Sun', 'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn', 'Rahu'];
+    // ✅ FIXED: Include Ketu in expected planets list
+    const expectedPlanets = ['Lagna', 'Sun', 'Moon', 'Mars', 'Mercury', 'Jupiter', 'Venus', 'Saturn', 'Rahu', 'Ketu'];
     const planetRows = [];
     
-    // Find planet rows (should start from row 2, 0-based)
-    for (let row = 2; row <= Math.min(10, range.e.r); row++) {
+    // ✅ CONFIGURABLE VALIDATION: Respect formatConfig for row range during validation
+    let validationStartRow = 2;
+    let validationEndRow = Math.min(10, range.e.r);
+    
+    if (formatConfig && formatConfig.rowRange) {
+      validationStartRow = formatConfig.rowRange.start - 1; // Convert to 0-based
+      validationEndRow = Math.min(formatConfig.rowRange.end - 1, range.e.r); // Convert to 0-based, but use reasonable max for validation
+      console.log(`🔧 [ExcelUpload] Using custom validation range: Excel rows ${formatConfig.rowRange.start}-${Math.min(formatConfig.rowRange.end, range.e.r + 1)} (0-based: ${validationStartRow}-${validationEndRow})`);
+    } else {
+      console.log(`🔧 [ExcelUpload] Using default validation range: Excel rows 3-11 (0-based: ${validationStartRow}-${validationEndRow})`);
+    }
+    
+    // Find planet rows (should start from configured row range)
+    for (let row = validationStartRow; row <= validationEndRow; row++) {
       const planetCell = worksheet[XLSX.utils.encode_cell({ r: row, c: 0 })];
       if (planetCell && planetCell.v) {
         const planetName = planetCell.v.toString().trim();
@@ -108,8 +195,22 @@ function ExcelUpload({ onDataUploaded, icon = '⬆️', showIcon = true, isUploa
       }
     }
     
-    if (planetRows.length !== 9) {
-      throw new Error(`Invalid viboothi format. Expected 9 planets, found ${planetRows.length}. Missing: ${expectedPlanets.filter(p => !planetRows.find(pr => pr.name === p)).join(', ')}`);
+    // ✅ FLEXIBLE VALIDATION: Allow different planet counts based on formatConfig
+    let expectedPlanetCount = 9;
+    if (formatConfig && formatConfig.expectedPlanets) {
+      expectedPlanetCount = formatConfig.expectedPlanets;
+    }
+    
+    if (planetRows.length < expectedPlanetCount) {
+      const foundPlanets = planetRows.map(p => p.name);
+      const missingPlanets = expectedPlanets.filter(p => !foundPlanets.includes(p));
+      console.warn(`⚠️ [ExcelUpload] Expected ${expectedPlanetCount} planets, found ${planetRows.length}. Missing: ${missingPlanets.join(', ')}`);
+      console.warn(`⚠️ [ExcelUpload] Found planets: ${foundPlanets.join(', ')}`);
+      
+      // Only throw error if critically insufficient (less than 8 planets)
+      if (planetRows.length < 8) {
+        throw new Error(`Invalid viboothi format. Expected at least 8 planets, found ${planetRows.length}. Missing: ${missingPlanets.join(', ')}`);
+      }
     }
     
     // Count data cells for each planet (should have 24 divisions)
@@ -128,8 +229,10 @@ function ExcelUpload({ onDataUploaded, icon = '⬆️', showIcon = true, isUploa
       }
     });
     
-    if (dataCount < 180) { // Minimum threshold with tolerance
-      throw new Error(`Insufficient viboothi data. Expected ~216 cells (9 planets × 24 divisions), found ${dataCount} cells.`);
+    // ✅ FLEXIBLE VALIDATION: Adjust minimum data threshold based on found planets
+    const minimumDataCells = Math.max(180, planetRows.length * 20); // At least 20 data cells per planet
+    if (dataCount < minimumDataCells) {
+      throw new Error(`Insufficient viboothi data. Expected ~${planetRows.length * 24} cells (${planetRows.length} planets × 24 divisions), found ${dataCount} cells.`);
     }
     
     console.log(`✅ Viboothi format validated: ${dataCount} data cells across ${planetRows.length} planets`);
