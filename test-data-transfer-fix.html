@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🧪 Quick Data Transfer Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .test-box { background: white; padding: 20px; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .success { border-left: 5px solid #4caf50; }
+        .error { border-left: 5px solid #f44336; }
+        .info { border-left: 5px solid #2196f3; }
+        button { background: #4caf50; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background: #45a049; }
+        pre { background: #f0f0f0; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        .highlight { background: yellow; padding: 2px 4px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Rule-2 → Planets Data Transfer Test</h1>
+    
+    <div class="test-box info">
+        <h2>📋 Quick Test Instructions</h2>
+        <ol>
+            <li>Open the main app: <button onclick="window.open('http://localhost:5173', '_blank')">🚀 Open App</button></li>
+            <li>Navigate to: User → Date (5th+) → Rule-2</li>
+            <li>Look for D-1 Set-1 Matrix numbers in the results list</li>
+            <li>Click "🪐 Planets Analysis" button</li>
+            <li>Compare the D-1 Set-1 numbers between pages</li>
+        </ol>
+    </div>
+
+    <div class="test-box success">
+        <h2>✅ Expected Result (FIXED)</h2>
+        <p><strong>Rule-2 Page shows:</strong></p>
+        <pre>01. D-1 Set-1 Matrix -ABCD Numbers- <span class="highlight">1,2,4,7,9</span> / BCD Numbers- <span class="highlight">5</span></pre>
+        
+        <p><strong>Planets Analysis Page should show:</strong></p>
+        <pre>D-1 Set-1: ABCD Numbers: <span class="highlight">1,2,4,7,9</span> / BCD Numbers: <span class="highlight">5</span></pre>
+        
+        <p><strong>✅ If numbers match → DATA TRANSFER IS FIXED!</strong></p>
+    </div>
+
+    <div class="test-box error">
+        <h2>❌ Previous Issue (Should be resolved)</h2>
+        <p><strong>Before fix:</strong></p>
+        <ul>
+            <li>Rule-2: "1,2,4,7,9/5"</li>
+            <li>Planets: "1,3/7" ← Wrong numbers</li>
+        </ul>
+        <p><strong>Cause:</strong> URL parameter length limits corrupted large data transfers</p>
+        <p><strong>Solution:</strong> Now using navigation state instead of URL parameters</p>
+    </div>
+
+    <div class="test-box info">
+        <h2>🔧 Technical Fix Applied</h2>
+        <h3>Rule2CompactPage.jsx Changes:</h3>
+        <ul>
+            <li>✅ Switched from URL parameters to navigation state</li>
+            <li>✅ Added pre-navigation data integrity tests</li>
+            <li>✅ Enhanced debugging logs</li>
+        </ul>
+        
+        <h3>PlanetsAnalysisPage.jsx Changes:</h3>
+        <ul>
+            <li>✅ Prioritizes navigation state over URL parameters</li>
+            <li>✅ Added post-navigation data integrity tests</li>
+            <li>✅ Enhanced debugging for D-1 Set-1 tracking</li>
+        </ul>
+    </div>
+
+    <div class="test-box success">
+        <h2>🚀 Test Now</h2>
+        <p>The fix has been applied. Please test the data transfer to confirm it's working:</p>
+        <button onclick="startTest()">🧪 Start Test Process</button>
+        <button onclick="showDebugConsole()">🔍 Show Debug Steps</button>
+    </div>
+
+    <script>
+        function startTest() {
+            const steps = `🧪 Testing Steps:
+
+1. Open the app in a new tab
+2. Open Developer Tools (F12) → Console
+3. Navigate: User → Date → Rule-2
+4. Note D-1 Set-1 Matrix numbers
+5. Click "🪐 Planets Analysis"
+6. Compare numbers on both pages
+
+Debug Console Messages to Watch:
+🧪 [Rule2→Planets] Pre-navigation D-1 Set-1 test
+🧪 [PlanetsAnalysis] Post-navigation D-1 Set-1 test
+
+✅ SUCCESS = Numbers match between pages
+❌ ISSUE = Numbers still different (report back)`;
+            
+            alert(steps);
+            window.open('http://localhost:5173', '_blank');
+        }
+
+        function showDebugConsole() {
+            alert(`🔍 Console Debug Messages:
+
+LOOK FOR THESE LOGS:
+
+Rule-2 Page (before navigation):
+🧪 [Rule2→Planets] Pre-navigation ABCD: [1,2,4,7,9]
+🧪 [Rule2→Planets] Pre-navigation BCD: [5]
+
+Planets Page (after navigation):
+🧪 [PlanetsAnalysis] Post-navigation ABCD: [1,2,4,7,9]
+🧪 [PlanetsAnalysis] Post-navigation BCD: [5]
+
+✅ If these match → TRANSFER SUCCESS
+❌ If different → Still an issue`);
+        }
+    </script>
+</body>
+</html>

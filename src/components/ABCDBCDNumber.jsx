@@ -349,6 +349,22 @@ function ABCDBCDNumber() {
         return;
       }
       
+      // 🔄 PROGRESSIVE CALENDAR: Allow forward date addition without N-1 requirements
+      console.log('📅 [PROGRESSIVE] Adding date with progressive calendar logic (no N-1 validation required)...');
+      console.log(`📅 [PROGRESSIVE] User wants to add: ${iso} - progressive calendar allows this`);
+      
+      // Simple validation: just check if date already exists
+      try {
+        const existingDates = await cleanSupabaseService.getUserDates(selectedUser);
+        if (existingDates.includes(iso)) {
+          setDateError(`Date ${new Date(iso).toLocaleDateString()} already exists for this user.`);
+          return;
+        }
+        console.log('✅ [PROGRESSIVE] Date validation passed - new date is unique');
+      } catch (error) {
+        console.log('⚠️ [PROGRESSIVE] Could not check existing dates, proceeding anyway');
+      }
+      
       // ✅ Use CleanSupabaseService's dedicated addUserDate method with ABCD context
       console.log('💾 Adding new date using CleanSupabaseService for ABCD page:', iso);
       await cleanSupabaseService.addUserDate(selectedUser, iso, PAGE_CONTEXTS.ABCD);
@@ -364,7 +380,10 @@ function ABCDBCDNumber() {
       setDateError('');
       setShowAddDateModal(false);
       
-      setSuccess(`Date ${new Date(iso).toLocaleDateString()} added successfully.`);
+      // 📅 Progressive calendar success message
+      const successMessage = `Date ${new Date(iso).toLocaleDateString()} added successfully. Ready for Excel upload and hour entry.`;
+      
+      setSuccess(successMessage);
       setTimeout(() => setSuccess(''), 3000);
     } catch (e) {
       console.error('❌ Error adding date:', e);
@@ -891,6 +910,8 @@ function ABCDBCDNumber() {
   // Handle Planets Analysis page navigation
   const handlePlanetsAnalysisClick = async (date) => {
     console.log('🪐 handlePlanetsAnalysisClick called with date:', date);
+    console.log('🪐 Date type:', typeof date);
+    console.log('🪐 Date value (JSON):', JSON.stringify(date));
     console.log('🪐 Current datesList:', datesList);
     console.log('🪐 Current selectedUser:', selectedUser);
     
@@ -900,8 +921,14 @@ function ABCDBCDNumber() {
       return;
     }
     
-    // Navigate to the Planets Analysis page with userId
-    navigate(`/planets-analysis/${selectedUser}?date=${date}`);
+    // 📅 PROGRESSIVE CALENDAR: Navigate directly to Planets Analysis without N-1 validation
+    console.log('📅 [PROGRESSIVE] Navigating to Planets Analysis with progressive calendar logic...');
+    console.log(`🪐 [PROGRESSIVE] User selected date: ${date} - allowing direct navigation`);
+    
+    // Navigate directly without validation - PlanetsAnalysisPage will handle data availability
+    const navigationUrl = `/planets-analysis/${selectedUser}?date=${date}`;
+    console.log('🪐 Navigating to URL:', navigationUrl);
+    navigate(navigationUrl);
   };
 
   // Helper function for ordinal suffixes (1st, 2nd, 3rd, 4th, etc.)

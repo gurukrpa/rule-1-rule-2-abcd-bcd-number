@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug July 8th Issue - Real Database Check</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+</head>
+<body>
+    <h1>🔍 DEBUGGING JULY 8TH ISSUE - REAL DATABASE</h1>
+    <div id="results"></div>
+
+    <script>
+        const supabaseUrl = 'https://lgbcbqaqdsgwkcgvqlsg.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxnYmNicWFxZHNnd2tjZ3ZxbHNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzIxMDgyNTcsImV4cCI6MjA0NzY4NDI1N30.tKZgapYNcJOgXYbF8BhJJNKpI5WuEw6oc3vJYHhBFD0';
+        
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        const resultsDiv = document.getElementById('results');
+        
+        async function debugJuly8Issue() {
+            resultsDiv.innerHTML = '<h2>📊 CHECKING REAL DATABASE FOR JULY 8TH ISSUE...</h2>';
+            
+            const USER_ID = 'sing maya';
+            let output = `<h3>User: ${USER_ID}</h3>`;
+            
+            try {
+                // 1. Check Excel Data dates
+                output += '<h3>1️⃣ EXCEL DATA DATES:</h3>';
+                const { data: excelData, error: excelError } = await supabase
+                    .from('excel_data')
+                    .select('date, file_name')
+                    .eq('user_id', USER_ID)
+                    .order('date', { ascending: true });
+                
+                if (excelError) {
+                    output += `<p style="color: red;">❌ Excel error: ${excelError.message}</p>`;
+                } else {
+                    output += `<p>✅ Found ${excelData.length} Excel records:</p><ul>`;
+                    excelData.forEach(record => {
+                        output += `<li>📊 ${record.date} - ${record.file_name}</li>`;
+                    });
+                    output += '</ul>';
+                }
+                
+                // 2. Check Hour Entry dates
+                output += '<h3>2️⃣ HOUR ENTRY DATES:</h3>';
+                const { data: hourData, error: hourError } = await supabase
+                    .from('hour_entries')
+                    .select('date_key')
+                    .eq('user_id', USER_ID)
+                    .order('date_key', { ascending: true });
+                
+                if (hourError) {
+                    output += `<p style="color: red;">❌ Hour error: ${hourError.message}</p>`;
+                } else {
+                    output += `<p>✅ Found ${hourData.length} Hour Entry records:</p><ul>`;
+                    hourData.forEach(record => {
+                        output += `<li>🕒 ${record.date_key}</li>`;
+                    });
+                    output += '</ul>';
+                }
+                
+                // 3. Find common dates
+                if (!excelError && !hourError) {
+                    const excelDates = excelData.map(r => r.date);
+                    const hourDates = hourData.map(r => r.date_key);
+                    const commonDates = excelDates.filter(date => hourDates.includes(date));
+                    
+                    output += '<h3>3️⃣ COMPLETE DATES (Excel + Hour Entry):</h3>';
+                    output += `<p><strong>Available for analysis:</strong> [${commonDates.join(', ')}]</p>`;
+                    
+                    // 4. Test July 8th logic
+                    output += '<h3>4️⃣ JULY 8TH FALLBACK TEST:</h3>';
+                    const selectedDate = '2025-07-08';
+                    const selectedDateObj = new Date(selectedDate);
+                    
+                    output += `<p><strong>Clicked date:</strong> ${selectedDate}</p>`;
+                    output += `<p><strong>Available dates:</strong> [${commonDates.join(', ')}]</p>`;
+                    
+                    // Find closest previous
+                    let closestPrevious = null;
+                    const sortedDates = [...commonDates].sort((a, b) => new Date(a) - new Date(b));
+                    
+                    for (let i = sortedDates.length - 1; i >= 0; i--) {
+                        const availableDate = new Date(sortedDates[i]);
+                        if (availableDate < selectedDateObj) {
+                            closestPrevious = sortedDates[i];
+                            break;
+                        }
+                    }
+                    
+                    output += `<p><strong>Closest previous date:</strong> ${closestPrevious || 'NONE'}</p>`;
+                    
+                    // 5. Analysis
+                    output += '<h3>5️⃣ ANALYSIS:</h3>';
+                    if (closestPrevious === '2025-06-30') {
+                        output += '<p style="color: green;">✅ <strong>SYSTEM IS WORKING CORRECTLY!</strong></p>';
+                        output += '<p>The reason July 8th shows June 30th is because:</p>';
+                        output += '<ul>';
+                        output += '<li>July 7th data does NOT exist in database</li>';
+                        output += '<li>June 30th IS the closest previous date</li>';
+                        output += '<li>This is mathematically correct behavior</li>';
+                        output += '</ul>';
+                        
+                        output += '<h4>🔧 TO GET JULY 7TH DATA FOR JULY 8TH CLICK:</h4>';
+                        output += '<ol>';
+                        output += '<li>Add Excel file for July 7th, 2025</li>';
+                        output += '<li>Add Hour Entry for July 7th, 2025</li>';
+                        output += '<li>Then July 8th → July 7th will work</li>';
+                        output += '</ol>';
+                    } else {
+                        output += '<p style="color: red;">❌ Unexpected result</p>';
+                        output += `<p>Expected June 30th, got: ${closestPrevious}</p>`;
+                    }
+                }
+                
+                resultsDiv.innerHTML = output;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<p style="color: red;">❌ Error: ${error.message}</p>`;
+            }
+        }
+        
+        // Run the analysis
+        debugJuly8Issue();
+    </script>
+</body>
+</html>

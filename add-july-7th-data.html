@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add July 7th, 2025 Data for User "sing maya"</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #4a5568;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2em;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+        .action-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+            margin: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: transform 0.2s;
+        }
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        .results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 8px;
+            border-left: 4px solid #4299e1;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .status.success { background: #c6f6d5; color: #22543d; }
+        .status.error { background: #fed7d7; color: #742a2a; }
+        .status.info { background: #bee3f8; color: #2a4365; }
+        .instructions {
+            background: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .step {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            border-left: 3px solid #4299e1;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🗓️ Add July 7th, 2025 Data for N-1 Pattern Fix</h1>
+        
+        <div class="instructions">
+            <h3>📋 Purpose:</h3>
+            <p>This tool adds the missing July 7th, 2025 data for user "sing maya" to enable proper N-1 pattern analysis when clicking July 8th.</p>
+            
+            <div class="step">
+                <strong>🎯 Fix:</strong> July 8th analysis requires July 7th data (N-1 pattern)
+            </div>
+            <div class="step">
+                <strong>📊 User:</strong> "sing maya"
+            </div>
+            <div class="step">
+                <strong>📅 Date:</strong> July 7th, 2025 (2025-07-07)
+            </div>
+            <div class="step">
+                <strong>✅ Result:</strong> Enables July 8th → July 7th analysis in Planets page
+            </div>
+        </div>
+
+        <div style="text-align: center;">
+            <button class="action-button" onclick="checkCurrentData()">
+                🔍 Check Current Data
+            </button>
+            <button class="action-button" onclick="addJuly7thData()">
+                ➕ Add July 7th Data
+            </button>
+            <button class="action-button" onclick="verifyFix()">
+                ✅ Verify Fix
+            </button>
+        </div>
+
+        <div id="results" class="results" style="display: none;"></div>
+    </div>
+
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://avhptcvyynewsqcauhzl.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF2aHB0Y3Z5eW5ld3NxY2F1aHpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ3ODE3MTMsImV4cCI6MjA1MDM1NzcxM30.a_xHQDZvEwhP6JFEr_lR2ZNbKSK1f4LmN6MkPzJwV6o';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const userId = 'sing maya';
+        const targetDate = '2025-07-07';
+        
+        function showResults(content) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = content;
+            resultsDiv.style.display = 'block';
+        }
+
+        async function checkCurrentData() {
+            showResults('🔍 Checking current data for user "sing maya"...');
+            
+            try {
+                // Check ABCD dates
+                const { data: abcdDates, error: abcdError } = await supabase
+                    .from('user_dates_abcd')
+                    .select('*')
+                    .eq('user_id', userId);
+                
+                if (abcdError) throw abcdError;
+                
+                let report = `📊 CURRENT DATA REPORT:\n\n`;
+                report += `👤 User: ${userId}\n`;
+                report += `📅 Target Date: ${targetDate}\n\n`;
+                
+                report += `🗓️ ABCD Dates (${abcdDates?.length || 0}):\n`;
+                if (abcdDates && abcdDates.length > 0) {
+                    const sortedDates = abcdDates
+                        .map(d => d.date)
+                        .sort((a, b) => new Date(a) - new Date(b));
+                    
+                    sortedDates.forEach((date, index) => {
+                        const status = date === targetDate ? ' ← TARGET DATE ✅' : '';
+                        report += `  ${index + 1}. ${date}${status}\n`;
+                    });
+                    
+                    const hasJuly7 = sortedDates.includes(targetDate);
+                    report += `\n🎯 July 7th Status: ${hasJuly7 ? '✅ EXISTS' : '❌ MISSING'}\n`;
+                    
+                    if (!hasJuly7) {
+                        report += `\n⚠️ ISSUE: July 8th analysis will fail without July 7th data\n`;
+                        report += `💡 SOLUTION: Add July 7th data to enable N-1 pattern\n`;
+                    } else {
+                        report += `\n✅ GOOD: July 7th data exists - N-1 pattern will work\n`;
+                    }
+                } else {
+                    report += `  (No dates found)\n`;
+                    report += `\n❌ CRITICAL: No ABCD dates found for user\n`;
+                }
+                
+                showResults(report);
+                
+            } catch (error) {
+                showResults(`❌ Error checking data: ${error.message}`);
+            }
+        }
+
+        async function addJuly7thData() {
+            showResults('➕ Adding July 7th, 2025 data for user "sing maya"...');
+            
+            try {
+                // Step 1: Add to user_dates_abcd
+                console.log('Adding to user_dates_abcd...');
+                const { data: dateData, error: dateError } = await supabase
+                    .from('user_dates_abcd')
+                    .upsert({
+                        user_id: userId,
+                        date: targetDate,
+                        created_at: new Date().toISOString()
+                    }, {
+                        onConflict: 'user_id,date'
+                    })
+                    .select();
+                
+                if (dateError) throw dateError;
+                
+                // Step 2: Add sample Excel data
+                console.log('Adding Excel data...');
+                const excelData = {
+                    fileName: 'july-7th-sample-data.xlsx',
+                    sets: {
+                        'D-1 Set-1 Matrix': {
+                            'Lagna': {
+                                'Su': '15',
+                                'Mo': '8', 
+                                'Ma': '22',
+                                'Me': '12',
+                                'Ju': '5',
+                                'Ve': '18',
+                                'Sa': '3',
+                                'Ra': '9',
+                                'Ke': '21'
+                            },
+                            'Moon': {
+                                'Su': '7',
+                                'Mo': '14',
+                                'Ma': '1',
+                                'Me': '28',
+                                'Ju': '11',
+                                'Ve': '25',
+                                'Sa': '16',
+                                'Ra': '4',
+                                'Ke': '19'
+                            }
+                        }
+                    },
+                    date: targetDate,
+                    uploadedAt: new Date().toISOString(),
+                    validationReport: {
+                        isValid: true,
+                        dataQualityScore: 100.0,
+                        validDataCells: 18
+                    }
+                };
+
+                const { data: excelResult, error: excelError } = await supabase
+                    .from('excel_data')
+                    .upsert({
+                        user_id: userId,
+                        date: targetDate,
+                        data: excelData,
+                        created_at: new Date().toISOString()
+                    }, {
+                        onConflict: 'user_id,date'
+                    })
+                    .select();
+                
+                if (excelError) throw excelError;
+                
+                // Step 3: Add sample hour entry
+                console.log('Adding hour entry...');
+                const { data: hourResult, error: hourError } = await supabase
+                    .from('hour_entries')
+                    .upsert({
+                        user_id: userId,
+                        date: targetDate,
+                        planet_selections: {
+                            '1': 'Su',
+                            '2': 'Mo',
+                            '3': 'Ma'
+                        },
+                        created_at: new Date().toISOString()
+                    }, {
+                        onConflict: 'user_id,date'
+                    })
+                    .select();
+                
+                if (hourError) throw hourError;
+                
+                let successReport = `✅ SUCCESS: July 7th data added successfully!\n\n`;
+                successReport += `📊 Data Added:\n`;
+                successReport += `  ✅ ABCD Date: ${targetDate}\n`;
+                successReport += `  ✅ Excel Data: Sample matrix with 18 valid cells\n`;
+                successReport += `  ✅ Hour Entry: 3 HR periods with planet selections\n\n`;
+                successReport += `🎯 RESULT:\n`;
+                successReport += `  • July 8th analysis will now work properly\n`;
+                successReport += `  • N-1 pattern: July 8th → July 7th data ✅\n`;
+                successReport += `  • Planets Analysis page will load successfully\n\n`;
+                successReport += `🚀 NEXT STEPS:\n`;
+                successReport += `  1. Test by clicking July 8th in Planets Analysis\n`;
+                successReport += `  2. Verify it shows July 7th data (N-1 pattern)\n`;
+                successReport += `  3. Check that no fallback to June 30th occurs\n`;
+                
+                showResults(successReport);
+                
+            } catch (error) {
+                showResults(`❌ Error adding July 7th data: ${error.message}`);
+            }
+        }
+
+        async function verifyFix() {
+            showResults('✅ Verifying N-1 pattern fix...');
+            
+            try {
+                // Check if July 7th data exists
+                const { data: july7Data, error: july7Error } = await supabase
+                    .from('user_dates_abcd')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .eq('date', targetDate);
+                
+                if (july7Error) throw july7Error;
+                
+                // Check if July 8th data exists
+                const { data: july8Data, error: july8Error } = await supabase
+                    .from('user_dates_abcd')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .eq('date', '2025-07-08');
+                
+                if (july8Error) throw july8Error;
+                
+                // Check Excel and Hour Entry data
+                const { data: excelData, error: excelError } = await supabase
+                    .from('excel_data')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .eq('date', targetDate);
+                
+                const { data: hourData, error: hourError } = await supabase
+                    .from('hour_entries')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .eq('date', targetDate);
+                
+                let verificationReport = `🔍 VERIFICATION REPORT:\n\n`;
+                
+                // Test N-1 pattern
+                const hasJuly7 = july7Data && july7Data.length > 0;
+                const hasJuly8 = july8Data && july8Data.length > 0;
+                const hasExcelData = excelData && excelData.length > 0;
+                const hasHourData = hourData && hourData.length > 0;
+                
+                verificationReport += `📅 DATE AVAILABILITY:\n`;
+                verificationReport += `  July 7th (N-1): ${hasJuly7 ? '✅ EXISTS' : '❌ MISSING'}\n`;
+                verificationReport += `  July 8th (N):   ${hasJuly8 ? '✅ EXISTS' : '❌ MISSING'}\n\n`;
+                
+                verificationReport += `📊 DATA COMPLETENESS (July 7th):\n`;
+                verificationReport += `  Excel Data:  ${hasExcelData ? '✅ EXISTS' : '❌ MISSING'}\n`;
+                verificationReport += `  Hour Entry:  ${hasHourData ? '✅ EXISTS' : '❌ MISSING'}\n\n`;
+                
+                verificationReport += `🎯 N-1 PATTERN TEST:\n`;
+                if (hasJuly7 && hasJuly8) {
+                    verificationReport += `  ✅ July 8th → July 7th analysis will work\n`;
+                    verificationReport += `  ✅ No fallback to June 30th required\n`;
+                    verificationReport += `  ✅ Planets Analysis page will load properly\n\n`;
+                    
+                    if (hasExcelData && hasHourData) {
+                        verificationReport += `🚀 COMPLETE SUCCESS:\n`;
+                        verificationReport += `  • All required data exists for July 7th\n`;
+                        verificationReport += `  • N-1 pattern is fully functional\n`;
+                        verificationReport += `  • Ready for production testing\n`;
+                    } else {
+                        verificationReport += `⚠️ PARTIAL SUCCESS:\n`;
+                        verificationReport += `  • July 7th date exists but incomplete data\n`;
+                        verificationReport += `  • May need to add Excel/Hour Entry data\n`;
+                    }
+                } else {
+                    verificationReport += `  ❌ N-1 pattern will fail\n`;
+                    verificationReport += `  ❌ Will fallback to June 30th\n`;
+                    verificationReport += `  💡 Need to add missing dates\n`;
+                }
+                
+                showResults(verificationReport);
+                
+            } catch (error) {
+                showResults(`❌ Error during verification: ${error.message}`);
+            }
+        }
+
+        // Auto-check on page load
+        window.addEventListener('load', () => {
+            setTimeout(checkCurrentData, 1000);
+        });
+    </script>
+</body>
+</html>

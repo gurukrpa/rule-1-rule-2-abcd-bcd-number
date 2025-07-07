@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Navigation Flow Test - HR-Specific D-1 Set-1</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .step {
+            margin-bottom: 25px;
+            padding: 15px;
+            border-left: 4px solid #4CAF50;
+            background-color: #f9f9f9;
+        }
+        .step h3 {
+            margin-top: 0;
+            color: #2e7d32;
+        }
+        .checklist {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .checklist li {
+            margin: 8px 0;
+            padding: 5px 0;
+        }
+        .checklist li::before {
+            content: "☐ ";
+            color: #666;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        .console-log {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            border: 1px solid #333;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .test-button {
+            background: #28a745;
+        }
+        .test-button:hover {
+            background: #1e7e34;
+        }
+        .hr-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .hr-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            text-align: center;
+            border-radius: 5px;
+        }
+        .hr-card.active {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Complete Navigation Flow Test</h1>
+        <h2>HR-Specific D-1 Set-1 Matrix ABCD/BCD Verification</h2>
+        
+        <div class="warning">
+            <strong>⚠️ Important:</strong> This test verifies that each HR period (1-6) produces different ABCD/BCD numbers for D-1 Set-1 Matrix to confirm the HR-specific fetching system is working properly.
+        </div>
+
+        <div class="step">
+            <h3>🎯 Test Objective</h3>
+            <p>Confirm that the enhanced HR-specific debugging shows different planet selections and resulting ABCD/BCD numbers for each HR period when analyzing D-1 Set-1 Matrix.</p>
+        </div>
+
+        <div class="step">
+            <h3>📋 Step 1: Prepare Browser Console</h3>
+            <ul class="checklist">
+                <li>Open browser DevTools (F12)</li>
+                <li>Go to Console tab</li>
+                <li>Clear console (Ctrl+L or click clear button)</li>
+                <li>Enable all log levels (Info, Warning, Error)</li>
+            </ul>
+            <button onclick="openApp()">Open Application</button>
+        </div>
+
+        <div class="step">
+            <h3>🏠 Step 2: Index Page Navigation</h3>
+            <ul class="checklist">
+                <li>Select a user from the dropdown</li>
+                <li>Ensure you have at least 5 dates in the list</li>
+                <li>Verify dates are properly loaded</li>
+                <li>Look for any console errors</li>
+            </ul>
+            <div class="console-log">Expected Console Output:
+✅ User selected: [username]
+📅 Dates loaded: [count] dates
+🔍 Date validation: OK</div>
+        </div>
+
+        <div class="step">
+            <h3>⚡ Step 3: Navigate to Rule-2</h3>
+            <ul class="checklist">
+                <li>Click "Rule-2" on any date that's 5th position or later</li>
+                <li>Wait for analysis to complete</li>
+                <li>Watch for D-1 Set-1 HR comparison logs</li>
+                <li>Verify different planets/numbers per HR</li>
+            </ul>
+            <div class="console-log">Expected Key Logs:
+🔍 [D-1 Set-1 HR Comparison] Testing all HRs for D-1 Set-1 Matrix:
+🎯 [D-1 Set-1 HR 1] Planet: Mo, Numbers: [7,12,15,23]
+🎯 [D-1 Set-1 HR 2] Planet: Su, Numbers: [3,8,19,27]
+🎯 [D-1 Set-1 HR 3] Planet: Ma, Numbers: [1,11,16,22]
+🎯 [D-1 Set-1 HR 4] Planet: Ve, Numbers: [5,9,14,28]
+🎯 [D-1 Set-1 HR 5] Planet: Ju, Numbers: [4,13,17,25]
+🎯 [D-1 Set-1 HR 6] Planet: Sa, Numbers: [2,6,18,24]
+✅ [D-1 Set-1 HR Comparison] Complete</div>
+        </div>
+
+        <div class="step">
+            <h3>🎯 Step 4: HR Comparison Validation</h3>
+            <p><strong>Key Points to Verify:</strong></p>
+            <ul class="checklist">
+                <li>Each HR shows a different planet (Mo, Su, Ma, Ve, Ju, Sa)</li>
+                <li>Each HR produces different number sets</li>
+                <li>D-1 Set-1 Matrix is found in the data</li>
+                <li>All 6 HRs are tested and logged</li>
+            </ul>
+            
+            <div class="hr-grid">
+                <div class="hr-card">
+                    <strong>HR 1</strong><br>
+                    Planet: Mo<br>
+                    <small>Numbers vary</small>
+                </div>
+                <div class="hr-card">
+                    <strong>HR 2</strong><br>
+                    Planet: Su<br>
+                    <small>Numbers vary</small>
+                </div>
+                <div class="hr-card">
+                    <strong>HR 3</strong><br>
+                    Planet: Ma<br>
+                    <small>Numbers vary</small>
+                </div>
+                <div class="hr-card">
+                    <strong>HR 4</strong><br>
+                    Planet: Ve<br>
+                    <small>Numbers vary</small>
+                </div>
+                <div class="hr-card">
+                    <strong>HR 5</strong><br>
+                    Planet: Ju<br>
+                    <small>Numbers vary</small>
+                </div>
+                <div class="hr-card">
+                    <strong>HR 6</strong><br>
+                    Planet: Sa<br>
+                    <small>Numbers vary</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="step">
+            <h3>🚀 Step 5: Navigate to Planets Analysis</h3>
+            <ul class="checklist">
+                <li>Scroll down to find "Planets Analysis" button</li>
+                <li>Click the button to navigate</li>
+                <li>Watch for data transfer logs</li>
+                <li>Verify D-1 Set-1 data is transferred</li>
+            </ul>
+            <div class="console-log">Expected Navigation Logs:
+🎯 [Rule2→Planets D-1 Set-1] ABCD: [specific numbers]
+🎯 [Rule2→Planets D-1 Set-1] BCD: [specific numbers]
+🌐 [Rule2→Planets] Navigating with navigation state
+🧪 [Rule2→Planets] Pre-navigation D-1 Set-1 test: {abcd: [...], bcd: [...]}</div>
+        </div>
+
+        <div class="step">
+            <h3>🪐 Step 6: Verify Planets Analysis Display</h3>
+            <ul class="checklist">
+                <li>Page should show "ABCD/BCD Target Date Numbers Ready"</li>
+                <li>Look for D-1 Set-1 Matrix in the analysis summary</li>
+                <li>Check that numbers match what was logged in Rule-2</li>
+                <li>Verify "All Hours" indication is present</li>
+            </ul>
+            <div class="console-log">Expected Planets Analysis Logs:
+📡 [PlanetsAnalysis] Received analysis data from navigation state
+🧪 [PlanetsAnalysis] Post-navigation D-1 Set-1 test: {abcd: [...], bcd: [...]}
+🎯 [D-1 Set-1 SUCCESS] ABCD/BCD numbers: {...}
+✅ [PlanetsAnalysis] ABCD/BCD data loaded from navigation state</div>
+        </div>
+
+        <div class="step">
+            <h3>✅ Success Criteria</h3>
+            <div class="success">
+                <strong>Test PASSES if:</strong>
+                <ol>
+                    <li>HR comparison logs show 6 different HRs with different planets</li>
+                    <li>Each HR produces different numbers for D-1 Set-1 Matrix</li>
+                    <li>Data successfully transfers from Rule-2 to Planets Analysis</li>
+                    <li>Planets Analysis shows the correct D-1 Set-1 numbers</li>
+                    <li>No "Navigate from Previous Pages" message appears</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="step">
+            <h3>🔧 Troubleshooting</h3>
+            <div class="warning">
+                <strong>If HR comparison doesn't appear:</strong>
+                <ul>
+                    <li>Check that the user has data for multiple HR periods</li>
+                    <li>Verify D-1 Set-1 Matrix exists in the Excel data</li>
+                    <li>Ensure dates have proper hour entries</li>
+                </ul>
+                
+                <strong>If Planets Analysis shows "Navigate from Previous Pages":</strong>
+                <ul>
+                    <li>Make sure you used the "Planets Analysis" button from Rule-2</li>
+                    <li>Check console for navigation data transfer errors</li>
+                    <li>Verify analysisData is properly structured</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="step">
+            <h3>🧪 Quick Test Actions</h3>
+            <button class="test-button" onclick="openApp()">Start Test</button>
+            <button onclick="clearConsole()">Clear Console</button>
+            <button onclick="showHelp()">Show Help</button>
+        </div>
+    </div>
+
+    <script>
+        function openApp() {
+            console.log('🚀 Starting HR-specific D-1 Set-1 Matrix test...');
+            window.open('http://localhost:5173', '_blank');
+        }
+
+        function clearConsole() {
+            if (confirm('Clear browser console? This will remove all current logs.')) {
+                console.clear();
+                console.log('🧹 Console cleared - ready for new test');
+            }
+        }
+
+        function showHelp() {
+            alert(`
+🧪 HR-Specific Test Help:
+
+1. The goal is to verify that each HR period uses different planet selections
+2. Each planet selection should produce different ABCD/BCD numbers
+3. This confirms the HR-specific fetching system works correctly
+4. Look for the specific console log patterns shown in each step
+5. All 6 HRs should be tested and show different results
+
+Key Success Indicators:
+✅ 6 different HR logs with different planets
+✅ Different number sets per HR
+✅ Successful data transfer to Planets Analysis
+✅ D-1 Set-1 Matrix numbers displayed correctly
+            `);
+        }
+
+        // Auto-highlight current step based on scroll position
+        window.addEventListener('scroll', function() {
+            const steps = document.querySelectorAll('.step');
+            const scrollPos = window.scrollY + 100;
+            
+            steps.forEach((step, index) => {
+                const stepTop = step.offsetTop;
+                const stepBottom = stepTop + step.offsetHeight;
+                
+                if (scrollPos >= stepTop && scrollPos <= stepBottom) {
+                    step.style.borderLeftColor = '#ff6b6b';
+                    step.style.backgroundColor = '#fff5f5';
+                } else {
+                    step.style.borderLeftColor = '#4CAF50';
+                    step.style.backgroundColor = '#f9f9f9';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -154,9 +154,6 @@ function UserList() {
                 <Link to="/users" className="text-indigo-600 hover:text-indigo-900 font-medium">
                   Users
                 </Link>
-                <Link to="/planets-analysis" className="text-teal-600 hover:text-teal-900">
-                  Planets Analysis
-                </Link>
                 <Link to="/number-gen" className="text-gray-700 hover:text-gray-900">
                   Number Generator
                 </Link>
@@ -253,12 +250,6 @@ function UserList() {
                     className="text-orange-600 hover:text-orange-900 ml-4"
                   >
                     ABCD Number
-                  </Link>
-                  <Link
-                    to={`/planets-analysis/${user.id}`}
-                    className="text-teal-600 hover:text-teal-900 ml-4"
-                  >
-                    Planets Analysis
                   </Link>
                   <Link
                     to="/number-gen"

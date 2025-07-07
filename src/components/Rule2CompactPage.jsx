@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 // Using CleanSupabaseService singleton instance for data operations
 import cleanSupabaseService from '../services/CleanSupabaseService';
 import { Rule2ResultsService } from '../services/rule2ResultsService';
+import { Rule2AnalysisResultsService } from '../services/rule2AnalysisResultsService';
 import ProgressBar from './ProgressBar';
 import { performAbcdBcdAnalysis } from '../utils/abcdBcdAnalysis';
 
@@ -479,6 +480,48 @@ const Rule2CompactPage = ({ date, selectedUser, selectedUserData, datesList, onB
           const batchResults = batch.map(setName => {
             const result = processSetAnalysis(setName, aDay, bDay, cDay, dDay);
             console.log(`📊 ${setName}: ABCD(${result.abcdNumbers.length}) BCD(${result.bcdNumbers.length}) D-day(${result.dDayCount})`);
+            
+            // 🔍 ENHANCED D-1 Set-1 HR DEBUG: Show HR-specific numbers for all HR periods
+            if (setName === "D-1 Set-1 Matrix") {
+              console.log(`🎯 [D-1 Set-1 HR Debug] Current HR ${selectedHR} Results:`, {
+                abcd: result.abcdNumbers,
+                bcd: result.bcdNumbers,
+                dDayCount: result.dDayCount
+              });
+              
+              // Test all HRs to show what each would produce for D-1 Set-1
+              console.log(`🔍 [D-1 Set-1 HR Comparison] Testing all HRs for D-1 Set-1 Matrix:`);
+              for (let testHR = 1; testHR <= 6; testHR++) {
+                try {
+                  // Use the cached data to test different HR extractions
+                  const cachedData = dateDataCache.get(dDay);
+                  if (cachedData && cachedData.hourData && cachedData.hourData.planetSelections[testHR]) {
+                    const testPlanet = cachedData.hourData.planetSelections[testHR];
+                    const testDDayNumbers = [];
+                    
+                    if (cachedData.excelData && cachedData.excelData.sets && cachedData.excelData.sets[setName]) {
+                      const setData = cachedData.excelData.sets[setName];
+                      Object.entries(setData).forEach(([elementName, planetData]) => {
+                        const rawString = planetData[testPlanet];
+                        if (rawString) {
+                          const elementNumber = extractElementNumber(rawString);
+                          if (elementNumber !== null) {
+                            testDDayNumbers.push(elementNumber);
+                          }
+                        }
+                      });
+                    }
+                    
+                    console.log(`   HR ${testHR} (Planet ${testPlanet}): D-day numbers [${testDDayNumbers.sort((a, b) => a - b).join(', ')}]`);
+                  } else {
+                    console.log(`   HR ${testHR}: No data available`);
+                  }
+                } catch (hrTestError) {
+                  console.log(`   HR ${testHR}: Error - ${hrTestError.message}`);
+                }
+              }
+            }
+            
             return result;
           });
           
@@ -580,18 +623,38 @@ const Rule2CompactPage = ({ date, selectedUser, selectedUserData, datesList, onB
         setLoadingProgress(95);
         setLoadingMessage('Saving results to database...');
         
-        // Save overall ABCD/BCD results to Supabase for Rule1Page display
+        // Save to both tables for backward compatibility and enhanced features
         try {
+          // 1. Save overall ABCD/BCD results to rule2_results table (for Rule1Page backward compatibility)
           const saveResult = await Rule2ResultsService.saveResults(userId, date, finalAbcdNumbers, finalBcdNumbers);
           if (saveResult.success) {
-            console.log(`✅ [Rule2Compact] Successfully saved overall ABCD/BCD results to Supabase for ${date}`);
-            setLoadingMessage('Analysis complete & saved!');
+            console.log(`✅ [Rule2Compact] Successfully saved overall ABCD/BCD results to rule2_results for ${date}`);
           } else {
-            console.error(`❌ [Rule2Compact] Failed to save results to Supabase:`, saveResult.error);
-            setLoadingMessage('Analysis complete (save failed)');
+            console.error(`❌ [Rule2Compact] Failed to save to rule2_results:`, saveResult.error);
           }
+
+          // 2. Save detailed analysis results to rule2_analysis_results table (for PlanetsAnalysisPage)
+          const enhancedSaveResult = await Rule2AnalysisResultsService.saveAnalysisResults(
+            userId,
+            date, // analysis_date
+            date, // trigger_date  
+            selectedHR,
+            finalAbcdNumbers,
+            finalBcdNumbers,
+            results, // topicResults with individual topic ABCD/BCD numbers
+            { aDay, bDay, cDay, dDay } // sequenceDates
+          );
+
+          if (enhancedSaveResult.success) {
+            console.log(`✅ [Rule2Compact] Successfully saved topic-specific ABCD/BCD results to rule2_analysis_results for ${date}`);
+            setLoadingMessage('Analysis complete & saved to both databases!');
+          } else {
+            console.error(`❌ [Rule2Compact] Failed to save to rule2_analysis_results:`, enhancedSaveResult.error);
+            setLoadingMessage('Analysis complete (enhanced save failed)');
+          }
+
         } catch (saveError) {
-          console.error(`❌ [Rule2Compact] Exception saving results to Supabase:`, saveError);
+          console.error(`❌ [Rule2Compact] Exception saving results to databases:`, saveError);
           setLoadingMessage('Analysis complete (save error)');
         }
 
@@ -719,7 +782,7 @@ const Rule2CompactPage = ({ date, selectedUser, selectedUserData, datesList, onB
         {/* Compact Results Section */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            📋 30-Topic Single-Row Results
+            📋 ABCD/BCD Numbers below for Next Day
           </h2>
           
           <div className="space-y-2 font-mono text-sm">
@@ -840,6 +903,105 @@ const Rule2CompactPage = ({ date, selectedUser, selectedUserData, datesList, onB
               <p><strong>HR Selection:</strong> Uses the same HR period's planet selection across all 4 dates for consistent analysis</p>
             </div>
           </div>
+
+          {/* Navigate to Planets Analysis */}
+          {topicResults.length > 0 && (
+            <div className="mt-6 p-4 bg-teal-50 border border-teal-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-semibold text-teal-800 mb-1">🪐 View ABCD/BCD Numbers on Planets Data</h4>
+                  <p className="text-sm text-teal-700">
+                    Display these ABCD/BCD numbers overlaid on Excel planets data for visual analysis
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    // Debug: Log the current topicResults to verify data
+                    console.log('🔍 [Rule2→Planets] Raw topicResults:', topicResults);
+                    console.log('🔍 [Rule2→Planets] Analysis info:', analysisInfo);
+                    
+                    // Prepare ABCD/BCD analysis data for planets analysis
+                    const analysisData = {
+                      success: true,
+                      data: {
+                        source: 'rule2',
+                        analysisDate: date,
+                        totalTopics: topicResults.length,
+                        selectedHR: selectedHR,
+                        overallNumbers: {
+                          abcd: analysisInfo?.overallAbcdNumbers || [],
+                          bcd: analysisInfo?.overallBcdNumbers || []
+                        },
+                        setResults: topicResults.map(result => ({
+                          setName: result.setName,
+                          abcdNumbers: result.abcdNumbers,
+                          bcdNumbers: result.bcdNumbers
+                        })),
+                        topicNumbers: topicResults.reduce((acc, result) => {
+                          acc[result.setName] = {
+                            abcd: result.abcdNumbers,
+                            bcd: result.bcdNumbers
+                          };
+                          return acc;
+                        }, {})
+                      }
+                    };
+
+                    // Debug: Log the prepared analysis data
+                    console.log('🚀 [Rule2→Planets] Prepared analysisData:', analysisData);
+                    console.log('🚀 [Rule2→Planets] Topic Numbers mapping:', analysisData.data.topicNumbers);
+
+                    // Specific debug for D-1 Set-1 Matrix
+                    const d1Set1Key = "D-1 Set-1 Matrix";
+                    const d1Set1Data = analysisData.data.topicNumbers[d1Set1Key];
+                    console.log(`🎯 [Rule2→Planets D-1 Set-1] Key: "${d1Set1Key}"`);
+                    console.log(`🎯 [Rule2→Planets D-1 Set-1] Data:`, d1Set1Data);
+                    if (d1Set1Data) {
+                      console.log(`🎯 [Rule2→Planets D-1 Set-1] ABCD: [${d1Set1Data.abcd.join(', ')}]`);
+                      console.log(`🎯 [Rule2→Planets D-1 Set-1] BCD: [${d1Set1Data.bcd.join(', ')}]`);
+                    } else {
+                      console.error(`❌ [Rule2→Planets D-1 Set-1] NOT FOUND in topicNumbers!`);
+                      console.error(`❌ [Rule2→Planets D-1 Set-1] Available keys:`, Object.keys(analysisData.data.topicNumbers));
+                    }
+
+                    // Find the corresponding topicResult for D-1 Set-1 Matrix
+                    const d1Set1Result = topicResults.find(result => result.setName === d1Set1Key);
+                    console.log(`🔍 [Rule2→Planets D-1 Set-1] Original topicResult:`, d1Set1Result);
+                    if (d1Set1Result) {
+                      console.log(`🔍 [Rule2→Planets D-1 Set-1] Original ABCD: [${d1Set1Result.abcdNumbers.join(', ')}]`);
+                      console.log(`🔍 [Rule2→Planets D-1 Set-1] Original BCD: [${d1Set1Result.bcdNumbers.join(', ')}]`);
+                    }
+
+                    // Navigate to planets analysis with ABCD/BCD data using navigation state
+                    const jsonString = JSON.stringify(analysisData);
+                    console.log('🌐 [Rule2→Planets] Navigating with navigation state');
+                    console.log('🌐 [Rule2→Planets] Analysis data size:', jsonString.length, 'characters');
+                    
+                    // Test the data integrity before navigation
+                    try {
+                      const testD1Set1 = analysisData.data.topicNumbers["D-1 Set-1 Matrix"];
+                      console.log('🧪 [Rule2→Planets] Pre-navigation D-1 Set-1 test:', testD1Set1);
+                      if (testD1Set1) {
+                        console.log('🧪 [Rule2→Planets] Pre-navigation ABCD:', testD1Set1.abcd);
+                        console.log('🧪 [Rule2→Planets] Pre-navigation BCD:', testD1Set1.bcd);
+                      }
+                    } catch (testError) {
+                      console.error('❌ [Rule2→Planets] Pre-navigation test failed:', testError);
+                    }
+                    
+                    // Use navigation state instead of URL parameters to avoid length limits
+                    navigate(`/planets-analysis/${userId}`, {
+                      state: { analysisData }
+                    });
+                  }}
+                  className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-2 rounded-lg font-medium flex items-center gap-2"
+                >
+                  🪐 Planets Analysis
+                  <span className="text-sm opacity-80">({topicResults.length} topics)</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

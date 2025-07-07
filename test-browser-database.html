@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Connection Test</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .log { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; border: 1px solid #ffeaa7; }
+        button { padding: 10px 20px; margin: 5px; border: none; border-radius: 5px; cursor: pointer; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-warning { background: #ffc107; color: black; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Database Connection & Service Test</h1>
+    <p>Testing the exact functionality that causes "Database connection issue" error</p>
+    
+    <div id="status">Initializing...</div>
+    
+    <button class="btn-primary" onclick="testSupabaseConnection()">1. Test Supabase Connection</button>
+    <button class="btn-success" onclick="testEnhancedTable()">2. Test Enhanced Table</button>
+    <button class="btn-warning" onclick="testAnalysisService()">3. Test Analysis Service</button>
+    
+    <div id="logs"></div>
+
+    <script>
+        // Set up Supabase using environment variables
+        const supabaseUrl = 'https://zndkprjytuhzufdqhnmt.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuZGtwcmp5dHVoenVmZHFobm10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM0OTg5OTgsImV4cCI6MjA1OTA3NDk5OH0._1xM__KPGNlr3HG3-An2fy3kKfIxWU-AXJnrMpdWYok';
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        function log(message, type = 'log') {
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            document.getElementById('logs').appendChild(div);
+            console.log(message);
+        }
+
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+        }
+
+        async function testSupabaseConnection() {
+            updateStatus('Testing Supabase connection...');
+            log('🔍 Testing basic Supabase connection...');
+            
+            try {
+                // Test basic connectivity
+                const { data, error } = await supabase
+                    .from('rule2_results')
+                    .select('count')
+                    .limit(1);
+                
+                if (error) {
+                    log(`❌ Supabase connection failed: ${error.message}`, 'error');
+                    return false;
+                } else {
+                    log('✅ Supabase connection successful!', 'success');
+                    return true;
+                }
+            } catch (err) {
+                log(`❌ Connection error: ${err.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function testEnhancedTable() {
+            updateStatus('Testing enhanced table...');
+            log('🔍 Testing rule2_analysis_results table...');
+            
+            try {
+                const { data, error } = await supabase
+                    .from('rule2_analysis_results')
+                    .select('*')
+                    .limit(1);
+                
+                if (error) {
+                    log(`❌ Enhanced table error: ${error.message}`, 'error');
+                    if (error.message.includes('does not exist')) {
+                        log('💡 Table might need to be created', 'warning');
+                    }
+                    return false;
+                } else {
+                    log(`✅ Enhanced table accessible! Found ${data.length} records`, 'success');
+                    if (data.length > 0) {
+                        log(`📋 Sample record structure: ${JSON.stringify(Object.keys(data[0]))}`, 'log');
+                    }
+                    return true;
+                }
+            } catch (err) {
+                log(`❌ Enhanced table test error: ${err.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function testAnalysisService() {
+            updateStatus('Testing analysis service logic...');
+            log('🔍 Testing getLatestAnalysisNumbers logic...');
+            
+            try {
+                const userId = 'test-user';
+                const datesList = ['2025-07-06', '2025-07-05']; // Recent dates
+                
+                log(`📋 Testing with userId: ${userId}, dates: ${datesList.join(', ')}`);
+                
+                // Test enhanced table lookup (same logic as PlanetsAnalysisDataService)
+                const { data: enhancedData, error: enhancedError } = await supabase
+                    .from('rule2_analysis_results')
+                    .select('*')
+                    .eq('user_id', userId)
+                    .in('analysis_date', datesList)
+                    .order('analysis_date', { ascending: false })
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+
+                if (enhancedError) {
+                    log(`❌ Enhanced table query failed: ${enhancedError.message}`, 'error');
+                    
+                    // Test fallback to basic table
+                    log('🔄 Trying fallback to basic rule2_results table...');
+                    const { data: basicData, error: basicError } = await supabase
+                        .from('rule2_results')
+                        .select('*')
+                        .eq('user_id', userId)
+                        .in('date', datesList)
+                        .order('date', { ascending: false })
+                        .limit(1);
+                    
+                    if (basicError) {
+                        log(`❌ Basic table fallback failed: ${basicError.message}`, 'error');
+                        log('💡 This explains the "Database connection issue" error!', 'warning');
+                        return false;
+                    } else {
+                        log(`✅ Basic table fallback works! Found ${basicData.length} records`, 'success');
+                        return true;
+                    }
+                } else {
+                    if (enhancedData.length > 0) {
+                        log(`✅ Enhanced table query successful! Found ${enhancedData.length} records`, 'success');
+                        log(`📊 Latest record: ${JSON.stringify(enhancedData[0], null, 2)}`, 'log');
+                    } else {
+                        log(`⚠️ Enhanced table accessible but no data for user ${userId}`, 'warning');
+                        log(`💡 This could cause "Real ABCD/BCD data not available" message`, 'warning');
+                    }
+                    return true;
+                }
+            } catch (err) {
+                log(`❌ Analysis service test error: ${err.message}`, 'error');
+                return false;
+            }
+        }
+
+        // Auto-run tests on page load
+        window.onload = async function() {
+            log('🚀 Starting automatic tests...');
+            
+            const conn = await testSupabaseConnection();
+            if (conn) {
+                const table = await testEnhancedTable();
+                if (table) {
+                    await testAnalysisService();
+                }
+            }
+            
+            updateStatus('Tests completed - check logs above');
+        };
+    </script>
+</body>
+</html>

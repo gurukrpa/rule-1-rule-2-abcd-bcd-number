@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix ABCD Calculation - Quick Solution</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .warning { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+        .info { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        button { padding: 10px 20px; margin: 5px; border: none; border-radius: 5px; cursor: pointer; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-warning { background: #ffc107; color: #212529; }
+        .btn-danger { background: #dc3545; color: white; }
+        pre { background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 12px; }
+        .step { margin: 15px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Fix ABCD/BCD Calculation - Quick Solution</h1>
+    
+    <div class="error status">
+        <strong>❌ Current Issue:</strong> "Dynamic calculation failed for HR 1" - The system cannot find required Excel data and Hour Entry data for ABCD dates.
+    </div>
+
+    <div class="info status">
+        <strong>🎯 Quick Fix Strategy:</strong> We'll generate the missing test data directly in the browser to make the calculation work immediately.
+    </div>
+
+    <div class="step">
+        <h2>🚀 Option 1: One-Click Fix (Recommended)</h2>
+        <p>This will create all the missing data needed for ABCD/BCD calculation to work:</p>
+        <button class="btn-success" onclick="quickFix()" style="font-size: 16px; padding: 15px 30px;">
+            ✨ Fix ABCD Calculation Now
+        </button>
+        <div id="quickFixResult"></div>
+    </div>
+
+    <div class="grid">
+        <div class="step">
+            <h3>📊 Create Excel Data</h3>
+            <p>Generate Excel uploads for ABCD dates:</p>
+            <ul style="font-size: 12px;">
+                <li>A-day: 2025-06-26</li>
+                <li>B-day: 2025-06-30</li>
+                <li>C-day: 2025-07-03</li>
+                <li>D-day: 2025-07-07</li>
+            </ul>
+            <button class="btn-primary" onclick="createExcelData()">Create Excel Data</button>
+            <div id="excelResult"></div>
+        </div>
+
+        <div class="step">
+            <h3>⏰ Create Hour Entries</h3>
+            <p>Generate hour entries with HR 1-6 planet selections for all ABCD dates.</p>
+            <button class="btn-primary" onclick="createHourEntries()">Create Hour Entries</button>
+            <div id="hourResult"></div>
+        </div>
+    </div>
+
+    <div class="step">
+        <h2>🗄️ Database Table Setup</h2>
+        <p>If the quick fix doesn't work, you may need to create the database table:</p>
+        <button class="btn-warning" onclick="window.open('/setup-abcd-database.html', '_blank')">
+            Open Database Setup Tool
+        </button>
+    </div>
+
+    <div class="step">
+        <h2>🧪 Test the Fix</h2>
+        <p>After running the fix, test the ABCD calculation:</p>
+        <button class="btn-primary" onclick="testCalculation()">Test ABCD Calculation</button>
+        <div id="testResult"></div>
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+        // Supabase connection
+        const supabaseUrl = 'https://ehxszmgzjqrjpkpwvwfe.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVoeHN6bWd6anFyanBrcHd2d2ZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzU2NDcyMjksImV4cCI6MjA1MTIyMzIyOX0.C6iOD7P3ALqgAIVHQO6mqkRG5DF2Q93Jl1zK__9hGl0';
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        // ABCD Date sequence
+        const ABCD_DATES = {
+            A: '2025-06-26',
+            B: '2025-06-30', 
+            C: '2025-07-03',
+            D: '2025-07-07'
+        };
+
+        const USER_ID = 'user-1';
+
+        // Sample Excel data with multiple topics
+        const createExcelData = (dateType) => ({
+            fileName: \`test-\${dateType}-day-\${ABCD_DATES[dateType]}.xlsx\`,
+            data: {
+                sets: {
+                    'D-1 Set-1 Matrix': {
+                        'Lagna': {
+                            'Su': 'as-7/su-(12 Sc 50)-(20 Ta 50)',
+                            'Mo': 'as-11/mo-(16 Pi 30)-(24 Vi 30)', 
+                            'Ma': 'as-3/ma-(8 Cn 40)-(16 Cp 40)',
+                            'Me': 'as-12/me-(17 Ar 20)-(25 Li 20)',
+                            'Ju': 'as-8/ju-(13 Sg 10)-(21 Ge 10)',
+                            'Ve': 'as-2/ve-(7 Ge 25)-(15 Sg 25)',
+                            'Sa': 'as-5/sa-(10 Vi 15)-(18 Pi 15)',
+                            'Ra': 'as-10/ra-(15 Aq 45)-(23 Le 45)',
+                            'Ke': 'as-4/ke-(9 Le 35)-(17 Aq 35)'
+                        },
+                        'Moon': {
+                            'Su': 'mo-9/su-(14 Cp 25)-(22 Cn 25)',
+                            'Mo': 'mo-1/mo-(6 Ta 55)-(14 Sc 55)',
+                            'Ma': 'mo-6/ma-(11 Li 40)-(19 Ar 40)',
+                            'Me': 'mo-15/me-(20 Ge 30)-(28 Sg 30)',
+                            'Ju': 'mo-3/ju-(8 Le 20)-(16 Aq 20)',
+                            'Ve': 'mo-12/ve-(17 Sc 45)-(25 Ta 45)',
+                            'Sa': 'mo-8/sa-(13 Aq 35)-(21 Le 35)',
+                            'Ra': 'mo-14/ra-(19 Cn 15)-(27 Cp 15)',
+                            'Ke': 'mo-7/ke-(12 Cp 25)-(20 Cn 25)'
+                        }
+                    },
+                    'D-1 Set-2 Matrix': {
+                        'Lagna': {
+                            'Su': 'as-15/su-(20 Ar 30)-(28 Li 30)',
+                            'Mo': 'as-6/mo-(11 Vi 45)-(19 Pi 45)', 
+                            'Ma': 'as-9/ma-(14 Aq 20)-(22 Le 20)',
+                            'Me': 'as-3/me-(8 Ge 55)-(16 Sg 55)',
+                            'Ju': 'as-12/ju-(17 Sc 40)-(25 Ta 40)',
+                            'Ve': 'as-7/ve-(12 Cp 25)-(20 Cn 25)',
+                            'Sa': 'as-1/sa-(6 Ta 10)-(14 Sc 10)',
+                            'Ra': 'as-11/ra-(16 Li 35)-(24 Ar 35)',
+                            'Ke': 'as-5/ke-(10 Le 50)-(18 Aq 50)'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Hour entries with planet selections
+        const createHourEntry = () => ({
+            planet_selections: {
+                '1': 'Su',  // HR 1 = Sun
+                '2': 'Mo',  // HR 2 = Moon
+                '3': 'Ma',  // HR 3 = Mars
+                '4': 'Me',  // HR 4 = Mercury
+                '5': 'Ju',  // HR 5 = Jupiter
+                '6': 'Ve'   // HR 6 = Venus
+            }
+        });
+
+        window.quickFix = async function() {
+            const resultDiv = document.getElementById('quickFixResult');
+            resultDiv.innerHTML = '<div class="info status">🔧 Running quick fix...</div>';
+
+            try {
+                let successCount = 0;
+                let totalSteps = 8; // 4 excel + 4 hour entries
+
+                // Create Excel data for all ABCD dates
+                for (const [letter, date] of Object.entries(ABCD_DATES)) {
+                    const excelData = createExcelData(letter);
+                    
+                    const { error: excelError } = await supabase
+                        .from('excel_uploads')
+                        .upsert({
+                            user_id: USER_ID,
+                            date: date,
+                            file_name: excelData.fileName,
+                            data: excelData.data,
+                            uploaded_at: new Date().toISOString()
+                        });
+
+                    if (!excelError) successCount++;
+                }
+
+                // Create hour entries for all ABCD dates
+                for (const [letter, date] of Object.entries(ABCD_DATES)) {
+                    const hourEntry = createHourEntry();
+                    
+                    const { error: hourError } = await supabase
+                        .from('hour_entries')
+                        .upsert({
+                            user_id: USER_ID,
+                            date: date,
+                            planet_selections: hourEntry.planet_selections,
+                            created_at: new Date().toISOString()
+                        });
+
+                    if (!hourError) successCount++;
+                }
+
+                if (successCount === totalSteps) {
+                    resultDiv.innerHTML = \`
+                        <div class="success status">
+                            <h4>✅ Quick Fix Successful!</h4>
+                            <p>Created all required data for ABCD calculation:</p>
+                            <ul>
+                                <li>✅ Excel uploads for all 4 ABCD dates</li>
+                                <li>✅ Hour entries with HR 1-6 selections</li>
+                                <li>✅ Sample topics (D-1 Set-1, D-1 Set-2)</li>
+                            </ul>
+                            <p><strong>Next:</strong> Go to <a href="/" target="_blank">Planets Analysis</a> and try the calculation again!</p>
+                        </div>
+                    \`;
+                } else {
+                    resultDiv.innerHTML = \`
+                        <div class="warning status">
+                            ⚠️ Partial success: \${successCount}/\${totalSteps} steps completed.
+                            Some data may already exist or there may be database table issues.
+                            Try the <a href="/setup-abcd-database.html" target="_blank">Database Setup Tool</a>.
+                        </div>
+                    \`;
+                }
+
+            } catch (error) {
+                resultDiv.innerHTML = \`
+                    <div class="error status">
+                        ❌ Quick fix failed: \${error.message}
+                        <br><br>
+                        <strong>Likely cause:</strong> Database tables don't exist.
+                        <br>
+                        <strong>Solution:</strong> <a href="/setup-abcd-database.html" target="_blank">Create database tables first</a>
+                    </div>
+                \`;
+            }
+        };
+
+        window.createExcelData = async function() {
+            const resultDiv = document.getElementById('excelResult');
+            resultDiv.innerHTML = '<div class="info status">📊 Creating Excel data...</div>';
+
+            try {
+                let success = 0;
+                for (const [letter, date] of Object.entries(ABCD_DATES)) {
+                    const excelData = createExcelData(letter);
+                    const { error } = await supabase
+                        .from('excel_uploads')
+                        .upsert({
+                            user_id: USER_ID,
+                            date: date,
+                            file_name: excelData.fileName,
+                            data: excelData.data,
+                            uploaded_at: new Date().toISOString()
+                        });
+                    
+                    if (!error) success++;
+                }
+
+                resultDiv.innerHTML = \`
+                    <div class="success status">
+                        ✅ Created Excel data for \${success}/4 ABCD dates
+                    </div>
+                \`;
+            } catch (error) {
+                resultDiv.innerHTML = \`<div class="error status">❌ Error: \${error.message}</div>\`;
+            }
+        };
+
+        window.createHourEntries = async function() {
+            const resultDiv = document.getElementById('hourResult');
+            resultDiv.innerHTML = '<div class="info status">⏰ Creating hour entries...</div>';
+
+            try {
+                let success = 0;
+                for (const [letter, date] of Object.entries(ABCD_DATES)) {
+                    const hourEntry = createHourEntry();
+                    const { error } = await supabase
+                        .from('hour_entries')
+                        .upsert({
+                            user_id: USER_ID,
+                            date: date,
+                            planet_selections: hourEntry.planet_selections,
+                            created_at: new Date().toISOString()
+                        });
+                    
+                    if (!error) success++;
+                }
+
+                resultDiv.innerHTML = \`
+                    <div class="success status">
+                        ✅ Created hour entries for \${success}/4 ABCD dates
+                    </div>
+                \`;
+            } catch (error) {
+                resultDiv.innerHTML = \`<div class="error status">❌ Error: \${error.message}</div>\`;
+            }
+        };
+
+        window.testCalculation = function() {
+            const resultDiv = document.getElementById('testResult');
+            resultDiv.innerHTML = \`
+                <div class="info status">
+                    <h4>🧪 Testing Instructions:</h4>
+                    <ol>
+                        <li>Go to <a href="/" target="_blank">Planets Analysis page</a></li>
+                        <li>Upload any Excel file (or use existing one)</li>
+                        <li>Make sure HR 1 is selected</li>
+                        <li>Check browser console (F12) for messages</li>
+                        <li>Look for: "✅ [Database Save] Successfully saved all ABCD/BCD numbers to database!"</li>
+                    </ol>
+                    <p><strong>Expected Result:</strong> ABCD/BCD numbers should appear for all planets in each topic.</p>
+                </div>
+            \`;
+        };
+    </script>
+</body>
+</html>

@@ -12,7 +12,7 @@ import { cleanSupabaseService } from './CleanSupabaseService.js';
 export class PlanetsAnalysisDataService {
   
   /**
-   * Get latest ABCD/BCD numbers for all topics from both Past Days and Rule-2 analysis
+   * Get latest ABCD/BCD numbers for all topics from database, Past Days and Rule-2 analysis
    * @param {string} selectedUser - User ID
    * @param {string[]} datesList - List of available dates
    * @param {number} activeHR - Active HR period
@@ -24,10 +24,36 @@ export class PlanetsAnalysisDataService {
       console.log(`📅 [PlanetsAnalysis] Available dates:`, datesList);
       console.log(`⏰ [PlanetsAnalysis] Active HR: ${activeHR}`);
 
-      if (!selectedUser || !datesList || datesList.length < 4) {
+      if (!selectedUser) {
         return {
           success: false,
-          error: 'Insufficient data: need at least 4 dates for analysis'
+          error: 'User ID is required'
+        };
+      }
+
+      // Strategy 0: Try direct database access first (NEW)
+      try {
+        console.log(`🎯 [PlanetsAnalysis] Attempting direct database access for real ABCD/BCD numbers`);
+        
+        const { AbcdBcdDatabaseService } = await import('./abcdBcdDatabaseService.js');
+        const dbService = new AbcdBcdDatabaseService();
+        const dbResult = await dbService.getAllTopicNumbers();
+        
+        if (dbResult.success && dbResult.data && Object.keys(dbResult.data).length > 0) {
+          console.log(`✅ [PlanetsAnalysis] Direct database access successful - found ${Object.keys(dbResult.data).length} topics`);
+          return this.formatDatabaseResult(dbResult.data, 'database');
+        } else {
+          console.log(`📊 [PlanetsAnalysis] No data in database table, proceeding to analysis methods`);
+        }
+      } catch (error) {
+        console.log(`⚠️ [PlanetsAnalysis] Database access failed:`, error.message);
+      }
+
+      // If no dates available, we can only try database access
+      if (!datesList || datesList.length === 0) {
+        return {
+          success: false,
+          error: 'No ABCD/BCD data available in database and no dates provided for analysis'
         };
       }
 
@@ -93,6 +119,49 @@ export class PlanetsAnalysisDataService {
   }
 
   /**
+   * Format database result for Planets Analysis page consumption
+   * @param {Object} databaseData - Raw database data from AbcdBcdDatabaseService
+   * @param {string} source - Data source ('database')
+   * @returns {Object} Formatted result
+   */
+  static formatDatabaseResult(databaseData, source) {
+    console.log(`📊 [PlanetsAnalysis] Formatting database result with ${Object.keys(databaseData).length} topics`);
+    
+    // Convert database format to our expected format
+    const topicNumbers = {};
+    
+    Object.entries(databaseData).forEach(([topicName, topicData]) => {
+      topicNumbers[topicName] = {
+        abcd: topicData.abcd || [],
+        bcd: topicData.bcd || []
+      };
+    });
+
+    return {
+      success: true,
+      data: {
+        source: 'database',
+        analysisDate: new Date().toISOString().split('T')[0],
+        timestamp: new Date().toISOString(),
+        hrNumber: 1, // Default for database access
+        
+        // Topic-specific ABCD/BCD numbers (main requirement)
+        topicNumbers: topicNumbers,
+        
+        // Overall numbers for reference (combine all topics)
+        overallNumbers: {
+          abcd: [...new Set(Object.values(topicNumbers).flatMap(topic => topic.abcd))],
+          bcd: [...new Set(Object.values(topicNumbers).flatMap(topic => topic.bcd))]
+        },
+        
+        // Metadata
+        totalTopics: Object.keys(topicNumbers).length,
+        dataSource: 'Direct Database Access'
+      }
+    };
+  }
+
+  /**
    * Format analysis result for Planets Analysis page consumption
    * @param {Object} analysisResult - Raw analysis result
    * @param {string} source - Data source ('rule2' or 'pastDays')
@@ -105,20 +174,25 @@ export class PlanetsAnalysisDataService {
     // Extract topic-specific numbers from the analysis
     const topicNumbers = {};
     
-    if (data.topicResults) {
+    // Handle both topicResults (from RealTimeRule2AnalysisService) and setResults (from rule2AnalysisService)
+    const topicResultsArray = data.topicResults || data.setResults;
+    
+    if (topicResultsArray) {
       // Format topic-specific results
-      data.topicResults.forEach(topic => {
+      topicResultsArray.forEach(topic => {
         topicNumbers[topic.setName] = {
           abcd: topic.abcdNumbers || [],
           bcd: topic.bcdNumbers || []
         };
       });
+      
+      console.log(`🎯 [PlanetsAnalysis] Formatted ${topicResultsArray.length} topics for ${source} analysis (HR ${data.selectedHR || data.summary?.selectedHR || 'unknown'})`);
     }
 
-    // Also get overall numbers for reference
+    // Also get overall numbers for reference - handle both field name formats
     const overallNumbers = {
-      abcd: data.overallAbcdNumbers || [],
-      bcd: data.overallBcdNumbers || []
+      abcd: data.overallAbcdNumbers || data.abcdNumbers || [],
+      bcd: data.overallBcdNumbers || data.bcdNumbers || []
     };
 
     return {
@@ -127,7 +201,7 @@ export class PlanetsAnalysisDataService {
         source: source,
         analysisDate: analysisDate,
         timestamp: new Date().toISOString(),
-        hrNumber: data.hrNumber || data.availableHRs?.[0] || 1,
+        hrNumber: data.hrNumber || data.summary?.selectedHR || data.availableHRs?.[0] || 1,
         
         // Topic-specific ABCD/BCD numbers (main requirement)
         topicNumbers: topicNumbers,
@@ -158,7 +232,8 @@ export class PlanetsAnalysisDataService {
     for (let i = recentDates.length - 1; i >= 0; i--) {
       const testDate = recentDates[i];
       
-      if (i >= 3) { // Need at least 4 dates for analysis
+      // Reduced requirement: try with any available dates (minimum 2 for basic analysis)
+      if (i >= 1) { // Changed from 3 to 1 - need at least 2 dates for analysis
         try {
           console.log(`🎯 [PlanetsAnalysis] Fallback test for ${testDate}`);
           

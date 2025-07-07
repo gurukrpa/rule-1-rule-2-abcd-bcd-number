@@ -2,8 +2,9 @@
 // Real-time Rule2 analysis service for Past Days
 // Uses the same logic as Rule2CompactPage but without UI dependencies
 
-import { cleanSupabaseService } from './CleanSupabaseService';
-import { performAbcdBcdAnalysis } from '../utils/abcdBcdAnalysis';
+import { cleanSupabaseService } from './CleanSupabaseService.js';
+import { performAbcdBcdAnalysis } from '../utils/abcdBcdAnalysis.js';
+import { DateManagementService } from '../utils/dateManagement.js';
 
 export class RealTimeRule2AnalysisService {
   /**
@@ -26,18 +27,52 @@ export class RealTimeRule2AnalysisService {
       const sortedDates = [...datesList].sort((a, b) => new Date(a) - new Date(b));
       const analysisIndex = sortedDates.indexOf(analysisDate);
       
-      if (analysisIndex < 3) {
+      console.log(`🔍 [RealTimeRule2] Looking for analysisDate "${analysisDate}" in dates:`, sortedDates);
+      console.log(`📍 [RealTimeRule2] Found at index: ${analysisIndex}`);
+      
+      if (analysisIndex === -1) {
         return {
           success: false,
-          error: `Analysis requires at least 4 dates. Current analysis date "${analysisDate}" is at position ${analysisIndex + 1}`
+          error: `Analysis date "${analysisDate}" not found in available dates: [${sortedDates.join(', ')}]. Add this date first or check date formatting.`
         };
+      }
+      
+      // 🔧 FIXED: Handle progressive calendar dates - use the latest complete sequence if needed
+      let dDay, cDay, bDay, aDay;
+      
+      if (analysisIndex < 3) {
+        // If the requested date doesn't have enough preceding dates, 
+        // use the latest complete sequence that exists
+        console.log(`⚠️ [RealTimeRule2] Requested date "${analysisDate}" at position ${analysisIndex + 1} doesn't have enough preceding dates`);
+        
+        if (sortedDates.length < 4) {
+          return {
+            success: false,
+            error: `Need at least 4 total dates for analysis. Available: ${sortedDates.length} dates`
+          };
+        }
+        
+        // Use the latest possible complete sequence
+        const latestSequenceIndex = sortedDates.length - 1;
+        dDay = sortedDates[latestSequenceIndex];     // Latest date
+        cDay = sortedDates[latestSequenceIndex - 1]; // 1 day before latest
+        bDay = sortedDates[latestSequenceIndex - 2]; // 2 days before latest  
+        aDay = sortedDates[latestSequenceIndex - 3]; // 3 days before latest
+        
+        console.log(`🔄 [RealTimeRule2] Using latest complete sequence instead:`);
+        console.log(`   Requested: ${analysisDate} (position ${analysisIndex + 1})`);
+        console.log(`   Using: ${dDay} (position ${latestSequenceIndex + 1})`);
+      } else {
+        // Original logic: use the requested date and its preceding dates
+        dDay = sortedDates[analysisIndex];     // Analysis date becomes D-day
+        cDay = sortedDates[analysisIndex - 1]; // 1 day before
+        bDay = sortedDates[analysisIndex - 2]; // 2 days before  
+        aDay = sortedDates[analysisIndex - 3]; // 3 days before
+        
+        console.log(`✅ [RealTimeRule2] Using requested date sequence:`);
       }
 
       // Calculate ABCD sequence (same logic as Rule2CompactPage)
-      const dDay = sortedDates[analysisIndex]; // Analysis date becomes D-day
-      const cDay = sortedDates[analysisIndex - 1]; // 1 day before
-      const bDay = sortedDates[analysisIndex - 2]; // 2 days before  
-      const aDay = sortedDates[analysisIndex - 3]; // 3 days before
 
       console.log('🔗 [RealTimeRule2] ABCD sequence for analysis:', {
         aDay, bDay, cDay, dDay: `${dDay} (analysis source)`
@@ -71,10 +106,57 @@ export class RealTimeRule2AnalysisService {
       // Check if we have data for all required dates
       const missingDates = allDates.filter(date => !dateDataCache[date].success);
       if (missingDates.length > 0) {
-        return {
-          success: false,
-          error: `Missing data for dates: ${missingDates.join(', ')}`
-        };
+        console.log(`⚠️ [RealTimeRule2] Missing data for dates: ${missingDates.join(', ')}`);
+        console.log(`🔧 [RealTimeRule2] Attempting to auto-populate missing dates...`);
+        
+        // Try to auto-populate missing dates
+        try {
+          const autoFillResult = await DateManagementService.autoFillSequence(userId, allDates);
+          console.log('🔧 [RealTimeRule2] Auto-fill result:', autoFillResult);
+          
+          if (autoFillResult.success && autoFillResult.addedDates.length > 0) {
+            console.log(`✅ [RealTimeRule2] Successfully auto-populated: ${autoFillResult.addedDates.join(', ')}`);
+            
+            // Reload data for the newly populated dates
+            for (const date of autoFillResult.addedDates) {
+              try {
+                const excelData = await cleanSupabaseService.getExcelData(userId, date);
+                const hourData = await cleanSupabaseService.getHourEntry(userId, date);
+                
+                dateDataCache[date] = {
+                  excel: excelData,
+                  hour: hourData,
+                  success: excelData && hourData
+                };
+                
+                console.log(`✅ [RealTimeRule2] Reloaded data for auto-populated ${date}`);
+              } catch (error) {
+                console.error(`❌ [RealTimeRule2] Error reloading data for ${date}:`, error);
+                dateDataCache[date] = { success: false, error: error.message };
+              }
+            }
+            
+            // Re-check missing dates after auto-population
+            const stillMissingDates = allDates.filter(date => !dateDataCache[date].success);
+            if (stillMissingDates.length > 0) {
+              return {
+                success: false,
+                error: `Still missing data for dates after auto-population: ${stillMissingDates.join(', ')}. ${DateManagementService.getManualInstructions(stillMissingDates[0]).steps.slice(0, 2).join('. ')}`
+              };
+            }
+          } else {
+            return {
+              success: false,
+              error: `Missing data for dates: ${missingDates.join(', ')}. Auto-population failed: ${autoFillResult.message}. ${DateManagementService.getManualInstructions(missingDates[0]).steps.slice(0, 2).join('. ')}`
+            };
+          }
+        } catch (autoFillError) {
+          console.error(`❌ [RealTimeRule2] Auto-fill error:`, autoFillError);
+          return {
+            success: false,
+            error: `Missing data for dates: ${missingDates.join(', ')}. Auto-population failed. ${DateManagementService.getManualInstructions(missingDates[0]).steps.slice(0, 2).join('. ')}`
+          };
+        }
       }
 
       // Get available HR periods from D-day data

@@ -1,7 +1,7 @@
 // src/services/abcdBcdDatabaseService.js
 // Dedicated service for managing ABCD/BCD numbers in Supabase database
 
-import { supabase } from '../supabaseClient';
+import { supabase } from '../supabaseClient.js';
 
 class AbcdBcdDatabaseService {
   constructor() {

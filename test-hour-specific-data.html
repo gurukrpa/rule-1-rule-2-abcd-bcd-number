@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hour-Specific ABCD/BCD Data Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .hour-card { border: 1px solid #ccc; margin: 10px 0; padding: 15px; border-radius: 8px; }
+        .success { background-color: #e8f5e8; border-color: #4caf50; }
+        .error { background-color: #ffeaea; border-color: #f44336; }
+        .loading { background-color: #fff8e1; border-color: #ff9800; }
+        .topic { margin: 5px 0; padding: 5px; background: #f9f9f9; border-radius: 4px; }
+        .numbers { font-family: monospace; font-weight: bold; }
+        .abcd { color: #2e7d32; }
+        .bcd { color: #1976d2; }
+        .verification-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .verification-table th, .verification-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .verification-table th { background-color: #f2f2f2; }
+        .different { background-color: #e8f5e8; }
+        .same { background-color: #fff3e0; }
+    </style>
+</head>
+<body>
+    <h1>🔬 Hour-Specific ABCD/BCD Data Test</h1>
+    <p><strong>Purpose:</strong> Verify that each hour fetches its own unique real ABCD/BCD data using the new RealTimeRule2AnalysisService implementation.</p>
+    
+    <div id="status" class="hour-card loading">
+        <h3>🔄 Testing Hour-Specific Data Loading...</h3>
+        <p>Importing services and testing real analysis data for multiple hours...</p>
+    </div>
+
+    <div id="results"></div>
+    
+    <div id="verification"></div>
+
+    <script type="module">
+        async function testHourSpecificData() {
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+            const verificationDiv = document.getElementById('verification');
+            
+            try {
+                statusDiv.innerHTML = '<h3>📊 Importing RealTimeRule2AnalysisService...</h3>';
+                
+                // Import the service
+                const { RealTimeRule2AnalysisService } = await import('./src/services/realTimeRule2AnalysisService.js');
+                
+                statusDiv.innerHTML = '<h3>🔍 Testing with sample data...</h3>';
+                
+                // Test data
+                const userId = 'planets-test-user-2025';
+                const datesList = ['2024-12-28', '2024-12-29', '2024-12-30', '2024-12-31'];
+                const latestDate = '2024-12-31';
+                
+                console.log('🚀 Testing hour-specific data loading with:', { userId, datesList, latestDate });
+                
+                // Perform analysis
+                const result = await RealTimeRule2AnalysisService.performRule2Analysis(
+                    userId,
+                    latestDate,
+                    datesList
+                );
+                
+                if (result.success && result.data.hrResults) {
+                    const hrResults = result.data.hrResults;
+                    const availableHours = Object.keys(hrResults);
+                    
+                    statusDiv.className = 'hour-card success';
+                    statusDiv.innerHTML = `
+                        <h3>✅ Success! Found data for ${availableHours.length} hours</h3>
+                        <p><strong>Available Hours:</strong> ${availableHours.join(', ')}</p>
+                        <p><strong>Analysis Date:</strong> ${result.data.analysisDate}</p>
+                        <p><strong>Timestamp:</strong> ${result.data.timestamp}</p>
+                    `;
+                    
+                    // Display detailed results for each hour
+                    let resultsHTML = '<h2>📊 Hour-by-Hour Results</h2>';
+                    
+                    availableHours.forEach(hr => {
+                        const hrData = hrResults[hr];
+                        const hasError = hrData.error;
+                        const cardClass = hasError ? 'error' : 'success';
+                        
+                        resultsHTML += `
+                            <div class="hour-card ${cardClass}">
+                                <h3>🕐 Hour ${hr}</h3>
+                                ${hasError ? `
+                                    <p><strong>❌ Error:</strong> ${hrData.error}</p>
+                                ` : `
+                                    <p><strong>✅ Status:</strong> Success</p>
+                                    <p><strong>📈 Overall ABCD:</strong> <span class="numbers abcd">[${hrData.overallAbcdNumbers?.join(', ') || 'None'}]</span></p>
+                                    <p><strong>📈 Overall BCD:</strong> <span class="numbers bcd">[${hrData.overallBcdNumbers?.join(', ') || 'None'}]</span></p>
+                                    <p><strong>📋 Total Topics:</strong> ${hrData.topicResults?.length || 0}</p>
+                                    
+                                    <h4>Sample Topics:</h4>
+                                    ${hrData.topicResults?.slice(0, 3).map(topic => `
+                                        <div class="topic">
+                                            <strong>${topic.setName}:</strong>
+                                            <span class="numbers abcd">ABCD[${topic.abcdNumbers?.join(',') || ''}]</span>
+                                            <span class="numbers bcd">BCD[${topic.bcdNumbers?.join(',') || ''}]</span>
+                                        </div>
+                                    `).join('') || '<p>No topic data available</p>'}
+                                `}
+                            </div>
+                        `;
+                    });
+                    
+                    resultsDiv.innerHTML = resultsHTML;
+                    
+                    // Create verification table to check if hours have different data
+                    let verificationHTML = '<h2>🔍 Hour Data Comparison Verification</h2>';
+                    verificationHTML += '<p>This table shows whether each hour has unique ABCD/BCD numbers (indicating real hour-specific data) or identical numbers (indicating fallback data).</p>';
+                    
+                    verificationHTML += '<table class="verification-table">';
+                    verificationHTML += '<tr><th>Hour</th><th>D-1 Set-1 Matrix</th><th>D-3 Set-1 Matrix</th><th>Overall ABCD</th><th>Overall BCD</th><th>Status</th></tr>';
+                    
+                    const testTopics = ['D-1 Set-1 Matrix', 'D-3 Set-1 Matrix'];
+                    const hourDataComparison = {};
+                    
+                    availableHours.forEach(hr => {
+                        const hrData = hrResults[hr];
+                        if (!hrData.error && hrData.topicResults) {
+                            hourDataComparison[hr] = {
+                                topics: {},
+                                overallABCD: hrData.overallAbcdNumbers?.join(',') || '',
+                                overallBCD: hrData.overallBcdNumbers?.join(',') || ''
+                            };
+                            
+                            testTopics.forEach(topicName => {
+                                const topicResult = hrData.topicResults.find(t => t.setName === topicName);
+                                if (topicResult) {
+                                    hourDataComparison[hr].topics[topicName] = {
+                                        abcd: topicResult.abcdNumbers?.join(',') || '',
+                                        bcd: topicResult.bcdNumbers?.join(',') || ''
+                                    };
+                                }
+                            });
+                        }
+                    });
+                    
+                    // Check for differences between hours
+                    const firstHour = availableHours[0];
+                    availableHours.forEach(hr => {
+                        const hrData = hourDataComparison[hr];
+                        if (!hrData) {
+                            verificationHTML += `<tr><td>HR ${hr}</td><td colspan="5" class="error">Error - No data</td></tr>`;
+                            return;
+                        }
+                        
+                        let differences = 0;
+                        let topicCells = '';
+                        
+                        testTopics.forEach(topicName => {
+                            const currentTopic = hrData.topics[topicName];
+                            const firstTopic = hourDataComparison[firstHour]?.topics[topicName];
+                            
+                            const isDifferent = currentTopic && firstTopic && 
+                                (currentTopic.abcd !== firstTopic.abcd || currentTopic.bcd !== firstTopic.bcd);
+                            
+                            if (isDifferent) differences++;
+                            
+                            const cellClass = isDifferent ? 'different' : 'same';
+                            topicCells += `<td class="${cellClass}">`;
+                            if (currentTopic) {
+                                topicCells += `A[${currentTopic.abcd}] B[${currentTopic.bcd}]`;
+                            } else {
+                                topicCells += 'No data';
+                            }
+                            topicCells += '</td>';
+                        });
+                        
+                        // Check overall numbers
+                        const overallDifferent = hr !== firstHour && (
+                            hrData.overallABCD !== hourDataComparison[firstHour]?.overallABCD ||
+                            hrData.overallBCD !== hourDataComparison[firstHour]?.overallBCD
+                        );
+                        
+                        if (overallDifferent) differences++;
+                        
+                        const overallClass = overallDifferent ? 'different' : 'same';
+                        const statusClass = differences > 0 ? 'different' : (hr === firstHour ? 'same' : 'same');
+                        const statusText = differences > 0 ? '✅ Unique Data' : (hr === firstHour ? '📊 Reference' : '⚠️ Same as HR1');
+                        
+                        verificationHTML += `
+                            <tr>
+                                <td><strong>HR ${hr}</strong></td>
+                                ${topicCells}
+                                <td class="${overallClass}">A[${hrData.overallABCD}] B[${hrData.overallBCD}]</td>
+                                <td class="${statusClass}">${statusText}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    verificationHTML += '</table>';
+                    
+                    // Summary
+                    const uniqueHours = availableHours.filter(hr => {
+                        if (hr === firstHour) return false;
+                        const hrData = hourDataComparison[hr];
+                        const firstHourData = hourDataComparison[firstHour];
+                        if (!hrData || !firstHourData) return false;
+                        
+                        return hrData.overallABCD !== firstHourData.overallABCD || 
+                               hrData.overallBCD !== firstHourData.overallBCD ||
+                               testTopics.some(topicName => {
+                                   const current = hrData.topics[topicName];
+                                   const first = firstHourData.topics[topicName];
+                                   return current && first && (current.abcd !== first.abcd || current.bcd !== first.bcd);
+                               });
+                    }).length;
+                    
+                    verificationHTML += `
+                        <div class="hour-card ${uniqueHours > 0 ? 'success' : 'error'}">
+                            <h3>${uniqueHours > 0 ? '🎉' : '⚠️'} Verification Summary</h3>
+                            <p><strong>Total Hours:</strong> ${availableHours.length}</p>
+                            <p><strong>Hours with Unique Data:</strong> ${uniqueHours}</p>
+                            <p><strong>Result:</strong> ${uniqueHours > 0 ? 
+                                '✅ SUCCESS - Each hour is fetching its own real ABCD/BCD data!' : 
+                                '❌ ISSUE - All hours showing same data (likely using fallback)'
+                            }</p>
+                        </div>
+                    `;
+                    
+                    verificationDiv.innerHTML = verificationHTML;
+                    
+                } else {
+                    statusDiv.className = 'hour-card error';
+                    statusDiv.innerHTML = `
+                        <h3>❌ Analysis Failed</h3>
+                        <p><strong>Error:</strong> ${result.error || 'Unknown error'}</p>
+                        <p>The RealTimeRule2AnalysisService could not fetch hour-specific data.</p>
+                    `;
+                }
+                
+            } catch (error) {
+                console.error('Test failed:', error);
+                statusDiv.className = 'hour-card error';
+                statusDiv.innerHTML = `
+                    <h3>❌ Test Failed</h3>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                    <pre>${error.stack}</pre>
+                `;
+            }
+        }
+        
+        // Run the test
+        testHourSpecificData();
+    </script>
+</body>
+</html>

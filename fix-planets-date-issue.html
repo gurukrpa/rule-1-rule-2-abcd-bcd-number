@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Planets Analysis Date Issue</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .fix-button { background: #28a745; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; margin: 5px; font-size: 16px; }
+        .fix-button:hover { background: #218838; }
+        .code { background: #f8f9fa; padding: 10px; border-left: 4px solid #007bff; margin: 10px 0; font-family: monospace; white-space: pre-wrap; }
+        .diagnostic { background: #e3f2fd; padding: 15px; border-radius: 4px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix Planets Analysis Date Issue</h1>
+        
+        <div class="status error">
+            <strong>🎯 Issue Identified:</strong><br>
+            Planets Analysis is showing June 30, 2025 data instead of July 7, 2025 because:
+            <ol>
+                <li>User clicked July 7, 2025</li>
+                <li>System looked for July 6, 2025 data (N-1 pattern)</li>
+                <li>July 6, 2025 data doesn't exist</li>
+                <li>System fell back to latest available: June 30, 2025</li>
+            </ol>
+        </div>
+
+        <div class="status success">
+            <strong>✅ Fix Applied:</strong><br>
+            Modified PlanetsAnalysisPage.jsx to prioritize direct date matching over N-1 pattern for better user experience.
+        </div>
+
+        <h2>🎛️ Quick Fixes</h2>
+        
+        <button class="fix-button" onclick="openMainPage()">
+            🏠 Test Navigation from Main Page
+        </button>
+        
+        <button class="fix-button" onclick="testDirectAccess()">
+            🎯 Test Direct Planets Analysis
+        </button>
+        
+        <button class="fix-button" onclick="checkUserData()">
+            🔍 Check Available User Data
+        </button>
+
+        <div class="diagnostic">
+            <h3>📊 Diagnostic Information</h3>
+            <div id="diagnosticResults">Click "Check Available User Data" to see what dates are available.</div>
+        </div>
+
+        <h2>🧪 Technical Details</h2>
+        <div class="code">
+Original Logic (Problematic):
+1. User clicks July 7, 2025
+2. Calculate N-1: July 6, 2025
+3. Check if July 6 exists → NO
+4. Fallback to latest: June 30, 2025 ❌
+
+New Logic (Fixed):
+1. User clicks July 7, 2025
+2. Check if July 7 exists → If YES, use it directly ✅
+3. If NO, then try N-1: July 6, 2025
+4. If July 6 exists → use it
+5. If neither exists → fallback to latest
+        </div>
+
+        <h2>💡 Manual Solutions</h2>
+        <p>If the automatic fix doesn't work, you can:</p>
+        <ol>
+            <li><strong>Add July 7, 2025 data</strong> - Go to ABCD-number page and add the date with Excel and Hour Entry</li>
+            <li><strong>Add July 6, 2025 data</strong> - This will enable proper N-1 pattern analysis</li>
+            <li><strong>Use a different date</strong> - Navigate to a date that has data available</li>
+        </ol>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function openMainPage() {
+            const url = 'http://localhost:5173/abcd-number/1';
+            window.open(url, '_blank');
+            showResult('success', 'Opening main page - test the Planets button there');
+        }
+
+        function testDirectAccess() {
+            const url = 'http://localhost:5173/planets-analysis/1?date=2025-07-07';
+            window.open(url, '_blank');
+            showResult('success', 'Testing direct Planets Analysis access with July 7, 2025');
+        }
+
+        function checkUserData() {
+            showResult('success', 'Checking available data...');
+            
+            // Check localStorage for user data
+            const diagnosticResults = document.getElementById('diagnosticResults');
+            let output = '';
+            
+            // Check for different possible user IDs
+            const possibleUserIds = ['1', 'sing maya', 'sing%20maya'];
+            
+            possibleUserIds.forEach(userId => {
+                const storageKey = `abcd_dates_${userId}`;
+                const dates = localStorage.getItem(storageKey);
+                
+                if (dates) {
+                    try {
+                        const parsedDates = JSON.parse(dates);
+                        output += `📅 User "${userId}": ${parsedDates.length} dates found\n`;
+                        output += `   Latest: ${parsedDates.sort((a,b) => new Date(b) - new Date(a))[0]}\n`;
+                        
+                        // Check for July 2025 dates
+                        const july2025 = parsedDates.filter(d => d.startsWith('2025-07'));
+                        if (july2025.length > 0) {
+                            output += `   July 2025: ${july2025.join(', ')}\n`;
+                        }
+                    } catch (e) {
+                        output += `❌ User "${userId}": Data exists but corrupted\n`;
+                    }
+                } else {
+                    output += `❌ User "${userId}": No data found\n`;
+                }
+                output += '\n';
+            });
+            
+            if (!output.includes('dates found')) {
+                output += '⚠️ No user data found in localStorage.\n';
+                output += 'This suggests either:\n';
+                output += '1. Data is stored differently\n';
+                output += '2. User needs to add dates first\n';
+                output += '3. Data is in Supabase only\n';
+            }
+            
+            diagnosticResults.textContent = output;
+        }
+
+        function showResult(type, message) {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            results.appendChild(div);
+        }
+
+        // Auto-check data on page load
+        setTimeout(checkUserData, 1000);
+    </script>
+</body>
+</html>
