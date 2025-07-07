@@ -1058,7 +1058,7 @@ function PlanetsAnalysisPage() {
         <div className="bg-white rounded-lg shadow-md p-4 mb-4 border-t-4 border-teal-600">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-xl font-bold text-gray-800">🔬 Planets Analysis</h1>
+              <h1 className="text-xl font-bold text-gray-800">📅 Prediction Date</h1>
             </div>
             <div>
               <button
