@@ -188,25 +188,20 @@ else
 fi
 echo ""
 
-echo "🎯 PHASE 5: Node Modules (can be regenerated)"
+echo "🎯 PHASE 5: Node Modules (SKIPPED per user request)"
 if [ -d "node_modules" ]; then
     local nm_size=$(du -sh node_modules | cut -f1)
-    read "response?❓ Remove node_modules directory ($nm_size)? You can regenerate with 'npm install' (y/N): "
-    if [[ "$response" =~ ^[Yy]$ ]]; then
-        rm -rf node_modules
-        echo "✅ Removed node_modules directory"
-        echo "💡 Run 'npm install' to restore dependencies"
-    else
-        echo "⏭️  Kept node_modules directory"
-    fi
-    echo ""
+    echo "⏭️  SKIPPING node_modules directory ($nm_size) - keeping as requested"
+else
+    echo "✅ No node_modules directory found"
 fi
+echo ""
 
-echo "🎯 PHASE 6: Build Artifacts"
-safe_remove_dir "dist" "build output"
-safe_remove_dir "build" "build artifacts"
-safe_remove_dir ".next" "Next.js cache"
-safe_remove_dir ".vite" "Vite cache"
+echo "🎯 PHASE 6: Build Artifacts (SKIPPED per user request)"
+echo "⏭️  SKIPPING build artifacts (dist, build, .next, .vite) - keeping as requested"
+echo "   • These directories may contain important build files"
+echo "   • User chose to preserve them for safety"
+echo ""
 
 echo "🎯 PHASE 7: Find Potential Duplicates (SAFE CHECK ONLY)"
 echo "🔍 Checking for potential duplicate files..."
