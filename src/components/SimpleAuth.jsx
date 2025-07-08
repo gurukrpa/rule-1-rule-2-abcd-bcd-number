@@ -31,7 +31,7 @@ export default function SimpleAuth() {
         const session = {
           user: {
             username: AUTHORIZED_USERNAME,
-            email: 'gurukrpasharma@gmail.com',
+            email: 'admin@viboothi.local',
             authenticated: true,
             loginTime: new Date().toISOString()
           }
@@ -39,7 +39,7 @@ export default function SimpleAuth() {
         
         localStorage.setItem('house_count_session', JSON.stringify(session));
         localStorage.setItem('house_count_enabled', 'true');
-        localStorage.setItem('user_email', 'gurukrpasharma@gmail.com');
+        localStorage.setItem('user_email', 'admin@viboothi.local');
         localStorage.setItem('auth_type', 'simple');
         
         // Redirect to user list
