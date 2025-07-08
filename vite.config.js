@@ -5,13 +5,17 @@ import { resolve } from 'path';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: './', // Changed from '/' to './' for Electron build
+  base: './',
+  root: '.',
+  publicDir: 'public',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
     emptyOutDir: true,
-    // Performance optimizations
     rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html')
+      },
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
@@ -23,7 +27,6 @@ export default defineConfig({
         }
       }
     },
-    // Enable compression
     target: 'esnext',
     minify: 'terser',
     terserOptions: {
@@ -32,7 +35,6 @@ export default defineConfig({
         drop_debugger: true
       }
     },
-    // Generate source maps for debugging
     sourcemap: true
   },
   resolve: {
@@ -40,20 +42,22 @@ export default defineConfig({
       '@': resolve(__dirname, 'src'),
     },
   },
-  // Development server optimizations
   server: {
     port: 5173,
     open: true,
     cors: true
   },
-  // Preview server configuration
   preview: {
     port: 4173,
     open: true
   },
-  // Define global constants
-  define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
-    __BUILD_TIME__: JSON.stringify(new Date().toISOString())
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      'react-select',
+      '@supabase/supabase-js'
+    ]
   }
 });
