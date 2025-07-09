@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>July 7th Database Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; border: 1px solid #bee5eb; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>🔍 July 7th ABCD/BCD Database Test</h1>
+    <p>This page will test if we have the correct ABCD/BCD data for July 7th in the database.</p>
+    
+    <button onclick="testDatabaseData()">🧪 Test Database</button>
+    <button onclick="testFetchFunction()">🔧 Test Fetch Function</button>
+    <button onclick="createTestData()">➕ Create Test Data (if missing)</button>
+    
+    <div id="results"></div>
+
+    <script type="module">
+        // Import supabase
+        import { supabase } from './src/supabaseClient.js';
+        
+        // Make it available globally
+        window.supabase = supabase;
+        
+        // Test database function
+        window.testDatabaseData = async function() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="info">🔍 Testing database for July 7th data...</div>';
+            
+            try {
+                console.log('🔍 [Test] Checking rule2_analysis_results for July 7th...');
+                
+                const { data: analysisData, error: analysisError } = await supabase
+                    .from('rule2_analysis_results')
+                    .select('*')
+                    .eq('user_id', 'sing maya')
+                    .eq('analysis_date', '2025-07-07');
+                    
+                if (analysisError) {
+                    resultsDiv.innerHTML += '<div class="error">❌ Database Error: ' + analysisError.message + '</div>';
+                    return;
+                }
+                
+                if (!analysisData || analysisData.length === 0) {
+                    resultsDiv.innerHTML += '<div class="error">❌ No data found for July 7th</div>';
+                    resultsDiv.innerHTML += '<div class="info">💡 You might need to create test data using the "Create Test Data" button</div>';
+                    return;
+                }
+                
+                const result = analysisData[0];
+                resultsDiv.innerHTML += '<div class="success">✅ Found data for July 7th!</div>';
+                resultsDiv.innerHTML += '<div class="info">📊 Analysis Date: ' + result.analysis_date + '</div>';
+                resultsDiv.innerHTML += '<div class="info">🎯 Trigger Date: ' + result.trigger_date + '</div>';
+                resultsDiv.innerHTML += '<div class="info">🕐 Selected HR: ' + result.selected_hr + '</div>';
+                resultsDiv.innerHTML += '<div class="info">📊 Total Topics: ' + result.total_topics + '</div>';
+                
+                if (result.topic_numbers && result.topic_numbers['D-1 Set-1 Matrix']) {
+                    const d1set1 = result.topic_numbers['D-1 Set-1 Matrix'];
+                    resultsDiv.innerHTML += '<div class="success">🎯 D-1 Set-1 Matrix found:</div>';
+                    resultsDiv.innerHTML += '<div class="info">  🟢 ABCD: [' + (d1set1.abcd || []).join(', ') + ']</div>';
+                    resultsDiv.innerHTML += '<div class="info">  🔵 BCD: [' + (d1set1.bcd || []).join(', ') + ']</div>';
+                    
+                    // Check if it matches expected values
+                    const expectedABCD = [1, 2, 4, 7, 9];
+                    const expectedBCD = [5];
+                    const actualABCD = (d1set1.abcd || []).sort();
+                    const actualBCD = (d1set1.bcd || []).sort();
+                    
+                    const abcdMatch = JSON.stringify(actualABCD) === JSON.stringify(expectedABCD);
+                    const bcdMatch = JSON.stringify(actualBCD) === JSON.stringify(expectedBCD);
+                    
+                    if (abcdMatch && bcdMatch) {
+                        resultsDiv.innerHTML += '<div class="success">🎉 Perfect match! Data is correct!</div>';
+                    } else {
+                        resultsDiv.innerHTML += '<div class="error">❌ Data mismatch detected:</div>';
+                        resultsDiv.innerHTML += '<div class="info">  Expected ABCD: [' + expectedABCD.join(', ') + ']</div>';
+                        resultsDiv.innerHTML += '<div class="info">  Actual ABCD: [' + actualABCD.join(', ') + ']</div>';
+                        resultsDiv.innerHTML += '<div class="info">  Expected BCD: [' + expectedBCD.join(', ') + ']</div>';
+                        resultsDiv.innerHTML += '<div class="info">  Actual BCD: [' + actualBCD.join(', ') + ']</div>';
+                    }
+                } else {
+                    resultsDiv.innerHTML += '<div class="error">❌ No D-1 Set-1 Matrix data found in topic_numbers</div>';
+                    if (result.topic_numbers) {
+                        const topics = Object.keys(result.topic_numbers);
+                        resultsDiv.innerHTML += '<div class="info">📋 Available topics: ' + topics.join(', ') + '</div>';
+                    }
+                }
+                
+                // Show raw data
+                resultsDiv.innerHTML += '<details><summary>🔍 Show Raw Data</summary><pre>' + 
+                    JSON.stringify(result, null, 2) + '</pre></details>';
+                
+            } catch (error) {
+                resultsDiv.innerHTML += '<div class="error">❌ Test failed: ' + error.message + '</div>';
+                console.error('❌ [Test] Error:', error);
+            }
+        };
+        
+        // Test the fetch function
+        window.testFetchFunction = async function() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML += '<div class="info">🔧 Testing fetchAbcdBcdFromDatabase function...</div>';
+            
+            try {
+                // Simulate the fetchAbcdBcdFromDatabase function
+                const fetchAbcdBcdFromDatabase = async (targetDate) => {
+                    const { data: analysisResults, error } = await supabase
+                        .from('rule2_analysis_results')
+                        .select('*')
+                        .eq('user_id', 'sing maya')
+                        .eq('analysis_date', targetDate)
+                        .order('created_at', { ascending: false })
+                        .limit(1);
+                    
+                    if (error || !analysisResults || analysisResults.length === 0) {
+                        return null;
+                    }
+                    
+                    const result = analysisResults[0];
+                    const topicNumbers = result.topic_numbers || {};
+                    
+                    // Convert to Rule-1 page format
+                    const formattedResults = {};
+                    Object.entries(topicNumbers).forEach(([topicName, numbers]) => {
+                        formattedResults[topicName] = {
+                            [targetDate]: {
+                                abcdNumbers: numbers.abcd || [],
+                                bcdNumbers: numbers.bcd || [],
+                                dDayCount: (numbers.abcd || []).length + (numbers.bcd || []).length,
+                                analysisDate: targetDate,
+                                displayDate: targetDate,
+                                sourceDatabase: true
+                            }
+                        };
+                    });
+                    
+                    return formattedResults;
+                };
+                
+                const result = await fetchAbcdBcdFromDatabase('2025-07-07');
+                
+                if (result) {
+                    resultsDiv.innerHTML += '<div class="success">✅ Fetch function works!</div>';
+                    resultsDiv.innerHTML += '<div class="info">📊 Topics returned: ' + Object.keys(result).length + '</div>';
+                    
+                    if (result['D-1 Set-1 Matrix']) {
+                        const d1set1Data = result['D-1 Set-1 Matrix']['2025-07-07'];
+                        resultsDiv.innerHTML += '<div class="success">🎯 D-1 Set-1 Matrix data:</div>';
+                        resultsDiv.innerHTML += '<div class="info">  🟢 ABCD: [' + d1set1Data.abcdNumbers.join(', ') + ']</div>';
+                        resultsDiv.innerHTML += '<div class="info">  🔵 BCD: [' + d1set1Data.bcdNumbers.join(', ') + ']</div>';
+                        resultsDiv.innerHTML += '<div class="info">  📊 Source: ' + (d1set1Data.sourceDatabase ? 'Database' : 'Analysis') + '</div>';
+                    }
+                    
+                    resultsDiv.innerHTML += '<details><summary>🔍 Show Formatted Result</summary><pre>' + 
+                        JSON.stringify(result, null, 2) + '</pre></details>';
+                } else {
+                    resultsDiv.innerHTML += '<div class="error">❌ Fetch function returned null</div>';
+                }
+                
+            } catch (error) {
+                resultsDiv.innerHTML += '<div class="error">❌ Fetch test failed: ' + error.message + '</div>';
+                console.error('❌ [FetchTest] Error:', error);
+            }
+        };
+        
+        // Create test data if missing
+        window.createTestData = async function() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML += '<div class="info">➕ Creating test data for July 7th...</div>';
+            
+            try {
+                // Create the expected D-1 Set-1 Matrix data for July 7th
+                const testData = {
+                    user_id: 'sing maya',
+                    analysis_date: '2025-07-07',
+                    trigger_date: '2025-07-10',
+                    selected_hr: 1,
+                    overall_abcd_numbers: [1, 2, 4, 7, 9],
+                    overall_bcd_numbers: [5],
+                    topic_numbers: {
+                        'D-1 Set-1 Matrix': {
+                            abcd: [1, 2, 4, 7, 9],
+                            bcd: [5]
+                        },
+                        'D-1 Set-2 Matrix': {
+                            abcd: [2, 3, 7],
+                            bcd: [5]
+                        }
+                        // Add more topics as needed
+                    },
+                    total_topics: 2,
+                    a_day: '2025-06-30',
+                    b_day: '2025-07-03',
+                    c_day: '2025-07-06',
+                    d_day: '2025-07-07'
+                };
+                
+                const { data, error } = await supabase
+                    .from('rule2_analysis_results')
+                    .upsert(testData, { 
+                        onConflict: 'user_id,analysis_date,selected_hr',
+                        returning: 'minimal'
+                    });
+                
+                if (error) {
+                    resultsDiv.innerHTML += '<div class="error">❌ Failed to create test data: ' + error.message + '</div>';
+                } else {
+                    resultsDiv.innerHTML += '<div class="success">✅ Test data created successfully!</div>';
+                    resultsDiv.innerHTML += '<div class="info">💡 Now try running the database test again</div>';
+                }
+                
+            } catch (error) {
+                resultsDiv.innerHTML += '<div class="error">❌ Create test data failed: ' + error.message + '</div>';
+                console.error('❌ [CreateTest] Error:', error);
+            }
+        };
+        
+        console.log('🔍 [DatabaseTest] Page loaded, ready to test');
+    </script>
+</body>
+</html>

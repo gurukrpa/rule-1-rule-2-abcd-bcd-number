@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Dates Checker</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .user-data { margin: 10px 0; padding: 10px; background: #f9f9f9; border-left: 4px solid #007cba; }
+        .dates-list { font-family: monospace; font-size: 12px; color: #666; margin-top: 5px; }
+        button { padding: 10px 20px; margin: 10px 5px; background: #007cba; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #005a82; }
+        .cleanup-btn { background: #dc3545; }
+        .cleanup-btn:hover { background: #c82333; }
+        .results { white-space: pre-wrap; font-family: monospace; font-size: 12px; background: #f8f9fa; padding: 15px; border: 1px solid #e9ecef; border-radius: 4px; max-height: 400px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Database Dates Checker</h1>
+        <p>This tool helps you see what dates are stored in the database and clean up deleted dates.</p>
+        
+        <div class="section">
+            <button onclick="checkAllDates()">📅 Check All Database Dates</button>
+            <button onclick="showCleanupOptions()" class="cleanup-btn">🧹 Show Cleanup Options</button>
+        </div>
+        
+        <div id="results" class="results" style="display: none;"></div>
+        
+        <div id="cleanup-section" style="display: none;" class="section">
+            <h3>🧹 Database Cleanup Options</h3>
+            <p>⚠️ <strong>Warning:</strong> These operations will permanently delete data from the database!</p>
+            
+            <div style="margin: 15px 0;">
+                <label>🗓️ Delete specific date for user:</label><br>
+                <input type="text" id="cleanup-user" placeholder="User ID (e.g., sing maya)" style="margin: 5px; padding: 5px; width: 200px;">
+                <input type="date" id="cleanup-date" style="margin: 5px; padding: 5px; width: 150px;">
+                <button onclick="deleteSpecificDate()" class="cleanup-btn">Delete This Date</button>
+            </div>
+            
+            <div style="margin: 15px 0;">
+                <label>📅 Delete dates before:</label><br>
+                <input type="text" id="cleanup-user-before" placeholder="User ID" style="margin: 5px; padding: 5px; width: 200px;">
+                <input type="date" id="cleanup-date-before" style="margin: 5px; padding: 5px; width: 150px;">
+                <button onclick="deleteDatesBefore()" class="cleanup-btn">Delete All Before</button>
+            </div>
+            
+            <div style="margin: 15px 0;">
+                <label>📅 Delete dates after:</label><br>
+                <input type="text" id="cleanup-user-after" placeholder="User ID" style="margin: 5px; padding: 5px; width: 200px;">
+                <input type="date" id="cleanup-date-after" style="margin: 5px; padding: 5px; width: 150px;">
+                <button onclick="deleteDatesAfter()" class="cleanup-btn">Delete All After</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { supabase } from './src/supabaseClient.js';
+        
+        window.supabase = supabase;
+        
+        window.checkAllDates = async function() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.style.display = 'block';
+            resultsDiv.textContent = '🔍 Checking database dates...\n';
+            
+            try {
+                let output = '🔍 DATABASE DATES CHECKER RESULTS\n';
+                output += '================================\n\n';
+                
+                // Check user_dates_abcd table
+                output += '📅 1. USER_DATES_ABCD TABLE:\n';
+                const { data: userDatesData, error: userDatesError } = await supabase
+                    .from('user_dates_abcd')
+                    .select('*');
+                    
+                if (userDatesError) {
+                    output += `❌ Error: ${userDatesError.message}\n`;
+                } else {
+                    output += `📊 Found ${userDatesData?.length || 0} entries\n`;
+                    userDatesData?.forEach(entry => {
+                        const dates = Array.isArray(entry.dates) ? entry.dates : [];
+                        output += `  👤 User: ${entry.user_id}\n`;
+                        output += `    📅 ${dates.length} dates: ${dates.join(', ')}\n`;
+                        output += `    🕒 Updated: ${entry.updated_at}\n\n`;
+                    });
+                }
+
+                // Check excel_uploads table
+                output += '\n📊 2. EXCEL_UPLOADS TABLE:\n';
+                const { data: excelData, error: excelError } = await supabase
+                    .from('excel_uploads')
+                    .select('user_id, date, created_at')
+                    .order('date', { ascending: true });
+                    
+                if (excelError) {
+                    output += `❌ Error: ${excelError.message}\n`;
+                } else {
+                    output += `📊 Found ${excelData?.length || 0} Excel uploads\n`;
+                    
+                    // Group by user
+                    const byUser = excelData?.reduce((acc, entry) => {
+                        if (!acc[entry.user_id]) acc[entry.user_id] = [];
+                        acc[entry.user_id].push(entry.date);
+                        return acc;
+                    }, {}) || {};
+                    
+                    Object.entries(byUser).forEach(([userId, dates]) => {
+                        output += `  👤 User: ${userId}\n`;
+                        output += `    📅 ${dates.length} dates: ${dates.join(', ')}\n\n`;
+                    });
+                }
+
+                // Check hour_entries table
+                output += '\n⏰ 3. HOUR_ENTRIES TABLE:\n';
+                const { data: hourData, error: hourError } = await supabase
+                    .from('hour_entries')
+                    .select('user_id, date, created_at')
+                    .order('date', { ascending: true });
+                    
+                if (hourError) {
+                    output += `❌ Error: ${hourError.message}\n`;
+                } else {
+                    output += `📊 Found ${hourData?.length || 0} hour entries\n`;
+                    
+                    // Group by user
+                    const byUser = hourData?.reduce((acc, entry) => {
+                        if (!acc[entry.user_id]) acc[entry.user_id] = [];
+                        acc[entry.user_id].push(entry.date);
+                        return acc;
+                    }, {}) || {};
+                    
+                    Object.entries(byUser).forEach(([userId, dates]) => {
+                        output += `  👤 User: ${userId}\n`;
+                        output += `    📅 ${dates.length} dates: ${dates.join(', ')}\n\n`;
+                    });
+                }
+
+                // Check rule2_analysis_results table
+                output += '\n🧮 4. RULE2_ANALYSIS_RESULTS TABLE:\n';
+                const { data: analysisData, error: analysisError } = await supabase
+                    .from('rule2_analysis_results')
+                    .select('user_id, analysis_date, trigger_date, created_at')
+                    .order('analysis_date', { ascending: true });
+                    
+                if (analysisError) {
+                    output += `❌ Error: ${analysisError.message}\n`;
+                } else {
+                    output += `📊 Found ${analysisData?.length || 0} analysis results\n`;
+                    
+                    // Group by user
+                    const byUser = analysisData?.reduce((acc, entry) => {
+                        if (!acc[entry.user_id]) acc[entry.user_id] = [];
+                        acc[entry.user_id].push(entry.analysis_date);
+                        return acc;
+                    }, {}) || {};
+                    
+                    Object.entries(byUser).forEach(([userId, dates]) => {
+                        output += `  👤 User: ${userId}\n`;
+                        output += `    📅 ${dates.length} dates: ${dates.join(', ')}\n\n`;
+                    });
+                }
+
+                output += '\n📋 SUMMARY:\n';
+                output += 'If you see dates that should have been deleted, use the cleanup options below.\n';
+                
+                resultsDiv.textContent = output;
+                
+            } catch (error) {
+                resultsDiv.textContent = `❌ Error checking dates: ${error.message}`;
+            }
+        };
+        
+        window.showCleanupOptions = function() {
+            const cleanupSection = document.getElementById('cleanup-section');
+            cleanupSection.style.display = cleanupSection.style.display === 'none' ? 'block' : 'none';
+        };
+        
+        window.deleteSpecificDate = async function() {
+            const userId = document.getElementById('cleanup-user').value.trim();
+            const date = document.getElementById('cleanup-date').value;
+            
+            if (!userId || !date) {
+                alert('Please enter both user ID and date');
+                return;
+            }
+            
+            if (!confirm(`⚠️ Are you sure you want to delete ALL data for user "${userId}" on date "${date}"?\n\nThis will delete from:\n- excel_uploads\n- hour_entries\n- rule2_analysis_results\n- user_dates_abcd (remove from array)`)) {
+                return;
+            }
+            
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.style.display = 'block';
+            resultsDiv.textContent = `🧹 Deleting data for ${userId} on ${date}...\n`;
+            
+            try {
+                let output = `🧹 CLEANUP RESULTS FOR ${userId} ON ${date}\n`;
+                output += '==============================================\n\n';
+                
+                // Delete from excel_uploads
+                const { error: excelError } = await supabase
+                    .from('excel_uploads')
+                    .delete()
+                    .eq('user_id', userId)
+                    .eq('date', date);
+                    
+                if (excelError) {
+                    output += `❌ Excel uploads deletion failed: ${excelError.message}\n`;
+                } else {
+                    output += `✅ Deleted from excel_uploads\n`;
+                }
+                
+                // Delete from hour_entries
+                const { error: hourError } = await supabase
+                    .from('hour_entries')
+                    .delete()
+                    .eq('user_id', userId)
+                    .eq('date', date);
+                    
+                if (hourError) {
+                    output += `❌ Hour entries deletion failed: ${hourError.message}\n`;
+                } else {
+                    output += `✅ Deleted from hour_entries\n`;
+                }
+                
+                // Delete from rule2_analysis_results
+                const { error: analysisError } = await supabase
+                    .from('rule2_analysis_results')
+                    .delete()
+                    .eq('user_id', userId)
+                    .eq('analysis_date', date);
+                    
+                if (analysisError) {
+                    output += `❌ Analysis results deletion failed: ${analysisError.message}\n`;
+                } else {
+                    output += `✅ Deleted from rule2_analysis_results\n`;
+                }
+                
+                // Update user_dates_abcd to remove the date
+                const { data: userData, error: fetchError } = await supabase
+                    .from('user_dates_abcd')
+                    .select('dates')
+                    .eq('user_id', userId)
+                    .single();
+                    
+                if (fetchError) {
+                    output += `❌ Could not fetch user dates: ${fetchError.message}\n`;
+                } else if (userData && Array.isArray(userData.dates)) {
+                    const updatedDates = userData.dates.filter(d => d !== date);
+                    
+                    const { error: updateError } = await supabase
+                        .from('user_dates_abcd')
+                        .update({ dates: updatedDates, updated_at: new Date().toISOString() })
+                        .eq('user_id', userId);
+                        
+                    if (updateError) {
+                        output += `❌ User dates update failed: ${updateError.message}\n`;
+                    } else {
+                        output += `✅ Removed ${date} from user_dates_abcd\n`;
+                        output += `📅 User now has ${updatedDates.length} dates\n`;
+                    }
+                }
+                
+                output += '\n🎉 Cleanup complete! Run "Check All Database Dates" to verify.\n';
+                resultsDiv.textContent = output;
+                
+            } catch (error) {
+                resultsDiv.textContent = `❌ Cleanup failed: ${error.message}`;
+            }
+        };
+        
+        window.deleteDatesBefore = async function() {
+            const userId = document.getElementById('cleanup-user-before').value.trim();
+            const beforeDate = document.getElementById('cleanup-date-before').value;
+            
+            if (!userId || !beforeDate) {
+                alert('Please enter both user ID and date');
+                return;
+            }
+            
+            if (!confirm(`⚠️ Are you sure you want to delete ALL data for user "${userId}" BEFORE date "${beforeDate}"?\n\nThis is a bulk operation and cannot be undone!`)) {
+                return;
+            }
+            
+            // Implementation for bulk delete before date
+            alert('This feature will be implemented. For now, use the specific date deletion.');
+        };
+        
+        window.deleteDatesAfter = async function() {
+            const userId = document.getElementById('cleanup-user-after').value.trim();
+            const afterDate = document.getElementById('cleanup-date-after').value;
+            
+            if (!userId || !afterDate) {
+                alert('Please enter both user ID and date');
+                return;
+            }
+            
+            if (!confirm(`⚠️ Are you sure you want to delete ALL data for user "${userId}" AFTER date "${afterDate}"?\n\nThis is a bulk operation and cannot be undone!`)) {
+                return;
+            }
+            
+            // Implementation for bulk delete after date
+            alert('This feature will be implemented. For now, use the specific date deletion.');
+        };
+    </script>
+</body>
+</html>

@@ -6,6 +6,7 @@ import { cleanSupabaseService } from '../services/CleanSupabaseService';
 import ProgressBar from './ProgressBar';
 import { performAbcdBcdAnalysis } from '../utils/abcdBcdAnalysis';
 import ABCDBCDAnalyzer, { quickAnalyze, createAnalyzer } from '../utils/abcd-bcd-analyzer-script.js';
+import Logo from './Logo';
 
 const IndexPage = ({
   date,               // clicked date (e.g. "2025-06-05")
@@ -1210,25 +1211,28 @@ const IndexPage = ({
         {/* Top Header */}
         <div className="bg-white rounded-lg shadow-md p-4 mb-6 border-t-4 border-orange-600">
           <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">🔮 Astrological Index Matrix</h1>
-              <div className="mt-2 text-sm text-orange-800">
-                <p>👤 User: {selectedUserData?.username || selectedUser}</p>
-                <p>📅 Clicked Date: {new Date(date).toLocaleDateString()}</p>
-                <p>🗓️ Window: {availableLabels.join(', ')}</p>
-              </div>
-              
-              {/* Debug Status Display */}
-              <div className="mt-2 flex items-center space-x-2">
-                <span className="text-xs font-medium text-gray-600">Debug:</span>
-                <span className={`text-xs px-2 py-1 rounded ${
-                  debugStatus.includes('✅') ? 'bg-green-100 text-green-700' :
-                  debugStatus.includes('⚠️') ? 'bg-yellow-100 text-yellow-700' :
-                  debugStatus.includes('❌') ? 'bg-red-100 text-red-700' :
-                  'bg-gray-100 text-gray-700'
-                }`}>
-                  {debugStatus}
-                </span>
+            <div className="flex items-center space-x-4">
+              <Logo size="medium" showText={false} pageTitle="Index Matrix" />
+              <div>
+                <h1 className="text-2xl font-bold text-gray-800">🔮 Astrological Index Matrix</h1>
+                <div className="mt-2 text-sm text-orange-800">
+                  <p>👤 User: {selectedUserData?.username || selectedUser}</p>
+                  <p>📅 Clicked Date: {new Date(date).toLocaleDateString()}</p>
+                  <p>🗓️ Window: {availableLabels.join(', ')}</p>
+                </div>
+                
+                {/* Debug Status Display */}
+                <div className="mt-2 flex items-center space-x-2">
+                  <span className="text-xs font-medium text-gray-600">Debug:</span>
+                  <span className={`text-xs px-2 py-1 rounded ${
+                    debugStatus.includes('✅') ? 'bg-green-100 text-green-700' :
+                    debugStatus.includes('⚠️') ? 'bg-yellow-100 text-yellow-700' :
+                    debugStatus.includes('❌') ? 'bg-red-100 text-red-700' :
+                    'bg-gray-100 text-gray-700'
+                  }`}>
+                    {debugStatus}
+                  </span>
+                </div>
               </div>
             </div>
             <button

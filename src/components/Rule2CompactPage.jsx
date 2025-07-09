@@ -6,6 +6,7 @@ import { Rule2ResultsService } from '../services/rule2ResultsService';
 import { Rule2AnalysisResultsService } from '../services/rule2AnalysisResultsService';
 import ProgressBar from './ProgressBar';
 import { performAbcdBcdAnalysis } from '../utils/abcdBcdAnalysis';
+import Logo from './Logo';
 
 /**
  * Rule2CompactPage - Compact 30-Topic ABCD-BCD Analysis
@@ -738,14 +739,17 @@ const Rule2CompactPage = ({ date, selectedUser, selectedUserData, datesList, onB
       <div className="container mx-auto px-4 py-6">
         <div className="bg-white rounded-lg shadow-md p-4 mb-6 border-t-4 border-purple-600">
           <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">🔗 Rule-2 Compact Analysis (30-Topic Format)</h1>
-              <div className="mt-2 text-sm text-purple-800">
-                <p>👤 User: {selectedUserData?.username || userId}</p>
-                <p>📅 Trigger Date (5th): {new Date(date).toLocaleDateString()}</p>
-                <p>📊 Total Topics Processed: {totalSets}</p>
-                <p>🪐 Selected HR: {selectedHR}</p>
-                <p>⚙️ ABCD Sequence: A({new Date(aDay).toLocaleDateString()}) → B({new Date(bDay).toLocaleDateString()}) → C({new Date(cDay).toLocaleDateString()}) → D({new Date(dDay).toLocaleDateString()})</p>
+            <div className="flex items-center space-x-4">
+              <Logo size="medium" showText={false} pageTitle="Rule-2 Analysis" />
+              <div>
+                <h1 className="text-2xl font-bold text-gray-800">🔗 Rule-2 Compact Analysis (30-Topic Format)</h1>
+                <div className="mt-2 text-sm text-purple-800">
+                  <p>👤 User: {selectedUserData?.username || userId}</p>
+                  <p>📅 Trigger Date (5th): {new Date(date).toLocaleDateString()}</p>
+                  <p>📊 Total Topics Processed: {totalSets}</p>
+                  <p>🪐 Selected HR: {selectedHR}</p>
+                  <p>⚙️ ABCD Sequence: A({new Date(aDay).toLocaleDateString()}) → B({new Date(bDay).toLocaleDateString()}) → C({new Date(cDay).toLocaleDateString()}) → D({new Date(dDay).toLocaleDateString()})</p>
+                </div>
               </div>
             </div>
             <button onClick={onBack} className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">

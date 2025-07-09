@@ -13,6 +13,7 @@ import Rule1PageEnhanced from './Rule1Page_Enhanced';
 import Rule2CompactPage from './Rule2CompactPage';
 import IndexPage from './IndexPage';
 import AddDateModal from './modals/AddDateModal';
+import Logo from './Logo';
 
 const HourEntryModal = ({ show, onClose, hourEntryDate, selectedUserData, planets, hourEntryPlanetSelections, handleHourEntryPlanetChange, handleSaveHourEntry, hourEntryError }) => {
   if (!show) return null;
@@ -1151,25 +1152,28 @@ function ABCDBCDNumber() {
         {/* Header */}
         <div className="bg-white rounded-lg shadow-lg p-4 mb-6 border-t-4 border-purple-600">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">ABCD BCD Number</h1>
-              {selectedUserData ? (
-                <div className="text-sm text-purple-800">
-                  <p>✅ User: {selectedUserData.username}</p>
-                  <p>🏠 HR Numbers: {selectedUserData.hr}</p>
-                  <p>📅 Dates: {datesList.length}</p>
-                  {cacheStats && (
-                    <p>🚀 Cache: {cacheStats.provider} {cacheStats.available ? '✅' : '❌'}</p>
-                  )}
-                </div>
-              ) : (
-                <div className="text-sm text-red-600">
-                  <p>⚠️ No user data found</p>
-                  {cacheStats && (
-                    <p>🚀 Cache: {cacheStats.provider} {cacheStats.available ? '✅' : '❌'}</p>
-                  )}
-                </div>
-              )}
+            <div className="flex items-center space-x-4">
+              <Logo size="medium" showText={false} />
+              <div>
+                <h1 className="text-2xl font-bold text-gray-800">ABCD BCD Number</h1>
+                {selectedUserData ? (
+                  <div className="text-sm text-purple-800">
+                    <p>✅ User: {selectedUserData.username}</p>
+                    <p>🏠 HR Numbers: {selectedUserData.hr}</p>
+                    <p>📅 Dates: {datesList.length}</p>
+                    {cacheStats && (
+                      <p>🚀 Cache: {cacheStats.provider} {cacheStats.available ? '✅' : '❌'}</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-sm text-red-600">
+                    <p>⚠️ No user data found</p>
+                    {cacheStats && (
+                      <p>🚀 Cache: {cacheStats.provider} {cacheStats.available ? '✅' : '❌'}</p>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="flex gap-2">
               {cacheStats && (

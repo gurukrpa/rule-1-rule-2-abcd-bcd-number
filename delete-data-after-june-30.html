@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Delete Data After June 30, 2025 - Browser Tool</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .danger {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .results {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background-color: #c82333;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .check-button {
+            background-color: #007bff;
+        }
+        .check-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗑️ Delete Data After June 30, 2025</h1>
+        <h2>For User: "sing maya"</h2>
+        
+        <div class="danger">
+            <h3>⚠️ CRITICAL WARNING</h3>
+            <p><strong>This will permanently delete all data from the database after June 30, 2025!</strong></p>
+            <p>This includes:</p>
+            <ul>
+                <li>📊 Excel upload data</li>
+                <li>⏰ Hour entry data</li>
+                <li>🧮 Rule2 analysis results</li>
+                <li>📅 Date entries in user tables</li>
+            </ul>
+            <p><strong>Make sure you have a backup if you need to restore this data later.</strong></p>
+        </div>
+
+        <div class="warning">
+            <h3>🔍 Step 1: Check Current Data</h3>
+            <p>First, check what data currently exists for user "sing maya" to see what will be deleted:</p>
+            <button class="check-button" onclick="checkCurrentData()">📋 Check Current Data</button>
+        </div>
+
+        <div class="warning">
+            <h3>🗑️ Step 2: Delete Data After June 30</h3>
+            <p>This will delete all data after June 30, 2025. Only proceed if you're sure:</p>
+            <button onclick="deleteDataAfterJune30()" id="deleteBtn">🗑️ DELETE DATA AFTER JUNE 30</button>
+        </div>
+
+        <div id="results" class="results" style="display: none;"></div>
+    </div>
+
+    <script>
+        // Initialize Supabase
+        const supabaseUrl = 'https://kqfkebcqrspffwcrkkid.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtxZmtlYmNxcnNwZmZ3Y3Jra2lkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM2OTg5NzAsImV4cCI6MjA0OTI3NDk3MH0.yGCy2Vu0Y-8jSJ1D6lVJODPJN6_VuPqHdWKPPy3jyDw';
+        
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        const USER_ID = 'sing maya';
+        const CUTOFF_DATE = '2025-06-30';
+
+        function showResults(content) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.textContent = content;
+            resultsDiv.style.display = 'block';
+        }
+
+        async function checkCurrentData() {
+            showResults('🔍 Checking current data for user "sing maya"...\n');
+            
+            try {
+                let output = '📊 CURRENT DATA REPORT\n';
+                output += '====================\n\n';
+                output += `👤 User: ${USER_ID}\n`;
+                output += `📅 Cutoff Date: ${CUTOFF_DATE}\n\n`;
+
+                // Check excel_data
+                const { data: excelData, error: excelError } = await supabase
+                    .from('excel_data')
+                    .select('date, created_at')
+                    .eq('user_id', USER_ID)
+                    .order('date', { ascending: true });
+                
+                if (excelError) {
+                    output += `❌ Excel data error: ${excelError.message}\n`;
+                } else {
+                    const allExcel = excelData || [];
+                    const afterJune30Excel = allExcel.filter(d => d.date > CUTOFF_DATE);
+                    
+                    output += `📊 Excel Data:\n`;
+                    output += `   Total records: ${allExcel.length}\n`;
+                    output += `   Records after June 30: ${afterJune30Excel.length}\n`;
+                    
+                    if (afterJune30Excel.length > 0) {
+                        output += `   📋 Records to be deleted:\n`;
+                        afterJune30Excel.forEach(record => {
+                            output += `      📊 ${record.date}\n`;
+                        });
+                    }
+                    output += '\n';
+                }
+
+                // Check hour_entries
+                const { data: hourData, error: hourError } = await supabase
+                    .from('hour_entries')
+                    .select('date_key, created_at')
+                    .eq('user_id', USER_ID)
+                    .order('date_key', { ascending: true });
+                
+                if (hourError) {
+                    output += `❌ Hour entries error: ${hourError.message}\n`;
+                } else {
+                    const allHour = hourData || [];
+                    const afterJune30Hour = allHour.filter(d => d.date_key > CUTOFF_DATE);
+                    
+                    output += `⏰ Hour Entries:\n`;
+                    output += `   Total records: ${allHour.length}\n`;
+                    output += `   Records after June 30: ${afterJune30Hour.length}\n`;
+                    
+                    if (afterJune30Hour.length > 0) {
+                        output += `   📋 Records to be deleted:\n`;
+                        afterJune30Hour.forEach(record => {
+                            output += `      ⏰ ${record.date_key}\n`;
+                        });
+                    }
+                    output += '\n';
+                }
+
+                // Check rule2_analysis_results
+                const { data: analysisData, error: analysisError } = await supabase
+                    .from('rule2_analysis_results')
+                    .select('analysis_date, created_at')
+                    .eq('user_id', USER_ID)
+                    .order('analysis_date', { ascending: true });
+                
+                if (analysisError) {
+                    output += `❌ Analysis results error: ${analysisError.message}\n`;
+                } else {
+                    const allAnalysis = analysisData || [];
+                    const afterJune30Analysis = allAnalysis.filter(d => d.analysis_date > CUTOFF_DATE);
+                    
+                    output += `🧮 Rule2 Analysis Results:\n`;
+                    output += `   Total records: ${allAnalysis.length}\n`;
+                    output += `   Records after June 30: ${afterJune30Analysis.length}\n`;
+                    
+                    if (afterJune30Analysis.length > 0) {
+                        output += `   📋 Records to be deleted:\n`;
+                        afterJune30Analysis.forEach(record => {
+                            output += `      🧮 ${record.analysis_date}\n`;
+                        });
+                    }
+                    output += '\n';
+                }
+
+                // Check user_dates
+                const { data: userDates, error: userDatesError } = await supabase
+                    .from('user_dates')
+                    .select('dates')
+                    .eq('user_id', USER_ID)
+                    .single();
+                
+                if (userDatesError && userDatesError.code !== 'PGRST116') {
+                    output += `❌ User dates error: ${userDatesError.message}\n`;
+                } else if (userDates?.dates) {
+                    const allUserDates = userDates.dates;
+                    const afterJune30UserDates = allUserDates.filter(d => d > CUTOFF_DATE);
+                    
+                    output += `📅 User Dates:\n`;
+                    output += `   Total dates: ${allUserDates.length}\n`;
+                    output += `   Dates after June 30: ${afterJune30UserDates.length}\n`;
+                    
+                    if (afterJune30UserDates.length > 0) {
+                        output += `   📋 Dates to be removed:\n`;
+                        afterJune30UserDates.forEach(date => {
+                            output += `      📅 ${date}\n`;
+                        });
+                    }
+                    output += '\n';
+                }
+
+                // Check user_dates_abcd
+                const { data: abcdDates, error: abcdDatesError } = await supabase
+                    .from('user_dates_abcd')
+                    .select('dates')
+                    .eq('user_id', USER_ID)
+                    .single();
+                
+                if (abcdDatesError && abcdDatesError.code !== 'PGRST116') {
+                    output += `❌ ABCD dates error: ${abcdDatesError.message}\n`;
+                } else if (abcdDates?.dates) {
+                    const allAbcdDates = abcdDates.dates;
+                    const afterJune30AbcdDates = allAbcdDates.filter(d => d > CUTOFF_DATE);
+                    
+                    output += `📅 ABCD User Dates:\n`;
+                    output += `   Total dates: ${allAbcdDates.length}\n`;
+                    output += `   Dates after June 30: ${afterJune30AbcdDates.length}\n`;
+                    
+                    if (afterJune30AbcdDates.length > 0) {
+                        output += `   📋 Dates to be removed:\n`;
+                        afterJune30AbcdDates.forEach(date => {
+                            output += `      📅 ${date}\n`;
+                        });
+                    }
+                    output += '\n';
+                }
+
+                output += '🎯 SUMMARY:\n';
+                output += '===========\n';
+                output += 'This shows what data will be permanently deleted.\n';
+                output += 'Only proceed with deletion if you are sure you want to remove this data.\n';
+
+                showResults(output);
+                
+            } catch (error) {
+                showResults(`❌ Error checking data: ${error.message}`);
+            }
+        }
+
+        async function deleteDataAfterJune30() {
+            if (!confirm('⚠️ FINAL CONFIRMATION\\n\\nThis will permanently delete all data after June 30, 2025.\\n\\nAre you absolutely sure you want to continue?')) {
+                return;
+            }
+
+            const deleteBtn = document.getElementById('deleteBtn');
+            deleteBtn.disabled = true;
+            deleteBtn.textContent = '🔄 Deleting...';
+
+            showResults('🗑️ Starting deletion process...\n\n');
+            
+            try {
+                let output = '🗑️ DELETION IN PROGRESS\n';
+                output += '======================\n\n';
+                let totalDeleted = 0;
+
+                // 1. Delete from excel_data
+                output += '📊 1. Deleting Excel data after June 30...\n';
+                const { data: deletedExcel, error: excelError } = await supabase
+                    .from('excel_data')
+                    .delete()
+                    .eq('user_id', USER_ID)
+                    .gt('date', CUTOFF_DATE)
+                    .select();
+                
+                if (excelError) {
+                    output += `❌ Excel deletion error: ${excelError.message}\n`;
+                } else {
+                    const excelCount = deletedExcel?.length || 0;
+                    output += `✅ Deleted ${excelCount} Excel records\n`;
+                    totalDeleted += excelCount;
+                    if (excelCount > 0) {
+                        deletedExcel.forEach(record => {
+                            output += `   📊 Deleted: ${record.date}\n`;
+                        });
+                    }
+                }
+                output += '\n';
+                showResults(output);
+
+                // 2. Delete from hour_entries
+                output += '⏰ 2. Deleting Hour entries after June 30...\n';
+                const { data: deletedHour, error: hourError } = await supabase
+                    .from('hour_entries')
+                    .delete()
+                    .eq('user_id', USER_ID)
+                    .gt('date_key', CUTOFF_DATE)
+                    .select();
+                
+                if (hourError) {
+                    output += `❌ Hour entries deletion error: ${hourError.message}\n`;
+                } else {
+                    const hourCount = deletedHour?.length || 0;
+                    output += `✅ Deleted ${hourCount} Hour entry records\n`;
+                    totalDeleted += hourCount;
+                    if (hourCount > 0) {
+                        deletedHour.forEach(record => {
+                            output += `   ⏰ Deleted: ${record.date_key}\n`;
+                        });
+                    }
+                }
+                output += '\n';
+                showResults(output);
+
+                // 3. Delete from rule2_analysis_results
+                output += '🧮 3. Deleting Rule2 analysis results after June 30...\n';
+                const { data: deletedAnalysis, error: analysisError } = await supabase
+                    .from('rule2_analysis_results')
+                    .delete()
+                    .eq('user_id', USER_ID)
+                    .gt('analysis_date', CUTOFF_DATE)
+                    .select();
+                
+                if (analysisError) {
+                    output += `❌ Analysis deletion error: ${analysisError.message}\n`;
+                } else {
+                    const analysisCount = deletedAnalysis?.length || 0;
+                    output += `✅ Deleted ${analysisCount} Analysis records\n`;
+                    totalDeleted += analysisCount;
+                    if (analysisCount > 0) {
+                        deletedAnalysis.forEach(record => {
+                            output += `   🧮 Deleted: ${record.analysis_date}\n`;
+                        });
+                    }
+                }
+                output += '\n';
+                showResults(output);
+
+                // 4. Update user_dates
+                output += '📅 4. Updating user_dates table...\n';
+                const { data: currentUserDates, error: fetchUserError } = await supabase
+                    .from('user_dates')
+                    .select('dates')
+                    .eq('user_id', USER_ID)
+                    .single();
+                
+                if (fetchUserError && fetchUserError.code !== 'PGRST116') {
+                    output += `❌ Error fetching user_dates: ${fetchUserError.message}\n`;
+                } else if (currentUserDates?.dates) {
+                    const originalDates = currentUserDates.dates;
+                    const filteredDates = originalDates.filter(date => date <= CUTOFF_DATE);
+                    const removedDates = originalDates.filter(date => date > CUTOFF_DATE);
+                    
+                    if (removedDates.length > 0) {
+                        const { error: updateUserError } = await supabase
+                            .from('user_dates')
+                            .update({ 
+                                dates: filteredDates,
+                                updated_at: new Date().toISOString()
+                            })
+                            .eq('user_id', USER_ID);
+                        
+                        if (updateUserError) {
+                            output += `❌ Error updating user_dates: ${updateUserError.message}\n`;
+                        } else {
+                            output += `✅ Removed ${removedDates.length} dates from user_dates\n`;
+                            removedDates.forEach(date => {
+                                output += `   📅 Removed: ${date}\n`;
+                            });
+                            totalDeleted += removedDates.length;
+                        }
+                    } else {
+                        output += `✅ No dates to remove from user_dates\n`;
+                    }
+                } else {
+                    output += `ℹ️ No user_dates found\n`;
+                }
+                output += '\n';
+                showResults(output);
+
+                // 5. Update user_dates_abcd
+                output += '📅 5. Updating user_dates_abcd table...\n';
+                const { data: currentAbcdDates, error: fetchAbcdError } = await supabase
+                    .from('user_dates_abcd')
+                    .select('dates')
+                    .eq('user_id', USER_ID)
+                    .single();
+                
+                if (fetchAbcdError && fetchAbcdError.code !== 'PGRST116') {
+                    output += `❌ Error fetching user_dates_abcd: ${fetchAbcdError.message}\n`;
+                } else if (currentAbcdDates?.dates) {
+                    const originalAbcdDates = currentAbcdDates.dates;
+                    const filteredAbcdDates = originalAbcdDates.filter(date => date <= CUTOFF_DATE);
+                    const removedAbcdDates = originalAbcdDates.filter(date => date > CUTOFF_DATE);
+                    
+                    if (removedAbcdDates.length > 0) {
+                        const { error: updateAbcdError } = await supabase
+                            .from('user_dates_abcd')
+                            .update({ 
+                                dates: filteredAbcdDates,
+                                updated_at: new Date().toISOString()
+                            })
+                            .eq('user_id', USER_ID);
+                        
+                        if (updateAbcdError) {
+                            output += `❌ Error updating user_dates_abcd: ${updateAbcdError.message}\n`;
+                        } else {
+                            output += `✅ Removed ${removedAbcdDates.length} dates from user_dates_abcd\n`;
+                            removedAbcdDates.forEach(date => {
+                                output += `   📅 Removed: ${date}\n`;
+                            });
+                            totalDeleted += removedAbcdDates.length;
+                        }
+                    } else {
+                        output += `✅ No dates to remove from user_dates_abcd\n`;
+                    }
+                } else {
+                    output += `ℹ️ No user_dates_abcd found\n`;
+                }
+                output += '\n';
+
+                // Final summary
+                output += '🎉 DELETION COMPLETED!\n';
+                output += '=====================\n';
+                output += `👤 User: ${USER_ID}\n`;
+                output += `📅 Cutoff Date: ${CUTOFF_DATE}\n`;
+                output += `🗑️ Total Records Deleted: ${totalDeleted}\n\n`;
+                output += '✅ All data after June 30, 2025 has been successfully deleted!\n\n';
+                output += '🔍 Next Steps:\n';
+                output += '1. Refresh your application\n';
+                output += '2. Verify that only dates on or before June 30, 2025 appear\n';
+                output += '3. Test functionality with the remaining data\n';
+
+                showResults(output);
+
+                deleteBtn.textContent = '✅ Deletion Complete';
+                deleteBtn.style.backgroundColor = '#28a745';
+
+            } catch (error) {
+                showResults(`❌ Error during deletion: ${error.message}`);
+                deleteBtn.disabled = false;
+                deleteBtn.textContent = '🗑️ DELETE DATA AFTER JUNE 30';
+            }
+        }
+    </script>
+</body>
+</html>

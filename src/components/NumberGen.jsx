@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Select from 'react-select';
 import NumberGenTable from './NumberGenTable';
+import Logo from './Logo';
 
 // Add access to Electron IPC if it exists (will be undefined in web-only mode)
 const electron = window.electron;
@@ -718,7 +719,10 @@ const NumberGen = () => {
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Number Generator</h1>
+        <div className="flex items-center space-x-4">
+          <Logo size="medium" showText={false} />
+          <h1 className="text-3xl font-bold text-gray-800">Number Generator</h1>
+        </div>
         <div className="flex gap-2">
 
           <Link 

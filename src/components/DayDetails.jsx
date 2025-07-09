@@ -7,6 +7,7 @@ import ExcelUpload from './ExcelUpload';
 import * as XLSX from 'xlsx'; // Add this import for Excel functionality
 import ExcelJS from 'exceljs'; // Add this import for ExcelJS
 import ErrorBoundary from './ErrorBoundary'; // Import the ErrorBoundary component
+import Logo from './Logo';
 
 const astroPlanets = ['Su', 'Mo', 'Ma', 'Me', 'Ju', 'Ve', 'Sa', 'Ra', 'Ke'];
 
@@ -552,9 +553,11 @@ function DayDetails() {
     <div className="min-h-screen bg-gray-100 p-4">
       <div className="max-w-full mx-auto overflow-x-auto">
         <div className="flex flex-wrap justify-between items-center mb-4 gap-4">
-          <h1 className="text-2xl font-bold">
-            {user.username} - Selected Date: {selectedDate}
-          </h1>
+          <div className="flex items-center space-x-4">              <Logo size="medium" showText={false} pageTitle="Day Details" />
+            <h1 className="text-2xl font-bold">
+              {user.username} - Selected Date: {selectedDate}
+            </h1>
+          </div>
           <div className="flex items-center gap-4">
              <ExcelUpload
                onDataUploaded={(data, fileName) => handleExcelUpload(data, fileName)}
