@@ -286,30 +286,49 @@ class CleanFirebaseService {
   // 📅 DATE MANAGEMENT
   // =====================================
 
-  async getUserDates(userId, pageContext) {
+  async getUserDates(userId, pageContext = PAGE_CONTEXTS.USERDATA) {
     try {
       const tableName = this._getDateTableName(pageContext);
-      const userDoc = await getDoc(doc(this.db, tableName, userId));
+      const q = query(collection(this.db, tableName), where('user_id', '==', userId));
+      const snapshot = await getDocs(q);
       
-      if (!userDoc.exists()) {
+      if (snapshot.empty) {
         return [];
       }
       
-      return userDoc.data().dates || [];
+      // Get the first document's dates (there should only be one per user)
+      const doc = snapshot.docs[0];
+      return doc.data().dates || [];
     } catch (error) {
       console.error('❌ Error getting user dates:', error);
       throw error;
     }
   }
 
-  async saveUserDates(userId, dates, pageContext) {
+  async saveUserDates(userId, dates, pageContext = PAGE_CONTEXTS.USERDATA) {
     try {
       const tableName = this._getDateTableName(pageContext);
-      await setDoc(doc(this.db, tableName, userId), {
-        user_id: userId,
-        dates: dates,
-        updated_at: new Date().getTime()
-      });
+      
+      // First, check if user already has a document
+      const q = query(collection(this.db, tableName), where('user_id', '==', userId));
+      const snapshot = await getDocs(q);
+      
+      if (!snapshot.empty) {
+        // Update existing document
+        const docRef = snapshot.docs[0].ref;
+        await updateDoc(docRef, {
+          dates: dates,
+          updated_at: new Date().getTime()
+        });
+      } else {
+        // Create new document
+        await addDoc(collection(this.db, tableName), {
+          user_id: userId,
+          dates: dates,
+          created_at: new Date().getTime(),
+          updated_at: new Date().getTime()
+        });
+      }
       
       console.log(`✅ User dates saved: ${dates.length} dates`);
       return { user_id: userId, dates };
@@ -319,7 +338,7 @@ class CleanFirebaseService {
     }
   }
 
-  async addUserDate(userId, date, pageContext) {
+  async addUserDate(userId, date, pageContext = PAGE_CONTEXTS.USERDATA) {
     try {
       const currentDates = await this.getUserDates(userId, pageContext);
       if (!currentDates.includes(date)) {
@@ -332,7 +351,7 @@ class CleanFirebaseService {
     }
   }
 
-  async removeUserDate(userId, date, pageContext) {
+  async removeUserDate(userId, date, pageContext = PAGE_CONTEXTS.USERDATA) {
     try {
       const currentDates = await this.getUserDates(userId, pageContext);
       const newDates = currentDates.filter(d => d !== date);

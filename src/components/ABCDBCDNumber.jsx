@@ -130,10 +130,6 @@ function ABCDBCDNumber() {
   const navigate = useNavigate();
   const { userId } = useParams();
   
-  // 🧪 EXPERIMENTAL: Enhanced logging for Git workflow testing
-  console.log('🔬 EXPERIMENTAL FEATURE: Enhanced component logging enabled');
-  console.log('📊 Component rendered at:', new Date().toISOString());
-  
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
