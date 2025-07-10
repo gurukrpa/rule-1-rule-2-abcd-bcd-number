@@ -1,0 +1,1860 @@
+{
+  "9352c3ec-e53b-4c85-ba5f-a838b023b93b": {
+    "id": "9352c3ec-e53b-4c85-ba5f-a838b023b93b",
+    "user_id": "sing maya",
+    "analysis_date": 1751846400000,
+    "trigger_date": 1751846400000,
+    "selected_hr": 1,
+    "overall_abcd_numbers": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "overall_bcd_numbers": [],
+    "topic_numbers": {
+      "D-1 Set-1 Matrix": {
+        "bcd": [
+          5
+        ],
+        "abcd": [
+          1,
+          2,
+          4,
+          7,
+          9
+        ]
+      },
+      "D-1 Set-2 Matrix": {
+        "bcd": [
+          10
+        ],
+        "abcd": [
+          3,
+          6,
+          8,
+          11
+        ]
+      },
+      "D-3 Set-1 Matrix": {
+        "bcd": [
+          1
+        ],
+        "abcd": [
+          2,
+          3,
+          5,
+          12
+        ]
+      },
+      "D-3 Set-2 Matrix": {
+        "bcd": [
+          6,
+          8
+        ],
+        "abcd": [
+          4,
+          7,
+          9
+        ]
+      },
+      "D-4 Set-1 Matrix": {
+        "bcd": [
+          3,
+          7
+        ],
+        "abcd": [
+          1,
+          5,
+          9,
+          12
+        ]
+      },
+      "D-4 Set-2 Matrix": {
+        "bcd": [
+          4,
+          8,
+          11
+        ],
+        "abcd": [
+          2,
+          6,
+          10
+        ]
+      },
+      "D-5 Set-1 Matrix": {
+        "bcd": [
+          1,
+          5,
+          9
+        ],
+        "abcd": [
+          3,
+          7,
+          11
+        ]
+      },
+      "D-5 Set-2 Matrix": {
+        "bcd": [
+          2,
+          6,
+          10
+        ],
+        "abcd": [
+          4,
+          8,
+          12
+        ]
+      },
+      "D-7 Set-1 Matrix": {
+        "bcd": [
+          9,
+          11
+        ],
+        "abcd": [
+          1,
+          3,
+          5,
+          7
+        ]
+      },
+      "D-7 Set-2 Matrix": {
+        "bcd": [
+          10,
+          12
+        ],
+        "abcd": [
+          2,
+          4,
+          6,
+          8
+        ]
+      },
+      "D-9 Set-1 Matrix": {
+        "bcd": [
+          3,
+          5,
+          7,
+          11
+        ],
+        "abcd": [
+          1,
+          9
+        ]
+      },
+      "D-9 Set-2 Matrix": {
+        "bcd": [
+          4,
+          6,
+          8,
+          12
+        ],
+        "abcd": [
+          2,
+          10
+        ]
+      },
+      "D-10 Set-1 Matrix": {
+        "bcd": [
+          2,
+          5,
+          7
+        ],
+        "abcd": [
+          1,
+          10
+        ]
+      },
+      "D-10 Set-2 Matrix": {
+        "bcd": [
+          4,
+          6,
+          9,
+          11
+        ],
+        "abcd": [
+          3,
+          12
+        ]
+      },
+      "D-11 Set-1 Matrix": {
+        "bcd": [
+          3,
+          7,
+          9
+        ],
+        "abcd": [
+          1,
+          11
+        ]
+      },
+      "D-11 Set-2 Matrix": {
+        "bcd": [
+          4,
+          6,
+          8,
+          10
+        ],
+        "abcd": [
+          2,
+          12
+        ]
+      },
+      "D-12 Set-1 Matrix": {
+        "bcd": [
+          2,
+          3,
+          6
+        ],
+        "abcd": [
+          1,
+          12
+        ]
+      },
+      "D-12 Set-2 Matrix": {
+        "bcd": [
+          5,
+          7,
+          8,
+          10,
+          11
+        ],
+        "abcd": [
+          4,
+          9
+        ]
+      },
+      "D-27 Set-1 Matrix": {
+        "bcd": [
+          1,
+          6,
+          12
+        ],
+        "abcd": [
+          3,
+          9
+        ]
+      },
+      "D-27 Set-2 Matrix": {
+        "bcd": [
+          2,
+          4,
+          7,
+          11
+        ],
+        "abcd": [
+          6,
+          12
+        ]
+      },
+      "D-30 Set-1 Matrix": {
+        "bcd": [
+          1,
+          3,
+          6,
+          12
+        ],
+        "abcd": [
+          5,
+          10
+        ]
+      },
+      "D-30 Set-2 Matrix": {
+        "bcd": [
+          7,
+          8,
+          9,
+          11
+        ],
+        "abcd": [
+          2,
+          4
+        ]
+      },
+      "D-60 Set-1 Matrix": {
+        "bcd": [
+          1,
+          4,
+          12
+        ],
+        "abcd": [
+          2,
+          5,
+          10
+        ]
+      },
+      "D-60 Set-2 Matrix": {
+        "bcd": [
+          7,
+          8,
+          9,
+          11
+        ],
+        "abcd": [
+          3,
+          6
+        ]
+      },
+      "D-81 Set-1 Matrix": {
+        "bcd": [
+          1,
+          2,
+          6,
+          12
+        ],
+        "abcd": [
+          3,
+          9
+        ]
+      },
+      "D-81 Set-2 Matrix": {
+        "bcd": [
+          4,
+          5,
+          7,
+          10,
+          11
+        ],
+        "abcd": [
+          6,
+          12
+        ]
+      },
+      "D-108 Set-1 Matrix": {
+        "bcd": [
+          1,
+          3,
+          6
+        ],
+        "abcd": [
+          4,
+          9,
+          12
+        ]
+      },
+      "D-108 Set-2 Matrix": {
+        "bcd": [
+          5,
+          7,
+          8,
+          10,
+          11
+        ],
+        "abcd": [
+          2,
+          6
+        ]
+      },
+      "D-144 Set-1 Matrix": {
+        "bcd": [
+          1,
+          2,
+          4,
+          9
+        ],
+        "abcd": [
+          6,
+          12
+        ]
+      },
+      "D-144 Set-2 Matrix": {
+        "bcd": [
+          5,
+          7,
+          10,
+          11
+        ],
+        "abcd": [
+          3,
+          8
+        ]
+      }
+    },
+    "total_topics": 30,
+    "available_hrs": [],
+    "a_day": "2025-07-04",
+    "b_day": "2025-07-05",
+    "c_day": "2025-07-06",
+    "d_day": "2025-07-07",
+    "created_at": 1751769586309,
+    "updated_at": 1751769586309
+  },
+  "cfd99725-c2b4-4f6a-9b7f-9225861051b6": {
+    "id": "cfd99725-c2b4-4f6a-9b7f-9225861051b6",
+    "user_id": "5019aa9a-a653-49f5-b7da-f5bc9dcde985",
+    "analysis_date": 1750896000000,
+    "trigger_date": 1750896000000,
+    "selected_hr": 1,
+    "overall_abcd_numbers": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "overall_bcd_numbers": [],
+    "topic_numbers": {
+      "D-1 Set-1 Matrix": {
+        "bcd": [
+          1,
+          4
+        ],
+        "abcd": [
+          2,
+          3,
+          7,
+          9
+        ]
+      },
+      "D-1 Set-2 Matrix": {
+        "bcd": [
+          3,
+          10
+        ],
+        "abcd": [
+          2,
+          8,
+          11,
+          12
+        ]
+      },
+      "D-4 Set-1 Matrix": {
+        "bcd": [
+          4,
+          10
+        ],
+        "abcd": [
+          1,
+          3,
+          8,
+          11,
+          12
+        ]
+      },
+      "D-4 Set-2 Matrix": {
+        "bcd": [
+          1,
+          3
+        ],
+        "abcd": [
+          4,
+          5,
+          7,
+          10
+        ]
+      },
+      "D-9 Set-1 Matrix": {
+        "bcd": [
+          5
+        ],
+        "abcd": [
+          7,
+          8,
+          10,
+          11
+        ]
+      },
+      "D-9 Set-2 Matrix": {
+        "bcd": [
+          3
+        ],
+        "abcd": [
+          4,
+          5,
+          7,
+          8,
+          9
+        ]
+      },
+      "D-11 Set-1 Matrix": {
+        "bcd": [
+          8,
+          10
+        ],
+        "abcd": [
+          7
+        ]
+      },
+      "D-11 Set-2 Matrix": {
+        "bcd": [],
+        "abcd": [
+          2,
+          8,
+          10
+        ]
+      },
+      "D-81 Set-1 Matrix": {
+        "bcd": [
+          1
+        ],
+        "abcd": [
+          4,
+          8,
+          9
+        ]
+      },
+      "D-81 Set-2 Matrix": {
+        "bcd": [
+          8
+        ],
+        "abcd": [
+          2,
+          5
+        ]
+      },
+      "D-108 Set-1 Matrix": {
+        "bcd": [
+          3,
+          6,
+          7,
+          8
+        ],
+        "abcd": [
+          9,
+          11
+        ]
+      },
+      "D-108 Set-2 Matrix": {
+        "bcd": [
+          2
+        ],
+        "abcd": [
+          1,
+          3,
+          4,
+          5,
+          7
+        ]
+      },
+      "D-144 Set-1 Matrix": {
+        "bcd": [
+          5,
+          7,
+          12
+        ],
+        "abcd": [
+          4,
+          6,
+          10
+        ]
+      },
+      "D-144 Set-2 Matrix": {
+        "bcd": [
+          4,
+          6
+        ],
+        "abcd": [
+          3,
+          8,
+          9,
+          12
+        ]
+      },
+      "D-5 (pv) Set-1 Matrix": {
+        "bcd": [
+          2,
+          8
+        ],
+        "abcd": [
+          1,
+          4,
+          5,
+          9,
+          11
+        ]
+      },
+      "D-5 (pv) Set-2 Matrix": {
+        "bcd": [
+          6
+        ],
+        "abcd": [
+          1,
+          3,
+          5,
+          10,
+          11
+        ]
+      },
+      "D-3 (trd) Set-1 Matrix": {
+        "bcd": [
+          7,
+          12
+        ],
+        "abcd": [
+          3,
+          9,
+          10,
+          11
+        ]
+      },
+      "D-3 (trd) Set-2 Matrix": {
+        "bcd": [
+          4
+        ],
+        "abcd": [
+          1,
+          3,
+          7,
+          9,
+          10,
+          12
+        ]
+      },
+      "D-30 (sh) Set-1 Matrix": {
+        "bcd": [],
+        "abcd": [
+          1,
+          3,
+          4,
+          5,
+          11
+        ]
+      },
+      "D-30 (sh) Set-2 Matrix": {
+        "bcd": [
+          4,
+          11
+        ],
+        "abcd": [
+          3,
+          6,
+          7
+        ]
+      },
+      "D-7 (trd) Set-1 Matrix": {
+        "bcd": [
+          5,
+          6,
+          8
+        ],
+        "abcd": [
+          1,
+          4,
+          9,
+          10
+        ]
+      },
+      "D-7 (trd) Set-2 Matrix": {
+        "bcd": [
+          2,
+          7,
+          8
+        ],
+        "abcd": [
+          3,
+          5,
+          6,
+          12
+        ]
+      },
+      "D-10 (trd) Set-1 Matrix": {
+        "bcd": [
+          2,
+          4,
+          5
+        ],
+        "abcd": [
+          3,
+          10,
+          12
+        ]
+      },
+      "D-10 (trd) Set-2 Matrix": {
+        "bcd": [
+          3,
+          6,
+          11
+        ],
+        "abcd": [
+          1,
+          5,
+          7,
+          12
+        ]
+      },
+      "D-12 (trd) Set-1 Matrix": {
+        "bcd": [],
+        "abcd": [
+          2,
+          4,
+          8,
+          9,
+          11,
+          12
+        ]
+      },
+      "D-12 (trd) Set-2 Matrix": {
+        "bcd": [],
+        "abcd": [
+          1,
+          6,
+          7,
+          8,
+          10,
+          12
+        ]
+      },
+      "D-27 (trd) Set-1 Matrix": {
+        "bcd": [
+          1,
+          3,
+          11
+        ],
+        "abcd": [
+          4,
+          5,
+          7
+        ]
+      },
+      "D-27 (trd) Set-2 Matrix": {
+        "bcd": [
+          3
+        ],
+        "abcd": [
+          5,
+          6,
+          7,
+          9,
+          11
+        ]
+      },
+      "D-60 (Trd) Set-1 Matrix": {
+        "bcd": [
+          9,
+          10
+        ],
+        "abcd": [
+          1,
+          2,
+          4,
+          11
+        ]
+      },
+      "D-60 (Trd) Set-2 Matrix": {
+        "bcd": [],
+        "abcd": [
+          1,
+          3,
+          4,
+          10,
+          11
+        ]
+      }
+    },
+    "total_topics": 30,
+    "available_hrs": [],
+    "a_day": "2025-06-16",
+    "b_day": "2025-06-19",
+    "c_day": "2025-06-23",
+    "d_day": "2025-06-26",
+    "created_at": 1752050875612,
+    "updated_at": 1752050875409
+  },
+  "64fe2165-a1e5-45cb-b508-b8f9136838bd": {
+    "id": "64fe2165-a1e5-45cb-b508-b8f9136838bd",
+    "user_id": "5019aa9a-a653-49f5-b7da-f5bc9dcde985",
+    "analysis_date": 1749427200000,
+    "trigger_date": 1749427200000,
+    "selected_hr": 1,
+    "overall_abcd_numbers": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "overall_bcd_numbers": [],
+    "topic_numbers": {
+      "D-1 Set-1 Matrix": {
+        "bcd": [],
+        "abcd": [
+          1,
+          10,
+          11
+        ]
+      },
+      "D-1 Set-2 Matrix": {
+        "bcd": [
+          11
+        ],
+        "abcd": [
+          1,
+          7,
+          8
+        ]
+      },
+      "D-4 Set-1 Matrix": {
+        "bcd": [
+          2,
+          4
+        ],
+        "abcd": [
+          1,
+          7,
+          10
+        ]
+      },
+      "D-4 Set-2 Matrix": {
+        "bcd": [
+          4,
+          10
+        ],
+        "abcd": [
+          7,
+          8,
+          9,
+          12
+        ]
+      },
+      "D-9 Set-1 Matrix": {
+        "bcd": [
+          2
+        ],
+        "abcd": [
+          5,
+          10
+        ]
+      },
+      "D-9 Set-2 Matrix": {
+        "bcd": [
+          1,
+          11
+        ],
+        "abcd": [
+          6,
+          12
+        ]
+      },
+      "D-11 Set-1 Matrix": {
+        "bcd": [],
+        "abcd": [
+          1,
+          4,
+          6,
+          9
+        ]
+      },
+      "D-11 Set-2 Matrix": {
+        "bcd": [
+          2,
+          11
+        ],
+        "abcd": [
+          1,
+          6,
+          8,
+          9
+        ]
+      },
+      "D-81 Set-1 Matrix": {
+        "bcd": [
+          12
+        ],
+        "abcd": [
+          3,
+          6,
+          9,
+          10
+        ]
+      },
+      "D-81 Set-2 Matrix": {
+        "bcd": [
+          2,
+          11
+        ],
+        "abcd": [
+          7,
+          8,
+          9,
+          12
+        ]
+      },
+      "D-108 Set-1 Matrix": {
+        "bcd": [
+          5,
+          10,
+          12
+        ],
+        "abcd": [
+          3,
+          6,
+          7,
+          9
+        ]
+      },
+      "D-108 Set-2 Matrix": {
+        "bcd": [
+          3,
+          4,
+          9
+        ],
+        "abcd": [
+          1,
+          2,
+          5,
+          10
+        ]
+      },
+      "D-144 Set-1 Matrix": {
+        "bcd": [
+          2,
+          6,
+          12
+        ],
+        "abcd": [
+          1,
+          4,
+          9
+        ]
+      },
+      "D-144 Set-2 Matrix": {
+        "bcd": [
+          2,
+          6,
+          10
+        ],
+        "abcd": [
+          1,
+          3,
+          12
+        ]
+      },
+      "D-5 (pv) Set-1 Matrix": {
+        "bcd": [
+          5
+        ],
+        "abcd": [
+          2,
+          3,
+          11,
+          12
+        ]
+      },
+      "D-5 (pv) Set-2 Matrix": {
+        "bcd": [
+          3,
+          9
+        ],
+        "abcd": [
+          2,
+          5,
+          7,
+          10
+        ]
+      },
+      "D-3 (trd) Set-1 Matrix": {
+        "bcd": [
+          1,
+          9
+        ],
+        "abcd": [
+          2,
+          6,
+          10,
+          11,
+          12
+        ]
+      },
+      "D-3 (trd) Set-2 Matrix": {
+        "bcd": [
+          10,
+          12
+        ],
+        "abcd": [
+          1,
+          2,
+          4,
+          7,
+          11
+        ]
+      },
+      "D-30 (sh) Set-1 Matrix": {
+        "bcd": [
+          1
+        ],
+        "abcd": [
+          3,
+          4,
+          5,
+          10,
+          11,
+          12
+        ]
+      },
+      "D-30 (sh) Set-2 Matrix": {
+        "bcd": [
+          1,
+          5
+        ],
+        "abcd": [
+          3,
+          4,
+          6,
+          7,
+          10,
+          12
+        ]
+      },
+      "D-7 (trd) Set-1 Matrix": {
+        "bcd": [
+          7
+        ],
+        "abcd": [
+          2,
+          3,
+          5,
+          9
+        ]
+      },
+      "D-7 (trd) Set-2 Matrix": {
+        "bcd": [],
+        "abcd": [
+          3,
+          5,
+          8,
+          9,
+          10,
+          11
+        ]
+      },
+      "D-10 (trd) Set-1 Matrix": {
+        "bcd": [],
+        "abcd": [
+          3,
+          6,
+          10,
+          12
+        ]
+      },
+      "D-10 (trd) Set-2 Matrix": {
+        "bcd": [
+          8
+        ],
+        "abcd": [
+          1,
+          4,
+          6,
+          9,
+          11,
+          12
+        ]
+      },
+      "D-12 (trd) Set-1 Matrix": {
+        "bcd": [
+          1,
+          12
+        ],
+        "abcd": [
+          4,
+          8,
+          10
+        ]
+      },
+      "D-12 (trd) Set-2 Matrix": {
+        "bcd": [
+          3,
+          10,
+          11
+        ],
+        "abcd": [
+          4,
+          6,
+          8
+        ]
+      },
+      "D-27 (trd) Set-1 Matrix": {
+        "bcd": [
+          5
+        ],
+        "abcd": [
+          2,
+          3,
+          4,
+          12
+        ]
+      },
+      "D-27 (trd) Set-2 Matrix": {
+        "bcd": [],
+        "abcd": [
+          3,
+          4,
+          10,
+          11,
+          12
+        ]
+      },
+      "D-60 (Trd) Set-1 Matrix": {
+        "bcd": [
+          1
+        ],
+        "abcd": [
+          3,
+          5,
+          10
+        ]
+      },
+      "D-60 (Trd) Set-2 Matrix": {
+        "bcd": [
+          11,
+          12
+        ],
+        "abcd": [
+          3,
+          4,
+          7,
+          8
+        ]
+      }
+    },
+    "total_topics": 30,
+    "available_hrs": [],
+    "a_day": "2025-05-29",
+    "b_day": "2025-06-02",
+    "c_day": "2025-06-05",
+    "d_day": "2025-06-09",
+    "created_at": 1752045168454,
+    "updated_at": 1752050415028
+  },
+  "e52a1c61-6e66-4d07-9efd-6bb5a5a2e4b4": {
+    "id": "e52a1c61-6e66-4d07-9efd-6bb5a5a2e4b4",
+    "user_id": "5019aa9a-a653-49f5-b7da-f5bc9dcde985",
+    "analysis_date": 1750032000000,
+    "trigger_date": 1750032000000,
+    "selected_hr": 1,
+    "overall_abcd_numbers": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "overall_bcd_numbers": [],
+    "topic_numbers": {
+      "D-1 Set-1 Matrix": {
+        "bcd": [
+          3,
+          7,
+          8
+        ],
+        "abcd": [
+          2,
+          9
+        ]
+      },
+      "D-1 Set-2 Matrix": {
+        "bcd": [
+          2,
+          12
+        ],
+        "abcd": [
+          5,
+          7,
+          8,
+          11
+        ]
+      },
+      "D-4 Set-1 Matrix": {
+        "bcd": [
+          5,
+          8,
+          9,
+          12
+        ],
+        "abcd": [
+          3,
+          7,
+          11
+        ]
+      },
+      "D-4 Set-2 Matrix": {
+        "bcd": [
+          6,
+          7,
+          9
+        ],
+        "abcd": [
+          2,
+          4,
+          8,
+          12
+        ]
+      },
+      "D-9 Set-1 Matrix": {
+        "bcd": [
+          3,
+          12
+        ],
+        "abcd": [
+          2,
+          8,
+          11
+        ]
+      },
+      "D-9 Set-2 Matrix": {
+        "bcd": [
+          11
+        ],
+        "abcd": [
+          4,
+          5,
+          7,
+          12
+        ]
+      },
+      "D-11 Set-1 Matrix": {
+        "bcd": [
+          5
+        ],
+        "abcd": [
+          2,
+          4
+        ]
+      },
+      "D-11 Set-2 Matrix": {
+        "bcd": [],
+        "abcd": [
+          2,
+          3,
+          4,
+          6,
+          11
+        ]
+      },
+      "D-81 Set-1 Matrix": {
+        "bcd": [
+          7
+        ],
+        "abcd": [
+          2,
+          4,
+          5,
+          6,
+          10
+        ]
+      },
+      "D-81 Set-2 Matrix": {
+        "bcd": [
+          1,
+          2
+        ],
+        "abcd": [
+          3,
+          6,
+          9,
+          11
+        ]
+      },
+      "D-108 Set-1 Matrix": {
+        "bcd": [
+          2,
+          4,
+          12
+        ],
+        "abcd": [
+          5,
+          9,
+          11
+        ]
+      },
+      "D-108 Set-2 Matrix": {
+        "bcd": [
+          3,
+          7
+        ],
+        "abcd": [
+          1,
+          4,
+          5,
+          10,
+          12
+        ]
+      },
+      "D-144 Set-1 Matrix": {
+        "bcd": [],
+        "abcd": [
+          1,
+          3,
+          4,
+          9,
+          10
+        ]
+      },
+      "D-144 Set-2 Matrix": {
+        "bcd": [],
+        "abcd": [
+          1,
+          3,
+          8,
+          10,
+          12
+        ]
+      },
+      "D-5 (pv) Set-1 Matrix": {
+        "bcd": [],
+        "abcd": [
+          1,
+          5,
+          7,
+          11,
+          12
+        ]
+      },
+      "D-5 (pv) Set-2 Matrix": {
+        "bcd": [
+          5
+        ],
+        "abcd": [
+          1,
+          3,
+          7,
+          9
+        ]
+      },
+      "D-3 (trd) Set-1 Matrix": {
+        "bcd": [
+          4,
+          5
+        ],
+        "abcd": [
+          2,
+          3,
+          6,
+          9,
+          11
+        ]
+      },
+      "D-3 (trd) Set-2 Matrix": {
+        "bcd": [
+          6,
+          9
+        ],
+        "abcd": [
+          1,
+          2,
+          3,
+          7,
+          12
+        ]
+      },
+      "D-30 (sh) Set-1 Matrix": {
+        "bcd": [
+          7,
+          11
+        ],
+        "abcd": [
+          5,
+          6,
+          8
+        ]
+      },
+      "D-30 (sh) Set-2 Matrix": {
+        "bcd": [
+          7,
+          8
+        ],
+        "abcd": [
+          2,
+          5,
+          9,
+          12
+        ]
+      },
+      "D-7 (trd) Set-1 Matrix": {
+        "bcd": [],
+        "abcd": [
+          2,
+          3,
+          7,
+          9
+        ]
+      },
+      "D-7 (trd) Set-2 Matrix": {
+        "bcd": [
+          1,
+          11
+        ],
+        "abcd": [
+          3,
+          5,
+          10,
+          12
+        ]
+      },
+      "D-10 (trd) Set-1 Matrix": {
+        "bcd": [
+          8,
+          11
+        ],
+        "abcd": [
+          3,
+          7,
+          10,
+          12
+        ]
+      },
+      "D-10 (trd) Set-2 Matrix": {
+        "bcd": [
+          7,
+          8,
+          12
+        ],
+        "abcd": [
+          1,
+          2,
+          4
+        ]
+      },
+      "D-12 (trd) Set-1 Matrix": {
+        "bcd": [
+          2
+        ],
+        "abcd": [
+          4,
+          5,
+          8,
+          12
+        ]
+      },
+      "D-12 (trd) Set-2 Matrix": {
+        "bcd": [
+          2,
+          12
+        ],
+        "abcd": [
+          6,
+          7,
+          8,
+          10
+        ]
+      },
+      "D-27 (trd) Set-1 Matrix": {
+        "bcd": [
+          7,
+          8
+        ],
+        "abcd": [
+          2,
+          5,
+          6,
+          10,
+          12
+        ]
+      },
+      "D-27 (trd) Set-2 Matrix": {
+        "bcd": [
+          2
+        ],
+        "abcd": [
+          1,
+          6,
+          7,
+          9,
+          11
+        ]
+      },
+      "D-60 (Trd) Set-1 Matrix": {
+        "bcd": [
+          2,
+          12
+        ],
+        "abcd": [
+          1,
+          4,
+          5,
+          7
+        ]
+      },
+      "D-60 (Trd) Set-2 Matrix": {
+        "bcd": [],
+        "abcd": [
+          2,
+          3,
+          6,
+          7,
+          11
+        ]
+      }
+    },
+    "total_topics": 30,
+    "available_hrs": [],
+    "a_day": "2025-06-05",
+    "b_day": "2025-06-09",
+    "c_day": "2025-06-12",
+    "d_day": "2025-06-16",
+    "created_at": 1752050507784,
+    "updated_at": 1752050507561
+  },
+  "936d0211-9d0b-4777-82b2-e591c4bffc7a": {
+    "id": "936d0211-9d0b-4777-82b2-e591c4bffc7a",
+    "user_id": "5019aa9a-a653-49f5-b7da-f5bc9dcde985",
+    "analysis_date": 1751846400000,
+    "trigger_date": 1751846400000,
+    "selected_hr": 1,
+    "overall_abcd_numbers": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "overall_bcd_numbers": [],
+    "topic_numbers": {
+      "D-1 Set-1 Matrix": {
+        "bcd": [],
+        "abcd": [
+          1,
+          4,
+          7
+        ]
+      },
+      "D-1 Set-2 Matrix": {
+        "bcd": [],
+        "abcd": [
+          3,
+          5,
+          10,
+          12
+        ]
+      },
+      "D-4 Set-1 Matrix": {
+        "bcd": [
+          5
+        ],
+        "abcd": [
+          2,
+          3,
+          7
+        ]
+      },
+      "D-4 Set-2 Matrix": {
+        "bcd": [],
+        "abcd": [
+          2,
+          4,
+          11,
+          12
+        ]
+      },
+      "D-9 Set-1 Matrix": {
+        "bcd": [],
+        "abcd": [
+          3,
+          7,
+          8,
+          9,
+          10
+        ]
+      },
+      "D-9 Set-2 Matrix": {
+        "bcd": [],
+        "abcd": [
+          1,
+          3,
+          4,
+          5,
+          7,
+          8
+        ]
+      },
+      "D-11 Set-1 Matrix": {
+        "bcd": [
+          6,
+          12
+        ],
+        "abcd": [
+          8,
+          9,
+          10
+        ]
+      },
+      "D-11 Set-2 Matrix": {
+        "bcd": [
+          4,
+          5,
+          7
+        ],
+        "abcd": [
+          1,
+          8
+        ]
+      },
+      "D-81 Set-1 Matrix": {
+        "bcd": [],
+        "abcd": [
+          8,
+          9,
+          11,
+          12
+        ]
+      },
+      "D-81 Set-2 Matrix": {
+        "bcd": [
+          1
+        ],
+        "abcd": [
+          7,
+          8,
+          10
+        ]
+      },
+      "D-108 Set-1 Matrix": {
+        "bcd": [
+          2
+        ],
+        "abcd": [
+          3,
+          5,
+          6
+        ]
+      },
+      "D-108 Set-2 Matrix": {
+        "bcd": [
+          6,
+          9,
+          10,
+          12
+        ],
+        "abcd": [
+          11
+        ]
+      },
+      "D-144 Set-1 Matrix": {
+        "bcd": [
+          2,
+          8
+        ],
+        "abcd": [
+          1,
+          7
+        ]
+      },
+      "D-144 Set-2 Matrix": {
+        "bcd": [
+          5,
+          7
+        ],
+        "abcd": [
+          4,
+          9,
+          10
+        ]
+      },
+      "D-5 (pv) Set-1 Matrix": {
+        "bcd": [
+          3,
+          6
+        ],
+        "abcd": [
+          1,
+          4,
+          7,
+          9,
+          11
+        ]
+      },
+      "D-5 (pv) Set-2 Matrix": {
+        "bcd": [
+          9
+        ],
+        "abcd": [
+          3,
+          5,
+          6,
+          7,
+          12
+        ]
+      },
+      "D-3 (trd) Set-1 Matrix": {
+        "bcd": [
+          4,
+          8
+        ],
+        "abcd": [
+          7,
+          9,
+          12
+        ]
+      },
+      "D-3 (trd) Set-2 Matrix": {
+        "bcd": [
+          2,
+          11
+        ],
+        "abcd": [
+          5,
+          9
+        ]
+      },
+      "D-30 (sh) Set-1 Matrix": {
+        "bcd": [
+          12
+        ],
+        "abcd": [
+          1,
+          8
+        ]
+      },
+      "D-30 (sh) Set-2 Matrix": {
+        "bcd": [
+          1,
+          10
+        ],
+        "abcd": [
+          5,
+          7
+        ]
+      },
+      "D-7 (trd) Set-1 Matrix": {
+        "bcd": [
+          7
+        ],
+        "abcd": [
+          1,
+          5,
+          6,
+          9
+        ]
+      },
+      "D-7 (trd) Set-2 Matrix": {
+        "bcd": [
+          9
+        ],
+        "abcd": [
+          2,
+          5,
+          6
+        ]
+      },
+      "D-10 (trd) Set-1 Matrix": {
+        "bcd": [],
+        "abcd": [
+          2,
+          4,
+          6,
+          8
+        ]
+      },
+      "D-10 (trd) Set-2 Matrix": {
+        "bcd": [
+          8,
+          10
+        ],
+        "abcd": [
+          2,
+          3,
+          6,
+          7,
+          12
+        ]
+      },
+      "D-12 (trd) Set-1 Matrix": {
+        "bcd": [
+          5
+        ],
+        "abcd": [
+          2,
+          3,
+          4,
+          8,
+          12
+        ]
+      },
+      "D-12 (trd) Set-2 Matrix": {
+        "bcd": [
+          2,
+          3,
+          11
+        ],
+        "abcd": [
+          10,
+          12
+        ]
+      },
+      "D-27 (trd) Set-1 Matrix": {
+        "bcd": [],
+        "abcd": [
+          1,
+          4,
+          8,
+          9,
+          10
+        ]
+      },
+      "D-27 (trd) Set-2 Matrix": {
+        "bcd": [
+          8
+        ],
+        "abcd": [
+          2,
+          5,
+          7,
+          12
+        ]
+      },
+      "D-60 (Trd) Set-1 Matrix": {
+        "bcd": [
+          5,
+          7,
+          12
+        ],
+        "abcd": [
+          2
+        ]
+      },
+      "D-60 (Trd) Set-2 Matrix": {
+        "bcd": [
+          2,
+          7,
+          12
+        ],
+        "abcd": [
+          11
+        ]
+      }
+    },
+    "total_topics": 30,
+    "available_hrs": [],
+    "a_day": "2025-06-26",
+    "b_day": "2025-06-30",
+    "c_day": "2025-07-04",
+    "d_day": "2025-07-07",
+    "created_at": 1752056388157,
+    "updated_at": 1752127285724
+  }
+}

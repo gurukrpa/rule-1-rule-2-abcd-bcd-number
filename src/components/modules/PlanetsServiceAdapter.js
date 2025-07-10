@@ -1,14 +1,12 @@
-// PlanetsServiceAdapter.js - Service adapter to handle different service patterns
-// Bridges between dataService, fallbackDataService, and unifiedDataService
+// PlanetsServiceAdapter.js - Service adapter using pure Supabase implementation
+// Uses CleanFirebaseService through unifiedDataService
 
 import { unifiedDataService } from '../../services/unifiedDataService';
-import { dataService } from '../../services/dataService';
 import { supabase } from '../../supabaseClient';
 
 export class PlanetsServiceAdapter {
   constructor() {
-    this.primaryService = unifiedDataService;
-    this.fallbackService = dataService;
+    this.service = unifiedDataService;
   }
 
   async fetchUsers() {
@@ -28,46 +26,46 @@ export class PlanetsServiceAdapter {
 
   async getDates(userId) {
     try {
-      return await this.primaryService.getDates(userId);
+      return await this.service.getDates(userId);
     } catch (error) {
-      console.error('Primary service failed, trying fallback:', error);
-      return await this.fallbackService.getDates(userId);
+      console.error('Error getting dates:', error);
+      throw error;
     }
   }
 
   async getExcelData(userId, date) {
     try {
-      return await this.primaryService.getExcelData(userId, date);
+      return await this.service.getExcelData(userId, date);
     } catch (error) {
-      console.error('Primary service failed, trying fallback:', error);
-      return await this.fallbackService.getExcelData(userId, date);
+      console.error('Error getting Excel data:', error);
+      throw error;
     }
   }
 
   async getHourEntry(userId, date) {
     try {
-      return await this.primaryService.getHourEntry(userId, date);
+      return await this.service.getHourEntry(userId, date);
     } catch (error) {
-      console.error('Primary service failed, trying fallback:', error);
-      return await this.fallbackService.getHourEntry(userId, date);
+      console.error('Error getting hour entry:', error);
+      throw error;
     }
   }
 
   async saveExcelData(userId, date, data) {
     try {
-      return await this.primaryService.saveExcelData(userId, date, data);
+      return await this.service.saveExcelData(userId, date, data);
     } catch (error) {
-      console.error('Primary service failed, trying fallback:', error);
-      return await this.fallbackService.saveExcelData(userId, date, data);
+      console.error('Error saving Excel data:', error);
+      throw error;
     }
   }
 
   async saveHourEntry(userId, date, data) {
     try {
-      return await this.primaryService.saveHourEntry(userId, date, data);
+      return await this.service.saveHourEntry(userId, date, data);
     } catch (error) {
-      console.error('Primary service failed, trying fallback:', error);
-      return await this.fallbackService.saveHourEntry(userId, date, data);
+      console.error('Error saving hour entry:', error);
+      throw error;
     }
   }
 }

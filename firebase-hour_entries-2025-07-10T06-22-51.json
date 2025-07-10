@@ -1,0 +1,798 @@
+{
+  "9d269d9b-87f2-4c67-925d-c37b8fc0b65b": {
+    "id": "9d269d9b-87f2-4c67-925d-c37b8fc0b65b",
+    "user_id": "5019aa9a-a653-49f5-b7da-f5bc9dcde985",
+    "date_key": "2025-05-29",
+    "hour_data": {
+      "planetSelections": {
+        "1": "Su",
+        "2": "Me",
+        "3": "Ke",
+        "4": "Mo",
+        "5": "Su",
+        "6": "Mo"
+      }
+    },
+    "created_at": 1752044905985,
+    "updated_at": 1752044905860
+  },
+  "2e55e3cb-ba26-4050-80f9-5bccde2adf53": {
+    "id": "2e55e3cb-ba26-4050-80f9-5bccde2adf53",
+    "user_id": "5019aa9a-a653-49f5-b7da-f5bc9dcde985",
+    "date_key": "2025-06-05",
+    "hour_data": {
+      "planetSelections": {
+        "1": "Mo",
+        "2": "Me",
+        "3": "Ke",
+        "4": "Sa",
+        "5": "Mo",
+        "6": "Ju"
+      }
+    },
+    "created_at": 1752044984633,
+    "updated_at": 1752044984194
+  },
+  "d8f02cf7-b850-4d68-9633-a362d6be013b": {
+    "id": "d8f02cf7-b850-4d68-9633-a362d6be013b",
+    "user_id": "e192e1d3-bc4f-4a52-8a4a-7ffa2d8ccdaa",
+    "date_key": "2025-06-09",
+    "hour_data": {
+      "date": "2025-06-09",
+      "userId": "e192e1d3-bc4f-4a52-8a4a-7ffa2d8ccdaa",
+      "savedAt": "2025-06-17T04:53:35.454Z",
+      "planetSelections": {
+        "1": "Ke",
+        "2": "Su",
+        "3": "Mo",
+        "4": "Ju",
+        "5": "Me",
+        "6": "Ju"
+      }
+    },
+    "created_at": 1750136001464,
+    "updated_at": 1750136015544
+  },
+  "50aef403-87f7-43ab-970a-c85e9430b1be": {
+    "id": "50aef403-87f7-43ab-970a-c85e9430b1be",
+    "user_id": "e192e1d3-bc4f-4a52-8a4a-7ffa2d8ccdaa",
+    "date_key": "2025-05-12",
+    "hour_data": {
+      "date": "2025-05-12",
+      "userId": "e192e1d3-bc4f-4a52-8a4a-7ffa2d8ccdaa",
+      "savedAt": "2025-06-17T04:48:29.734Z",
+      "planetSelections": {
+        "1": "Ve",
+        "2": "Ke",
+        "3": "Mo",
+        "4": "Me",
+        "5": "Ra",
+        "6": "Ju"
+      }
+    },
+    "created_at": 1750135710372,
+    "updated_at": 1750135710233
+  },
+  "e19baa60-25d6-4984-9958-19ac2d56b35d": {
+    "id": "e19baa60-25d6-4984-9958-19ac2d56b35d",
+    "user_id": "e192e1d3-bc4f-4a52-8a4a-7ffa2d8ccdaa",
+    "date_key": "2025-05-15",
+    "hour_data": {
+      "date": "2025-05-15",
+      "userId": "e192e1d3-bc4f-4a52-8a4a-7ffa2d8ccdaa",
+      "savedAt": "2025-06-17T04:49:31.553Z",
+      "planetSelections": {
+        "1": "Ma",
+        "2": "Ke",
+        "3": "Sa",
+        "4": "Mo",
+        "5": "Ke",
+        "6": "Mo"
+      }
+    },
+    "created_at": 1750135771787,
+    "updated_at": 1750135771677
+  },
+  "f39ec335-2761-4563-a056-8dbc2d2bf6a1": {
+    "id": "f39ec335-2761-4563-a056-8dbc2d2bf6a1",
+    "user_id": "e192e1d3-bc4f-4a52-8a4a-7ffa2d8ccdaa",
+    "date_key": "2025-05-19",
+    "hour_data": {
+      "date": "2025-05-19",
+      "userId": "e192e1d3-bc4f-4a52-8a4a-7ffa2d8ccdaa",
+      "savedAt": "2025-06-17T04:49:59.288Z",
+      "planetSelections": {
+        "1": "Mo",
+        "2": "Ve",
+        "3": "Sa",
+        "4": "Ma",
+        "5": "Ju",
+        "6": "Ma"
+      }
+    },
+    "created_at": 1750135799512,
+    "updated_at": 1750135799392
+  },
+  "70d9fcad-d562-42f9-a0e0-2c7b1bf8659b": {
+    "id": "70d9fcad-d562-42f9-a0e0-2c7b1bf8659b",
+    "user_id": "e192e1d3-bc4f-4a52-8a4a-7ffa2d8ccdaa",
+    "date_key": "2025-05-22",
+    "hour_data": {
+      "date": "2025-05-22",
+      "userId": "e192e1d3-bc4f-4a52-8a4a-7ffa2d8ccdaa",
+      "savedAt": "2025-06-17T04:50:26.871Z",
+      "planetSelections": {
+        "1": "Ju",
+        "2": "Su",
+        "3": "Me",
+        "4": "Ke",
+        "5": "Sa",
+        "6": "Ju"
+      }
+    },
+    "created_at": 1750135827471,
+    "updated_at": 1750135827362
+  },
+  "c3b21589-7870-4231-bef6-cfbcd39da66d": {
+    "id": "c3b21589-7870-4231-bef6-cfbcd39da66d",
+    "user_id": "e192e1d3-bc4f-4a52-8a4a-7ffa2d8ccdaa",
+    "date_key": "2025-05-26",
+    "hour_data": {
+      "date": "2025-05-26",
+      "userId": "e192e1d3-bc4f-4a52-8a4a-7ffa2d8ccdaa",
+      "savedAt": "2025-06-17T04:50:47.047Z",
+      "planetSelections": {
+        "1": "Me",
+        "2": "Ma",
+        "3": "Ve",
+        "4": "Su",
+        "5": "Su",
+        "6": "Ju"
+      }
+    },
+    "created_at": 1750135847260,
+    "updated_at": 1750135847148
+  },
+  "d8d42be3-ec70-449d-87e1-1c7e177c9b98": {
+    "id": "d8d42be3-ec70-449d-87e1-1c7e177c9b98",
+    "user_id": "e192e1d3-bc4f-4a52-8a4a-7ffa2d8ccdaa",
+    "date_key": "2025-05-29",
+    "hour_data": {
+      "date": "2025-05-29",
+      "userId": "e192e1d3-bc4f-4a52-8a4a-7ffa2d8ccdaa",
+      "savedAt": "2025-06-17T04:51:38.622Z",
+      "planetSelections": {
+        "1": "Su",
+        "2": "Me",
+        "3": "Ke",
+        "4": "Mo",
+        "5": "Su",
+        "6": "Mo"
+      }
+    },
+    "created_at": 1750135898883,
+    "updated_at": 1750135898774
+  },
+  "e5ff88ba-d740-428b-8b52-3a14bb62dcb9": {
+    "id": "e5ff88ba-d740-428b-8b52-3a14bb62dcb9",
+    "user_id": "e192e1d3-bc4f-4a52-8a4a-7ffa2d8ccdaa",
+    "date_key": "2025-06-02",
+    "hour_data": {
+      "date": "2025-06-02",
+      "userId": "e192e1d3-bc4f-4a52-8a4a-7ffa2d8ccdaa",
+      "savedAt": "2025-06-17T04:52:24.906Z",
+      "planetSelections": {
+        "1": "Su",
+        "2": "Su",
+        "3": "Ju",
+        "4": "Ra",
+        "5": "Su",
+        "6": "Ra"
+      }
+    },
+    "created_at": 1750135945529,
+    "updated_at": 1750135945399
+  },
+  "aaf55324-ed68-4903-9a10-601210d5e197": {
+    "id": "aaf55324-ed68-4903-9a10-601210d5e197",
+    "user_id": "e192e1d3-bc4f-4a52-8a4a-7ffa2d8ccdaa",
+    "date_key": "2025-06-05",
+    "hour_data": {
+      "date": "2025-06-05",
+      "userId": "e192e1d3-bc4f-4a52-8a4a-7ffa2d8ccdaa",
+      "savedAt": "2025-06-17T04:52:53.633Z",
+      "planetSelections": {
+        "1": "Mo",
+        "2": "Me",
+        "3": "Ke",
+        "4": "Sa",
+        "5": "Mo",
+        "6": "Ju"
+      }
+    },
+    "created_at": 1750135973828,
+    "updated_at": 1750135973742
+  },
+  "ed576756-3e31-4e64-b3f8-f5ef08d9d928": {
+    "id": "ed576756-3e31-4e64-b3f8-f5ef08d9d928",
+    "user_id": "e192e1d3-bc4f-4a52-8a4a-7ffa2d8ccdaa",
+    "date_key": "2025-06-12",
+    "hour_data": {
+      "date": "2025-06-12",
+      "userId": "e192e1d3-bc4f-4a52-8a4a-7ffa2d8ccdaa",
+      "savedAt": "2025-06-17T10:51:22.861Z",
+      "planetSelections": {
+        "1": "Ju",
+        "2": "Ke",
+        "3": "Mo",
+        "4": "Me",
+        "5": "Sa",
+        "6": "Ra"
+      }
+    },
+    "created_at": 1750157483133,
+    "updated_at": 1750157482948
+  },
+  "86c281f8-8cf0-4496-a049-060c54907f1a": {
+    "id": "86c281f8-8cf0-4496-a049-060c54907f1a",
+    "user_id": "e57d8c46-0186-4749-b18d-9e170aaa5fce",
+    "date_key": "2025-05-29",
+    "hour_data": {
+      "date": "2025-05-29",
+      "userId": "e57d8c46-0186-4749-b18d-9e170aaa5fce",
+      "savedAt": "2025-06-29T07:48:36.323Z",
+      "planetSelections": {
+        "1": "Su",
+        "2": "Me",
+        "3": "Ke",
+        "4": "Mo",
+        "5": "Su",
+        "6": "Mo"
+      }
+    },
+    "created_at": 1751183316910,
+    "updated_at": 1751183316910
+  },
+  "4cce831d-71c3-4448-81c8-860d799e0595": {
+    "id": "4cce831d-71c3-4448-81c8-860d799e0595",
+    "user_id": "e57d8c46-0186-4749-b18d-9e170aaa5fce",
+    "date_key": "2025-06-02",
+    "hour_data": {
+      "date": "2025-06-02",
+      "userId": "e57d8c46-0186-4749-b18d-9e170aaa5fce",
+      "savedAt": "2025-06-29T07:50:24.086Z",
+      "planetSelections": {
+        "1": "Su",
+        "2": "Su",
+        "3": "Ju",
+        "4": "Ra",
+        "5": "Su",
+        "6": "Ra"
+      }
+    },
+    "created_at": 1751183424548,
+    "updated_at": 1751183424548
+  },
+  "f4ff46fb-5658-45e5-bb95-ed6fb3924fc2": {
+    "id": "f4ff46fb-5658-45e5-bb95-ed6fb3924fc2",
+    "user_id": "e57d8c46-0186-4749-b18d-9e170aaa5fce",
+    "date_key": "2025-06-05",
+    "hour_data": {
+      "date": "2025-06-05",
+      "userId": "e57d8c46-0186-4749-b18d-9e170aaa5fce",
+      "savedAt": "2025-06-29T07:51:19.217Z",
+      "planetSelections": {
+        "1": "Mo",
+        "2": "Me",
+        "3": "Ke",
+        "4": "Sa",
+        "5": "Mo",
+        "6": "Ju"
+      }
+    },
+    "created_at": 1751183479288,
+    "updated_at": 1751183479288
+  },
+  "4707e24d-e7f0-4331-9787-9adce9735ec9": {
+    "id": "4707e24d-e7f0-4331-9787-9adce9735ec9",
+    "user_id": "e57d8c46-0186-4749-b18d-9e170aaa5fce",
+    "date_key": "2025-06-09",
+    "hour_data": {
+      "date": "2025-06-09",
+      "userId": "e57d8c46-0186-4749-b18d-9e170aaa5fce",
+      "savedAt": "2025-06-29T07:51:37.486Z",
+      "planetSelections": {
+        "1": "Ke",
+        "2": "Su",
+        "3": "Mo",
+        "4": "Ju",
+        "5": "Me",
+        "6": "Ju"
+      }
+    },
+    "created_at": 1751183497550,
+    "updated_at": 1751183497550
+  },
+  "efc9b245-2133-4209-95db-72b9eb2d442f": {
+    "id": "efc9b245-2133-4209-95db-72b9eb2d442f",
+    "user_id": "e57d8c46-0186-4749-b18d-9e170aaa5fce",
+    "date_key": "2025-06-12",
+    "hour_data": {
+      "date": "2025-06-12",
+      "userId": "e57d8c46-0186-4749-b18d-9e170aaa5fce",
+      "savedAt": "2025-06-29T07:52:07.785Z",
+      "planetSelections": {
+        "1": "Ju",
+        "2": "Ke",
+        "3": "Mo",
+        "4": "Me",
+        "5": "Sa",
+        "6": "Ra"
+      }
+    },
+    "created_at": 1751183528214,
+    "updated_at": 1751183528214
+  },
+  "f4f8d902-57c8-4b1b-93e6-978e7cfee4c0": {
+    "id": "f4f8d902-57c8-4b1b-93e6-978e7cfee4c0",
+    "user_id": "e57d8c46-0186-4749-b18d-9e170aaa5fce",
+    "date_key": "2025-06-16",
+    "hour_data": {
+      "date": "2025-06-16",
+      "userId": "e57d8c46-0186-4749-b18d-9e170aaa5fce",
+      "savedAt": "2025-06-29T07:52:30.532Z",
+      "planetSelections": {
+        "1": "Me",
+        "2": "Ma",
+        "3": "Ma",
+        "4": "Me",
+        "5": "Ju",
+        "6": "Ra"
+      }
+    },
+    "created_at": 1751183550711,
+    "updated_at": 1751183550711
+  },
+  "e922d430-ff91-402b-b4d3-46a55a9678b8": {
+    "id": "e922d430-ff91-402b-b4d3-46a55a9678b8",
+    "user_id": "e57d8c46-0186-4749-b18d-9e170aaa5fce",
+    "date_key": "2025-06-19",
+    "hour_data": {
+      "date": "2025-06-19",
+      "userId": "e57d8c46-0186-4749-b18d-9e170aaa5fce",
+      "savedAt": "2025-06-29T07:52:46.626Z",
+      "planetSelections": {
+        "1": "Su",
+        "2": "Su",
+        "3": "Su",
+        "4": "Ra",
+        "5": "Ma",
+        "6": "Mo"
+      }
+    },
+    "created_at": 1751183567533,
+    "updated_at": 1751183567533
+  },
+  "4b873fae-eabe-4109-bc6c-c4fd3bd50765": {
+    "id": "4b873fae-eabe-4109-bc6c-c4fd3bd50765",
+    "user_id": "e57d8c46-0186-4749-b18d-9e170aaa5fce",
+    "date_key": "2025-06-23",
+    "hour_data": {
+      "date": "2025-06-23",
+      "userId": "e57d8c46-0186-4749-b18d-9e170aaa5fce",
+      "savedAt": "2025-06-29T07:53:08.585Z",
+      "planetSelections": {
+        "1": "Mo",
+        "2": "Ve",
+        "3": "Mo",
+        "4": "Su",
+        "5": "Ma",
+        "6": "Ra"
+      }
+    },
+    "created_at": 1751183589086,
+    "updated_at": 1751183589086
+  },
+  "cb672041-a7b3-4f11-8ba1-e82fc64dabe2": {
+    "id": "cb672041-a7b3-4f11-8ba1-e82fc64dabe2",
+    "user_id": "e57d8c46-0186-4749-b18d-9e170aaa5fce",
+    "date_key": "2025-06-26",
+    "hour_data": {
+      "date": "2025-06-26",
+      "userId": "e57d8c46-0186-4749-b18d-9e170aaa5fce",
+      "savedAt": "2025-06-29T07:53:36.222Z",
+      "planetSelections": {
+        "1": "Su",
+        "2": "Sa",
+        "3": "Su",
+        "4": "Sa",
+        "5": "Su",
+        "6": "Su"
+      }
+    },
+    "created_at": 1751183616292,
+    "updated_at": 1751183616292
+  },
+  "54b9e0b7-1924-4086-9e40-7ef5b6b5e1f3": {
+    "id": "54b9e0b7-1924-4086-9e40-7ef5b6b5e1f3",
+    "user_id": "b6610db9-9206-4992-ba25-9fdb0fa95bd6",
+    "date_key": "2025-06-01",
+    "hour_data": {
+      "date": "2025-06-01",
+      "userId": "b6610db9-9206-4992-ba25-9fdb0fa95bd6",
+      "savedAt": "2025-06-29T10:03:20.196Z",
+      "planetSelections": {
+        "1": "Mo"
+      }
+    },
+    "created_at": 1751191400357,
+    "updated_at": 1751191400357
+  },
+  "d643b356-aff7-4e12-9230-b49671f55e71": {
+    "id": "d643b356-aff7-4e12-9230-b49671f55e71",
+    "user_id": "2dc97157-e7d5-43b2-93b2-ee3c6252b3dd",
+    "date_key": "2025-06-02",
+    "hour_data": {
+      "planetSelections": {
+        "1": "Ra",
+        "2": "Su",
+        "3": "Ju"
+      }
+    },
+    "created_at": 1751196085474,
+    "updated_at": 1751196932763
+  },
+  "592809d1-5fc0-454c-8aa3-2e29b8cb95e4": {
+    "id": "592809d1-5fc0-454c-8aa3-2e29b8cb95e4",
+    "user_id": "2dc97157-e7d5-43b2-93b2-ee3c6252b3dd",
+    "date_key": "2025-06-05",
+    "hour_data": {
+      "planetSelections": {
+        "1": "Sa",
+        "2": "Me",
+        "3": "Ke"
+      }
+    },
+    "created_at": 1751196094816,
+    "updated_at": 1751196938934
+  },
+  "8624a361-718a-4366-90c8-3a19717e154c": {
+    "id": "8624a361-718a-4366-90c8-3a19717e154c",
+    "user_id": "2dc97157-e7d5-43b2-93b2-ee3c6252b3dd",
+    "date_key": "2025-06-09",
+    "hour_data": {
+      "planetSelections": {
+        "1": "Ju",
+        "2": "Su",
+        "3": "Mo"
+      }
+    },
+    "created_at": 1751196105497,
+    "updated_at": 1751196952968
+  },
+  "25d0312c-602b-4cb1-abdc-3bf136ed4621": {
+    "id": "25d0312c-602b-4cb1-abdc-3bf136ed4621",
+    "user_id": "2dc97157-e7d5-43b2-93b2-ee3c6252b3dd",
+    "date_key": "2025-06-12",
+    "hour_data": {
+      "planetSelections": {
+        "1": "Me",
+        "2": "Ke",
+        "3": "Mo"
+      }
+    },
+    "created_at": 1751196114599,
+    "updated_at": 1751196958081
+  },
+  "c8a2a860-0261-4f3f-9c81-cf4fbe23ccde": {
+    "id": "c8a2a860-0261-4f3f-9c81-cf4fbe23ccde",
+    "user_id": "2dc97157-e7d5-43b2-93b2-ee3c6252b3dd",
+    "date_key": "2025-06-16",
+    "hour_data": {
+      "planetSelections": {
+        "1": "Me",
+        "2": "Ma",
+        "3": "Ma"
+      }
+    },
+    "created_at": 1751196128242,
+    "updated_at": 1751196964555
+  },
+  "de05bbe9-e5c8-410d-90df-574fac1ba948": {
+    "id": "de05bbe9-e5c8-410d-90df-574fac1ba948",
+    "user_id": "2dc97157-e7d5-43b2-93b2-ee3c6252b3dd",
+    "date_key": "2025-06-19",
+    "hour_data": {
+      "planetSelections": {
+        "1": "Ra",
+        "2": "Su",
+        "3": "Su"
+      }
+    },
+    "created_at": 1751196137622,
+    "updated_at": 1751196969391
+  },
+  "8f8961ad-2f52-410c-87c7-d4f368313db8": {
+    "id": "8f8961ad-2f52-410c-87c7-d4f368313db8",
+    "user_id": "5019aa9a-a653-49f5-b7da-f5bc9dcde985",
+    "date_key": "2025-06-02",
+    "hour_data": {
+      "planetSelections": {
+        "1": "Su",
+        "2": "Su",
+        "3": "Ju",
+        "4": "Ra",
+        "5": "Su",
+        "6": "Ra"
+      }
+    },
+    "created_at": 1752044960262,
+    "updated_at": 1752044960157
+  },
+  "59283555-92f1-4ba6-a58a-2a75357abd20": {
+    "id": "59283555-92f1-4ba6-a58a-2a75357abd20",
+    "user_id": "2dc97157-e7d5-43b2-93b2-ee3c6252b3dd",
+    "date_key": "2025-05-29",
+    "hour_data": {
+      "planetSelections": {
+        "1": "Mo",
+        "2": "Me",
+        "3": "Ke"
+      }
+    },
+    "created_at": 1751196072977,
+    "updated_at": 1751196709486
+  },
+  "354cc43e-83f7-4a79-917e-cb461e9009e6": {
+    "id": "354cc43e-83f7-4a79-917e-cb461e9009e6",
+    "user_id": "5019aa9a-a653-49f5-b7da-f5bc9dcde985",
+    "date_key": "2025-06-09",
+    "hour_data": {
+      "planetSelections": {
+        "1": "Ke",
+        "2": "Su",
+        "3": "Mo",
+        "4": "Ju",
+        "5": "Me",
+        "6": "Ju"
+      }
+    },
+    "created_at": 1752045020240,
+    "updated_at": 1752045020157
+  },
+  "bca329c7-9373-4567-898b-407c9986b32f": {
+    "id": "bca329c7-9373-4567-898b-407c9986b32f",
+    "user_id": "planets-test-user-2025",
+    "date_key": "2025-06-26",
+    "hour_data": {
+      "date": "2025-06-26",
+      "userId": "planets-test-user-2025",
+      "savedAt": "2025-07-01T01:47:34.462Z",
+      "planetSelections": {
+        "1": "Su",
+        "2": "Mo",
+        "3": "Ma",
+        "4": "Me",
+        "5": "Ju"
+      }
+    },
+    "created_at": 1751333485940,
+    "updated_at": 1751334454576
+  },
+  "8a7a2e63-7c68-4229-80bf-552ca402033a": {
+    "id": "8a7a2e63-7c68-4229-80bf-552ca402033a",
+    "user_id": "planets-test-user-2025",
+    "date_key": "2025-06-25",
+    "hour_data": {
+      "date": "2025-06-25",
+      "userId": "planets-test-user-2025",
+      "savedAt": "2025-07-01T01:47:34.556Z",
+      "planetSelections": {
+        "1": "Su",
+        "2": "Mo",
+        "3": "Ma",
+        "4": "Me",
+        "5": "Ju"
+      }
+    },
+    "created_at": 1751333486014,
+    "updated_at": 1751334454665
+  },
+  "80f0e750-426b-411d-bfce-0149ad9b6d16": {
+    "id": "80f0e750-426b-411d-bfce-0149ad9b6d16",
+    "user_id": "planets-test-user-2025",
+    "date_key": "2025-06-24",
+    "hour_data": {
+      "date": "2025-06-24",
+      "userId": "planets-test-user-2025",
+      "savedAt": "2025-07-01T01:47:34.617Z",
+      "planetSelections": {
+        "1": "Su",
+        "2": "Mo",
+        "3": "Ma",
+        "4": "Me",
+        "5": "Ju"
+      }
+    },
+    "created_at": 1751333486085,
+    "updated_at": 1751334454739
+  },
+  "1cdaba6d-2a53-47c9-a550-54cbb3ab92fa": {
+    "id": "1cdaba6d-2a53-47c9-a550-54cbb3ab92fa",
+    "user_id": "2dc97157-e7d5-43b2-93b2-ee3c6252b3dd",
+    "date_key": "2025-06-20",
+    "hour_data": {
+      "planetSelections": {
+        "1": "Me",
+        "2": "Mo",
+        "3": "Ra"
+      }
+    },
+    "created_at": 1751343911692,
+    "updated_at": 1751343911539
+  },
+  "3d117b87-0125-4698-9c25-6de0da9df7d9": {
+    "id": "3d117b87-0125-4698-9c25-6de0da9df7d9",
+    "user_id": "2dc97157-e7d5-43b2-93b2-ee3c6252b3dd",
+    "date_key": "2025-07-01",
+    "hour_data": {
+      "planetSelections": {
+        "1": "Sa",
+        "2": "Mo",
+        "3": "Ke"
+      }
+    },
+    "created_at": 1751344257314,
+    "updated_at": 1751344257199
+  },
+  "a27edcc7-c56f-4e23-869b-47e72ddf2055": {
+    "id": "a27edcc7-c56f-4e23-869b-47e72ddf2055",
+    "user_id": "2dc97157-e7d5-43b2-93b2-ee3c6252b3dd",
+    "date_key": "2025-07-02",
+    "hour_data": {
+      "planetSelections": {
+        "1": "Ma",
+        "2": "Ve",
+        "3": "Ra"
+      }
+    },
+    "created_at": 1751344291878,
+    "updated_at": 1751344291765
+  },
+  "4dc9c8d6-bbb4-432b-92a1-76a19217e23e": {
+    "id": "4dc9c8d6-bbb4-432b-92a1-76a19217e23e",
+    "user_id": "5019aa9a-a653-49f5-b7da-f5bc9dcde985",
+    "date_key": "2025-06-12",
+    "hour_data": {
+      "planetSelections": {
+        "1": "Ju",
+        "2": "Ke",
+        "3": "Mo",
+        "4": "Me",
+        "5": "Su",
+        "6": "Ra"
+      }
+    },
+    "created_at": 1752050454837,
+    "updated_at": 1752050454662
+  },
+  "bd1d03bc-4829-41c5-bab5-407422d98fd3": {
+    "id": "bd1d03bc-4829-41c5-bab5-407422d98fd3",
+    "user_id": "5019aa9a-a653-49f5-b7da-f5bc9dcde985",
+    "date_key": "2025-06-16",
+    "hour_data": {
+      "planetSelections": {
+        "1": "Me",
+        "2": "Ma",
+        "3": "Ma",
+        "4": "Me",
+        "5": "Ju",
+        "6": "Ra"
+      }
+    },
+    "created_at": 1752050479383,
+    "updated_at": 1752050478894
+  },
+  "ffe643c1-f5ec-4231-beae-3aee20652238": {
+    "id": "ffe643c1-f5ec-4231-beae-3aee20652238",
+    "user_id": "5019aa9a-a653-49f5-b7da-f5bc9dcde985",
+    "date_key": "2025-06-19",
+    "hour_data": {
+      "planetSelections": {
+        "1": "Su",
+        "2": "Su",
+        "3": "Su",
+        "4": "Ra",
+        "5": "Ma",
+        "6": "Mo"
+      }
+    },
+    "created_at": 1752050564526,
+    "updated_at": 1752050564436
+  },
+  "eaa87464-037b-4d84-8159-df3bac5714b0": {
+    "id": "eaa87464-037b-4d84-8159-df3bac5714b0",
+    "user_id": "5019aa9a-a653-49f5-b7da-f5bc9dcde985",
+    "date_key": "2025-06-23",
+    "hour_data": {
+      "planetSelections": {
+        "1": "Mo",
+        "2": "Ve",
+        "3": "Mo",
+        "4": "Su",
+        "5": "Ma",
+        "6": "Ra"
+      }
+    },
+    "created_at": 1752050589902,
+    "updated_at": 1752050589402
+  },
+  "75ae0807-a0fa-4cf9-8523-892ada3aa240": {
+    "id": "75ae0807-a0fa-4cf9-8523-892ada3aa240",
+    "user_id": "5019aa9a-a653-49f5-b7da-f5bc9dcde985",
+    "date_key": "2025-06-26",
+    "hour_data": {
+      "planetSelections": {
+        "1": "Su",
+        "2": "Sa",
+        "3": "Su",
+        "4": "Sa",
+        "5": "Su",
+        "6": "Su"
+      }
+    },
+    "created_at": 1752050615192,
+    "updated_at": 1752050615066
+  },
+  "7c8cdb3f-f733-4bf0-8f1f-6541f23f6ab6": {
+    "id": "7c8cdb3f-f733-4bf0-8f1f-6541f23f6ab6",
+    "user_id": "5019aa9a-a653-49f5-b7da-f5bc9dcde985",
+    "date_key": "2025-06-30",
+    "hour_data": {
+      "planetSelections": {
+        "1": "Mo",
+        "2": "Ma",
+        "3": "Ra",
+        "4": "Ve",
+        "5": "Ke",
+        "6": "Ma"
+      }
+    },
+    "created_at": 1752050639892,
+    "updated_at": 1752050639785
+  },
+  "ad5b0a26-5fb1-4a90-ac63-8132dc50a222": {
+    "id": "ad5b0a26-5fb1-4a90-ac63-8132dc50a222",
+    "user_id": "5019aa9a-a653-49f5-b7da-f5bc9dcde985",
+    "date_key": "2025-07-04",
+    "hour_data": {
+      "planetSelections": {
+        "1": "Ve",
+        "2": "Ve",
+        "3": "Ke",
+        "4": "Sa",
+        "5": "Ke",
+        "6": "Ke"
+      }
+    },
+    "created_at": 1752055407621,
+    "updated_at": 1752055407453
+  },
+  "f9b65f3a-8b53-41ff-904e-2bce50db7fcb": {
+    "id": "f9b65f3a-8b53-41ff-904e-2bce50db7fcb",
+    "user_id": "5019aa9a-a653-49f5-b7da-f5bc9dcde985",
+    "date_key": "2025-07-07",
+    "hour_data": {
+      "planetSelections": {
+        "1": "Su",
+        "2": "Ve",
+        "3": "Sa",
+        "4": "Ve",
+        "5": "Ma",
+        "6": "Ma"
+      }
+    },
+    "created_at": 1752055447374,
+    "updated_at": 1752055447240
+  }
+}

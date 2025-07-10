@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { dataService } from '../services/dataService';
+import { cleanFirebaseService } from '../services/CleanFirebaseService';
 
 /**
- * Hook to manage ABCD-BCD data with automatic localStorage fallback
- * This provides a gradual migration path from localStorage to Supabase
+ * Hook to manage ABCD-BCD data using CleanFirebaseService
+ * Pure Supabase implementation - no localStorage fallback
  */
 export const useABCDData = (userId) => {
   const [dates, setDates] = useState([]);
@@ -26,7 +26,7 @@ export const useABCDData = (userId) => {
     try {
       setLoading(true);
       setError(null);
-      const userDates = await dataService.getDates(userId);
+      const userDates = await cleanFirebaseService.getUserDates(userId);
       setDates(userDates);
     } catch (err) {
       setError('Failed to load dates: ' + err.message);
@@ -58,8 +58,8 @@ export const useABCDData = (userId) => {
       // Add new date and sort
       const updatedDates = [...dates, normalizedNewDate].sort((a, b) => new Date(b) - new Date(a));
       
-      // Save to both localStorage and Supabase
-      await dataService.saveDates(userId, updatedDates);
+      // Save to Supabase using CleanFirebaseService
+      await cleanFirebaseService.saveUserDates(userId, updatedDates);
       setDates(updatedDates);
       setSuccess(`Date ${new Date(normalizedNewDate).toLocaleDateString()} added successfully.`);
       
@@ -88,11 +88,11 @@ export const useABCDData = (userId) => {
       // Remove date from array
       const updatedDates = dates.filter(d => d !== dateToRemove);
       
-      // Save updated dates
-      await dataService.saveDates(userId, updatedDates);
+      // Save updated dates using CleanFirebaseService
+      await cleanFirebaseService.saveUserDates(userId, updatedDates);
       
-      // Delete all data for this date
-      await dataService.deleteDataForDate(userId, dateToRemove);
+      // Delete all data for this date using CleanFirebaseService
+      await cleanFirebaseService.removeUserDate(userId, dateToRemove);
       
       setDates(updatedDates);
       setSuccess(`Date ${new Date(dateToRemove).toLocaleDateString()} removed successfully.`);
@@ -119,7 +119,7 @@ export const useABCDData = (userId) => {
       setLoading(true);
       setError(null);
       
-      await dataService.saveExcelData(userId, date, excelData);
+      await cleanFirebaseService.saveExcelData(userId, date, excelData);
       setSuccess(`Excel uploaded successfully for ${new Date(date).toLocaleDateString()}`);
       
       // Clear success message after 3 seconds
@@ -144,7 +144,7 @@ export const useABCDData = (userId) => {
       setLoading(true);
       setError(null);
       
-      await dataService.saveHourEntry(userId, date, hourEntryData);
+      await cleanFirebaseService.saveHourEntry(userId, date, hourEntryData.planetSelections);
       setSuccess(`Hour entry saved for ${new Date(date).toLocaleDateString()}`);
       
       // Clear success message after 3 seconds
@@ -163,7 +163,7 @@ export const useABCDData = (userId) => {
     if (!userId) return null;
     
     try {
-      return await dataService.getExcelData(userId, date);
+      return await cleanFirebaseService.getExcelData(userId, date);
     } catch (err) {
       console.error('Error getting Excel data:', err);
       return null;
@@ -174,7 +174,7 @@ export const useABCDData = (userId) => {
     if (!userId) return null;
     
     try {
-      return await dataService.getHourEntry(userId, date);
+      return await cleanFirebaseService.getHourEntry(userId, date);
     } catch (err) {
       console.error('Error getting hour entry:', err);
       return null;
@@ -185,7 +185,7 @@ export const useABCDData = (userId) => {
     if (!userId) return false;
     
     try {
-      return await dataService.hasExcelData(userId, date);
+      return await cleanFirebaseService.hasExcelData(userId, date);
     } catch (err) {
       console.error('Error checking Excel data:', err);
       return false;
@@ -196,7 +196,7 @@ export const useABCDData = (userId) => {
     if (!userId) return false;
     
     try {
-      return await dataService.hasHourEntry(userId, date);
+      return await cleanFirebaseService.hasHourEntry(userId, date);
     } catch (err) {
       console.error('Error checking hour entry:', err);
       return false;

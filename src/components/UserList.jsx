@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { supabase } from '../supabaseClient';
+import { cleanFirebaseService } from '../services/CleanFirebaseService';
+import { firebaseAuthService } from '../services/FirebaseAuthService';
 import Header from './Header';
 import Logo from './Logo';
 
@@ -22,31 +23,40 @@ function UserList() {
     document.title = 'User Management | viboothi.in';
   }, []);
 
-  const handleLogout = () => {
-    // Clear authentication session
-    localStorage.removeItem('house_count_session');
-    localStorage.removeItem('house_count_enabled');
-    localStorage.removeItem('user_email');
-    localStorage.removeItem('auth_type');
-    
-    // Redirect to login
-    navigate('/auth');
+  const handleLogout = async () => {
+    try {
+      // Sign out from Firebase
+      await firebaseAuthService.signOut();
+      
+      // Clear authentication session
+      localStorage.removeItem('house_count_session');
+      localStorage.removeItem('house_count_enabled');
+      localStorage.removeItem('user_email');
+      localStorage.removeItem('auth_type');
+      
+      // Redirect to login
+      navigate('/firebase-auth');
+    } catch (error) {
+      console.error('Error signing out:', error);
+      // Still redirect even if logout fails
+      navigate('/firebase-auth');
+    }
   };
 
   useEffect(() => {
-    // Test Supabase connection
+    // Test Firebase connection
     const testConnection = async () => {
       try {
-        const { data, error } = await supabase.from('users').select('count');
+        const isConnected = await cleanFirebaseService.checkConnection();
         
-        if (error) {
-          console.error('Supabase connection test failed:', error);
-          alert(`Database connection error: ${error.message}`);
+        if (!isConnected) {
+          console.error('Firebase connection test failed');
+          alert('Database connection error. Please check your internet connection.');
         } else {
-          console.log('Supabase connection successful');
+          console.log('Firebase connection successful');
         }
       } catch (err) {
-        console.error('Failed to test Supabase connection:', err);
+        console.error('Failed to test Firebase connection:', err);
         alert('Failed to connect to the database');
       }
     };
@@ -56,96 +66,60 @@ function UserList() {
 
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*');
+      console.log('📊 Fetching users from Firebase...');
+      const usersData = await cleanFirebaseService.getAllUsers();
       
-      if (error) {
-        console.error('Error fetching users:', error);
-        alert(`Could not fetch users: ${error.message}`);
-        return;
-      }
-      
-      setUsers(data || []);
+      console.log('✅ Users fetched:', usersData);
+      setUsers(usersData || []);
     } catch (error) {
-      console.error('Unexpected error in fetchUsers:', error);
-      alert('Failed to load user list. See console for details.');
+      console.error('❌ Error fetching users:', error);
+      alert(`Failed to fetch users: ${error.message}`);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    const { data, error } = await supabase
-      .from('users')
-      .insert([{
+    try {
+      console.log('📝 Creating new user...');
+      const userData = {
         username: formData.username,
+        email: `${formData.username.toLowerCase().replace(/\s+/g, '')}@viboothi.local`,
         hr: parseInt(formData.hr),
         days: parseInt(formData.days)
-      }])
-      .select();
-
-    if (error) {
-      console.error('Error adding user:', error);
-      return;
+      };
+      
+      await cleanFirebaseService.createUser(userData);
+      console.log('✅ User created successfully');
+      
+      setFormData({ username: '', hr: '', days: '' });
+      fetchUsers();
+    } catch (error) {
+      console.error('❌ Error adding user:', error);
+      alert(`Failed to create user: ${error.message}`);
     }
-
-    setFormData({ username: '', hr: '', days: '' });
-    fetchUsers();
   };
 
   const handleDelete = async (userId) => {
     if (!confirm('Are you sure you want to delete this user and all associated data? This cannot be undone.')) return;
 
     try {
-      // 1. Delete related records from 'house' table first (if it exists and has user_id)
-      //    Assuming 'house' table has a 'user_id' column. Adjust if schema is different.
-      const { error: houseDeleteError } = await supabase
-        .from('house') // Replace 'house' with your actual table name if different
-        .delete()
-        .eq('user_id', userId);
-
-      if (houseDeleteError) {
-        console.error('Error deleting related house data:', houseDeleteError);
-        // Optionally, show a more specific error to the user
-        alert(`Failed to delete related house data: ${houseDeleteError.message}`);
-        return; // Stop if we can't delete related data
-      }
-
-      // 2. Delete related records from 'hr_data' table
-      const { error: hrDataDeleteError } = await supabase
-        .from('hr_data')
-        .delete()
-        .eq('user_id', userId);
-
-      if (hrDataDeleteError) {
-        console.error('Error deleting related hr_data:', hrDataDeleteError);
-        // Optionally, show a more specific error to the user
-        alert(`Failed to delete related HR data: ${hrDataDeleteError.message}`);
-        return; // Stop if we can't delete related data
-      }
-
-      // 3. Now delete the user from the 'users' table
-      const { error: userDeleteError } = await supabase
-        .from('users')
-        .delete()
-        .eq('id', userId);
-
-      if (userDeleteError) {
-        // This is the original error location (approx line 62)
-        console.error('Error deleting user:', userDeleteError);
-        alert(`Failed to delete user: ${userDeleteError.message}`);
-        return;
-      }
-
-      // 4. Refresh the user list if everything was successful
+      console.log('🗑️ Deleting user and all related data...');
+      
+      // Firebase doesn't have cascade delete, so we need to manually delete related data
+      // For now, we'll just delete the user. In a production app, you'd want to implement
+      // a cloud function to handle cascading deletes
+      
+      await cleanFirebaseService.deleteUser(userId);
+      console.log('✅ User deleted successfully');
+      
+      // Refresh the user list
       fetchUsers();
-      alert('User and all associated data deleted successfully.'); // Optional success message
-
+      alert('User deleted successfully.');
+      
     } catch (error) {
-      // Catch any unexpected errors during the process
-      console.error('An unexpected error occurred during deletion:', error);
-      alert('An unexpected error occurred. Please check the console.');
+      console.error('❌ Error deleting user:', error);
+      alert(`Failed to delete user: ${error.message}`);
     }
   };
 
