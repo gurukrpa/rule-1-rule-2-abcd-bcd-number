@@ -916,7 +916,7 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
             {topicsToDisplay.length > 0 ? (
               topicsToDisplay.map(setName => (
                 <div key={setName} className="bg-white border border-gray-200 rounded-lg shadow-sm">
-                  <div className="bg-blue-100 p-3 font-bold text-lg rounded-t-lg border-b border-gray-200 sticky top-[88px] z-[5]">
+                  <div className="bg-blue-100 p-3 font-bold text-lg rounded-t-lg border-b border-gray-200 relative">
                     📊 {formatSetName(setName)}
                   </div>
                   <div className="overflow-x-auto">
