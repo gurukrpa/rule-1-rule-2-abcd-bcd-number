@@ -15,10 +15,8 @@ import UserData from './components/UserData';
 import UserList from './components/UserList';
 import Auth from './components/Auth';
 import SimpleAuth from './components/SimpleAuth';
-import FirebaseAuth from './components/FirebaseAuth';
 import ProtectedRoute from './components/ProtectedRoute';
 import SimpleProtectedRoute from './components/SimpleProtectedRoute';
-import FirebaseProtectedRoute from './components/FirebaseProtectedRoute';
 import DayDetails from './components/DayDetails';
 import NumberGen from './components/NumberGen';
 import ABCDBCDNumber from './components/ABCDBCDNumber';
@@ -91,79 +89,57 @@ function App() {
       <ErrorBoundary>
         <div className="min-h-screen bg-gray-100">
           <Routes>
-            {/* Authentication Routes */}
-            <Route path="/auth" element={<SimpleAuth />} />
-            <Route path="/firebase-auth" element={<FirebaseAuth />} />
-            <Route path="/legacy-auth" element={<Auth onEnableHouseCounting={enableHouseCounting} />} />
+            {/* TEMPORARY: Authentication routes commented out for development */}
+            {/* <Route path="/auth" element={<SimpleAuth />} /> */}
+            {/* <Route path="/legacy-auth" element={<Auth onEnableHouseCounting={enableHouseCounting} />} /> */}
             
-            {/* Default route - redirect to Firebase auth */}
-            <Route path="/" element={<Navigate to="/firebase-auth" replace />} />
+            {/* Default route - redirect directly to users for development */}
+            <Route path="/" element={<Navigate to="/users" replace />} />
+            <Route path="/auth" element={<Navigate to="/users" replace />} />
             
-            {/* User List - main landing page */}
-            <Route path="/users" element={
-              <FirebaseProtectedRoute>
-                <UserList />
-              </FirebaseProtectedRoute>
-            } />
+            {/* User List - main landing page (no auth required during development) */}
+            <Route path="/users" element={<UserList />} />
             
             {/* Dashboard route */}
             <Route path="/dashboard" element={<Navigate to="/abcd-number/1" replace />} />
             
-            {/* Protected Routes with Firebase Authentication */}
-            <Route path="/user/:userId" element={
-              <FirebaseProtectedRoute>
-                <UserData />
-              </FirebaseProtectedRoute>
-            } />
+            {/* All routes accessible without authentication during development */}
+            <Route path="/user/:userId" element={<UserData />} />
             
-            <Route path="/user-data/:userId" element={
-              <FirebaseProtectedRoute>
-                <UserData />
-              </FirebaseProtectedRoute>
-            } />
+            <Route path="/user-data/:userId" element={<UserData />} />
             
             <Route path="/day-details/:userId" element={
-              <FirebaseProtectedRoute>
-                <ErrorBoundary>
-                  <DayDetails />
-                </ErrorBoundary>
-              </FirebaseProtectedRoute>
+              <ErrorBoundary>
+                <DayDetails />
+              </ErrorBoundary>
             } />
             
             <Route path="/number-gen" element={
-              <FirebaseProtectedRoute>
-                <ErrorBoundary>
-                  <NumberGen />
-                </ErrorBoundary>
-              </FirebaseProtectedRoute>
+              <ErrorBoundary>
+                <NumberGen />
+              </ErrorBoundary>
             } />
             
             <Route path="/abcd-number/:userId" element={
-              <FirebaseProtectedRoute>
-                <ErrorBoundary>
-                  <ABCDBCDNumber />
-                </ErrorBoundary>
-              </FirebaseProtectedRoute>
+              <ErrorBoundary>
+                <ABCDBCDNumber />
+              </ErrorBoundary>
             } />
             
             <Route path="/planets-analysis" element={
-              <FirebaseProtectedRoute>
-                <ErrorBoundary>
-                  <PlanetsAnalysisPage />
-                </ErrorBoundary>
-              </FirebaseProtectedRoute>
+              <ErrorBoundary>
+                <PlanetsAnalysisPage />
+              </ErrorBoundary>
             } />
             
             <Route path="/planets-analysis/:userId" element={
-              <FirebaseProtectedRoute>
-                <ErrorBoundary>
-                  <PlanetsAnalysisPage />
-                </ErrorBoundary>
-              </FirebaseProtectedRoute>
+              <ErrorBoundary>
+                <PlanetsAnalysisPage />
+              </ErrorBoundary>
             } />
             
-            {/* Catch all route - redirect to Firebase auth */}
-            <Route path="*" element={<Navigate to="/firebase-auth" replace />} />
+            {/* Catch all route - redirect to users */}
+            <Route path="*" element={<Navigate to="/users" replace />} />
           </Routes>
         </div>
       </ErrorBoundary>

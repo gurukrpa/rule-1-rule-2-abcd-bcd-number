@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-// Using CleanFirebaseService with separate storage for true independence
-import cleanFirebaseService, { PAGE_CONTEXTS } from '../services/CleanFirebaseService'; // ✅ Firebase service with page contexts
+// Using CleanSupabaseService with separate storage for true independence
+import cleanSupabaseService, { PAGE_CONTEXTS } from '../services/CleanSupabaseServiceWithSeparateStorage'; // ✅ True independence service
 import * as XLSX from 'xlsx';
 // Import strict Excel validation
 import { validateExcelStructure, generateValidationReport } from '../utils/excelValidation';
@@ -167,29 +167,29 @@ function ABCDBCDNumber() {
 
   // ✅ DataService with ABCD page context for TRUE INDEPENDENCE from UserData page
   const dataService = {
-    saveDates: (uid, dates) => cleanFirebaseService.saveUserDates(uid, dates, PAGE_CONTEXTS.ABCD),
-    getDates: (uid) => cleanFirebaseService.getUserDates(uid, PAGE_CONTEXTS.ABCD),
+    saveDates: (uid, dates) => cleanSupabaseService.saveUserDates(uid, dates, PAGE_CONTEXTS.ABCD),
+    getDates: (uid) => cleanSupabaseService.getUserDates(uid, PAGE_CONTEXTS.ABCD),
     
-    // Use CleanFirebaseService for proper data persistence
-    hasExcelData: (userId, date) => cleanFirebaseService.hasExcelData(userId, date),
-    getExcelData: (userId, date) => cleanFirebaseService.getExcelData(userId, date),
-    saveExcelData: (userId, date, data) => cleanFirebaseService.saveExcelData(userId, date, data),
+    // Use CleanSupabaseService for proper data persistence
+    hasExcelData: (userId, date) => cleanSupabaseService.hasExcelData(userId, date),
+    getExcelData: (userId, date) => cleanSupabaseService.getExcelData(userId, date),
+    saveExcelData: (userId, date, data) => cleanSupabaseService.saveExcelData(userId, date, data),
     
-    hasHourEntry: (userId, date) => cleanFirebaseService.hasHourEntry(userId, date),
-    getHourEntry: (userId, date) => cleanFirebaseService.getHourEntry(userId, date),
-    saveHourEntry: (userId, date, data) => cleanFirebaseService.saveHourEntry(userId, date, data.planetSelections),
+    hasHourEntry: (userId, date) => cleanSupabaseService.hasHourEntry(userId, date),
+    getHourEntry: (userId, date) => cleanSupabaseService.getHourEntry(userId, date),
+    saveHourEntry: (userId, date, data) => cleanSupabaseService.saveHourEntry(userId, date, data.planetSelections),
     
     // ✅ COMPREHENSIVE DELETION - Connect to actual deletion functions
     deleteDataForDate: async (userId, date) => {
       console.log('🗑️ [DATASERVICE] Calling comprehensive deletion for:', { userId, date });
       
-      // Delete from CleanFirebaseService first
+      // Delete from CleanSupabaseService first
       try {
-        await cleanFirebaseService.deleteExcelData(userId, date);
-        await cleanFirebaseService.deleteHourEntry(userId, date);
-        console.log('✅ [DATASERVICE] CleanFirebaseService deletion completed');
+        await cleanSupabaseService.deleteExcelData(userId, date);
+        await cleanSupabaseService.deleteHourEntry(userId, date);
+        console.log('✅ [DATASERVICE] CleanSupabaseService deletion completed');
       } catch (error) {
-        console.warn('⚠️ [DATASERVICE] CleanFirebaseService deletion had issues:', error.message);
+        console.warn('⚠️ [DATASERVICE] CleanSupabaseService deletion had issues:', error.message);
       }
       
       // Import and use the comprehensive DataService deletion
@@ -218,7 +218,7 @@ function ABCDBCDNumber() {
       setLoading(true);
       
       // Try to get users from Supabase data service (Firebase disabled)
-      const usersData = await cleanFirebaseService.getAllUsers();
+      const usersData = await cleanSupabaseService.getAllUsers();
       
       if (usersData && usersData.length > 0) {
         const processedUsers = usersData.map(user => ({
@@ -244,7 +244,7 @@ function ABCDBCDNumber() {
         // Try to create users via Supabase data service (Firebase disabled)
         try {
           for (const user of defaultUsers) {
-            await cleanFirebaseService.createUser({
+            await cleanSupabaseService.createUser({
               username: user.username,
               email: `${user.username.toLowerCase().replace(' ', '')}@example.com`,
               hr: user.hr
@@ -280,7 +280,7 @@ function ABCDBCDNumber() {
       console.log('📅 Loading user dates for:', uid);
       
       // ✅ Load dates from user_dates_abcd table (ABCD page specific - TRUE INDEPENDENCE)
-      const dates = await cleanFirebaseService.getUserDates(uid, PAGE_CONTEXTS.ABCD);
+      const dates = await cleanSupabaseService.getUserDates(uid, PAGE_CONTEXTS.ABCD);
       console.log('📅 Loaded dates from user_dates_abcd table:', dates);
       
       if (dates && dates.length > 0) {
@@ -356,7 +356,7 @@ function ABCDBCDNumber() {
       
       // Simple validation: just check if date already exists
       try {
-        const existingDates = await cleanFirebaseService.getUserDates(selectedUser, PAGE_CONTEXTS.ABCD);
+        const existingDates = await cleanSupabaseService.getUserDates(selectedUser);
         if (existingDates.includes(iso)) {
           setDateError(`Date ${new Date(iso).toLocaleDateString()} already exists for this user.`);
           return;
@@ -366,9 +366,9 @@ function ABCDBCDNumber() {
         console.log('⚠️ [PROGRESSIVE] Could not check existing dates, proceeding anyway');
       }
       
-      // ✅ Use CleanFirebaseService's dedicated addUserDate method with ABCD context
-      console.log('💾 Adding new date using CleanFirebaseService for ABCD page:', iso);
-      await cleanFirebaseService.addUserDate(selectedUser, iso, PAGE_CONTEXTS.ABCD);
+      // ✅ Use CleanSupabaseService's dedicated addUserDate method with ABCD context
+      console.log('💾 Adding new date using CleanSupabaseService for ABCD page:', iso);
+      await cleanSupabaseService.addUserDate(selectedUser, iso, PAGE_CONTEXTS.ABCD);
       console.log('✅ Date added successfully to user_dates_abcd table');
       
       // ✅ Reload dates from database to ensure UI is in sync
@@ -398,9 +398,9 @@ function ABCDBCDNumber() {
       console.log('🗑️ Starting date removal process for:', dateToRemove);
       
       if (datesList.length <= 1) {
-        // ✅ Use CleanFirebaseService's dedicated removeUserDate method for single date with ABCD context
-        console.log('🗑️ Removing last date using CleanFirebaseService for ABCD page:', dateToRemove);
-        await cleanFirebaseService.removeUserDate(selectedUser, dateToRemove, PAGE_CONTEXTS.ABCD);
+        // ✅ Use CleanSupabaseService's dedicated removeUserDate method for single date with ABCD context
+        console.log('🗑️ Removing last date using CleanSupabaseService for ABCD page:', dateToRemove);
+        await cleanSupabaseService.removeUserDate(selectedUser, dateToRemove, PAGE_CONTEXTS.ABCD);
         console.log('✅ Last date removed successfully from user_dates_abcd table');
         
         // ✅ Reload dates from database to ensure UI is in sync
@@ -420,9 +420,9 @@ function ABCDBCDNumber() {
         return;
       }
       
-      // ✅ Use CleanFirebaseService's dedicated removeUserDate method with ABCD context
-      console.log('🗑️ Removing date using CleanFirebaseService for ABCD page:', dateToRemove);
-      await cleanFirebaseService.removeUserDate(selectedUser, dateToRemove, PAGE_CONTEXTS.ABCD);
+      // ✅ Use CleanSupabaseService's dedicated removeUserDate method with ABCD context
+      console.log('🗑️ Removing date using CleanSupabaseService for ABCD page:', dateToRemove);
+      await cleanSupabaseService.removeUserDate(selectedUser, dateToRemove, PAGE_CONTEXTS.ABCD);
       console.log('✅ Date removed successfully from user_dates_abcd table');
       
       // ✅ Reload dates from database to ensure UI is in sync
@@ -431,7 +431,7 @@ function ABCDBCDNumber() {
       
       // ✅ Update selected date if necessary
       if (selectedDate === dateToRemove) {
-        const remainingDates = await cleanFirebaseService.getUserDates(selectedUser, PAGE_CONTEXTS.ABCD);
+        const remainingDates = await cleanSupabaseService.getUserDates(selectedUser);
         if (remainingDates.length > 0) {
           setSelectedDate(remainingDates[0]);
         } else {
