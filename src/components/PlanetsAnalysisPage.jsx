@@ -8,7 +8,6 @@ import { abcdBcdDatabaseService } from '../services/abcdBcdDatabaseService';
 import { PlanetsAnalysisDataService } from '../services/planetsAnalysisDataService';
 import { DateValidationService } from '../services/dateValidationService.js';
 import { DateManagementService } from '../utils/dateManagement.js';
-import Logo from './Logo';
 
 function PlanetsAnalysisPage() {
   const navigate = useNavigate();
@@ -1058,11 +1057,8 @@ function PlanetsAnalysisPage() {
         {/* Header */}
         <div className="bg-white rounded-lg shadow-md p-4 mb-4 border-t-4 border-teal-600">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <Logo size="medium" showText={false} pageTitle="Planets Analysis" />
-              <div>
-                <h1 className="text-xl font-bold text-gray-800">📅 Prediction Date</h1>
-              </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-800">📅 Prediction Date</h1>
             </div>
             <div>
               <button

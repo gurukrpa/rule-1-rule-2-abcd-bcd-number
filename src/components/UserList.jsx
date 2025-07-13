@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import Header from './Header';
-import Logo from './Logo';
 
 function UserList() {
   const navigate = useNavigate();
@@ -15,11 +13,6 @@ function UserList() {
 
   useEffect(() => {
     fetchUsers();
-  }, []);
-
-  // Set document title for this page
-  useEffect(() => {
-    document.title = 'User Management | viboothi.in';
   }, []);
 
   const handleLogout = () => {
@@ -151,8 +144,36 @@ function UserList() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Use the shared Header component */}
-      <Header title="User Management" showBackButton={false} />
+      {/* Header with Navigation */}
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-8">
+              <h1 className="text-xl font-semibold text-gray-900">viboothi.in</h1>
+              <nav className="flex space-x-6">
+                <Link to="/users" className="text-indigo-600 hover:text-indigo-900 font-medium">
+                  Users
+                </Link>
+                <Link to="/number-gen" className="text-gray-700 hover:text-gray-900">
+                  Number Generator
+                </Link>
+                <Link to="/test" className="text-gray-700 hover:text-gray-900">
+                  Test
+                </Link>
+              </nav>
+            </div>
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-500">Welcome, gurukrpasharma</span>
+              <button
+                onClick={handleLogout}
+                className="bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
