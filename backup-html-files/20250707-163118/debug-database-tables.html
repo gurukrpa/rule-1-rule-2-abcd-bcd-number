@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Database Tables</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .warning { color: #ffc107; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Database Tables Debug Tool</h1>
+    
+    <div class="section">
+        <h3>Check Database Tables</h3>
+        <button onclick="checkTables()">Check All Tables</button>
+        <button onclick="createEnhancedTable()">Create Enhanced Table</button>
+        <button onclick="testTopicNumbers()">Test Topic Numbers</button>
+        <pre id="tablesResult"></pre>
+    </div>
+
+    <div class="section">
+        <h3>Database Data</h3>
+        <button onclick="checkRule2Results()">Check rule2_results</button>
+        <button onclick="checkRule2AnalysisResults()">Check rule2_analysis_results</button>
+        <button onclick="checkTopicAbcdBcd()">Check topic_abcd_bcd_numbers</button>
+        <pre id="dataResult"></pre>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Initialize Supabase (replace with your actual URL and anon key)
+        const supabaseUrl = 'https://wgnqlgwfpwdrkutktpvu.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndnbnFsZ3dmcHdkcmt1dGt0cHZ1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzMzMjcwNTMsImV4cCI6MjA0ODkwMzA1M30.pTpyAJrH_RUumKPKmYyQ2iMhxaLg9FgFo5c4QHRYm7Y';
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        const log = (message, type = 'info') => {
+            const element = document.getElementById('tablesResult');
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : '';
+            const timestamp = new Date().toLocaleTimeString();
+            element.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+        };
+
+        const logData = (message, type = 'info') => {
+            const element = document.getElementById('dataResult');
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : '';
+            const timestamp = new Date().toLocaleTimeString();
+            element.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+        };
+
+        async function checkTables() {
+            document.getElementById('tablesResult').innerHTML = '';
+            log('🔍 Checking database tables...');
+            
+            try {
+                // Check if rule2_analysis_results table exists
+                const { data, error } = await supabase
+                    .from('rule2_analysis_results')
+                    .select('count', { count: 'exact', head: true });
+                
+                if (error) {
+                    if (error.code === '42P01') {
+                        log('❌ rule2_analysis_results table does NOT exist', 'error');
+                        log('💡 Need to create the enhanced table for topic-specific numbers', 'warning');
+                    } else {
+                        log(`❌ Error checking rule2_analysis_results: ${error.message}`, 'error');
+                    }
+                } else {
+                    log('✅ rule2_analysis_results table exists', 'success');
+                    log(`📊 Table has ${data.length || 0} records`);
+                }
+
+                // Check rule2_results table
+                const { data: rule2Data, error: rule2Error } = await supabase
+                    .from('rule2_results')
+                    .select('count', { count: 'exact', head: true });
+                
+                if (rule2Error) {
+                    log(`❌ Error checking rule2_results: ${rule2Error.message}`, 'error');
+                } else {
+                    log('✅ rule2_results table exists', 'success');
+                }
+
+                // Check topic_abcd_bcd_numbers table
+                const { data: topicData, error: topicError } = await supabase
+                    .from('topic_abcd_bcd_numbers')
+                    .select('count', { count: 'exact', head: true });
+                
+                if (topicError) {
+                    log(`❌ Error checking topic_abcd_bcd_numbers: ${topicError.message}`, 'error');
+                } else {
+                    log('✅ topic_abcd_bcd_numbers table exists', 'success');
+                }
+
+            } catch (err) {
+                log(`💥 Unexpected error: ${err.message}`, 'error');
+            }
+        }
+
+        async function createEnhancedTable() {
+            document.getElementById('tablesResult').innerHTML = '';
+            log('🚀 Creating rule2_analysis_results table...');
+            
+            const createTableSQL = `
+                CREATE TABLE IF NOT EXISTS rule2_analysis_results (
+                    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                    user_id VARCHAR(255) NOT NULL,
+                    analysis_date DATE NOT NULL,
+                    trigger_date DATE NOT NULL,
+                    selected_hr INTEGER DEFAULT 1,
+                    overall_abcd_numbers INTEGER[] DEFAULT '{}',
+                    overall_bcd_numbers INTEGER[] DEFAULT '{}',
+                    topic_numbers JSONB DEFAULT '{}',
+                    total_topics INTEGER DEFAULT 0,
+                    available_hrs INTEGER[] DEFAULT '{}',
+                    a_day DATE,
+                    b_day DATE, 
+                    c_day DATE,
+                    d_day DATE,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    UNIQUE(user_id, analysis_date, selected_hr)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_rule2_analysis_results_user_date ON rule2_analysis_results(user_id, analysis_date);
+                CREATE INDEX IF NOT EXISTS idx_rule2_analysis_results_user_created ON rule2_analysis_results(user_id, created_at DESC);
+
+                ALTER TABLE rule2_analysis_results ENABLE ROW LEVEL SECURITY;
+
+                CREATE POLICY "Users can manage their own rule2 analysis results" ON rule2_analysis_results
+                    FOR ALL USING (true) WITH CHECK (true);
+            `;
+
+            try {
+                const { data, error } = await supabase.rpc('exec_sql', { sql: createTableSQL });
+                
+                if (error) {
+                    log(`❌ Failed to create table: ${error.message}`, 'error');
+                } else {
+                    log('✅ Enhanced table created successfully!', 'success');
+                    log('💡 Now you can run Rule-2 analysis to generate topic-specific numbers', 'success');
+                }
+            } catch (err) {
+                log(`💥 Error: ${err.message}`, 'error');
+                log('💡 Try creating the table manually in Supabase SQL Editor', 'warning');
+            }
+        }
+
+        async function testTopicNumbers() {
+            document.getElementById('tablesResult').innerHTML = '';
+            log('🧪 Testing topic-specific number generation...');
+            
+            // Mock topic-specific data
+            const mockTopicNumbers = {
+                "D-1 Set-1 Matrix": { abcd: [1, 2, 4, 7, 9], bcd: [5] },
+                "D-1 Set-2 Matrix": { abcd: [3, 6, 8, 11], bcd: [10] },
+                "D-3 Set-1 Matrix": { abcd: [2, 3, 5, 12], bcd: [1] },
+                // ... other topics would have specific numbers
+            };
+
+            log('📋 Sample topic-specific numbers:');
+            Object.entries(mockTopicNumbers).forEach(([topic, numbers]) => {
+                log(`  ${topic}: ABCD=[${numbers.abcd.join(',')}], BCD=[${numbers.bcd.join(',')}]`);
+            });
+            
+            log('💡 This is what should be displayed instead of overall numbers', 'success');
+        }
+
+        async function checkRule2Results() {
+            document.getElementById('dataResult').innerHTML = '';
+            logData('🔍 Checking rule2_results table...');
+            
+            try {
+                const { data, error } = await supabase
+                    .from('rule2_results')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+                
+                if (error) {
+                    logData(`❌ Error: ${error.message}`, 'error');
+                } else if (data && data.length > 0) {
+                    logData(`✅ Found ${data.length} records in rule2_results`, 'success');
+                    data.forEach((record, index) => {
+                        logData(`Record ${index + 1}:`);
+                        logData(`  Date: ${record.date}`);
+                        logData(`  ABCD: [${record.abcd_numbers?.join(',') || 'none'}]`);
+                        logData(`  BCD: [${record.bcd_numbers?.join(',') || 'none'}]`);
+                        logData(`  User: ${record.user_id}`);
+                        logData('---');
+                    });
+                } else {
+                    logData('⚠️ No records found in rule2_results', 'warning');
+                }
+            } catch (err) {
+                logData(`💥 Error: ${err.message}`, 'error');
+            }
+        }
+
+        async function checkRule2AnalysisResults() {
+            document.getElementById('dataResult').innerHTML = '';
+            logData('🔍 Checking rule2_analysis_results table...');
+            
+            try {
+                const { data, error } = await supabase
+                    .from('rule2_analysis_results')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+                
+                if (error) {
+                    if (error.code === '42P01') {
+                        logData('❌ rule2_analysis_results table does NOT exist', 'error');
+                        logData('💡 Create the table first using the "Create Enhanced Table" button above', 'warning');
+                    } else {
+                        logData(`❌ Error: ${error.message}`, 'error');
+                    }
+                } else if (data && data.length > 0) {
+                    logData(`✅ Found ${data.length} records in rule2_analysis_results`, 'success');
+                    data.forEach((record, index) => {
+                        logData(`Record ${index + 1}:`);
+                        logData(`  Analysis Date: ${record.analysis_date}`);
+                        logData(`  Overall ABCD: [${record.overall_abcd_numbers?.join(',') || 'none'}]`);
+                        logData(`  Overall BCD: [${record.overall_bcd_numbers?.join(',') || 'none'}]`);
+                        logData(`  Topic Numbers: ${JSON.stringify(record.topic_numbers, null, 2)}`);
+                        logData('---');
+                    });
+                } else {
+                    logData('⚠️ No records found in rule2_analysis_results', 'warning');
+                    logData('💡 Run a Rule-2 analysis to generate topic-specific data', 'warning');
+                }
+            } catch (err) {
+                logData(`💥 Error: ${err.message}`, 'error');
+            }
+        }
+
+        async function checkTopicAbcdBcd() {
+            document.getElementById('dataResult').innerHTML = '';
+            logData('🔍 Checking topic_abcd_bcd_numbers table...');
+            
+            try {
+                const { data, error } = await supabase
+                    .from('topic_abcd_bcd_numbers')
+                    .select('*')
+                    .limit(10);
+                
+                if (error) {
+                    logData(`❌ Error: ${error.message}`, 'error');
+                } else if (data && data.length > 0) {
+                    logData(`✅ Found ${data.length} records in topic_abcd_bcd_numbers`, 'success');
+                    data.forEach((record, index) => {
+                        logData(`Topic ${index + 1}: ${record.topic_name}`);
+                        logData(`  ABCD: [${record.abcd_numbers?.join(',') || 'none'}]`);
+                        logData(`  BCD: [${record.bcd_numbers?.join(',') || 'none'}]`);
+                        logData('---');
+                    });
+                } else {
+                    logData('⚠️ No records found in topic_abcd_bcd_numbers', 'warning');
+                }
+            } catch (err) {
+                logData(`💥 Error: ${err.message}`, 'error');
+            }
+        }
+
+        // Auto-check tables on page load
+        window.onload = () => checkTables();
+    </script>
+</body>
+</html>
