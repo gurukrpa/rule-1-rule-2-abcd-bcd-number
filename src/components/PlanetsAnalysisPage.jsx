@@ -8,7 +8,6 @@ import { abcdBcdDatabaseService } from '../services/abcdBcdDatabaseService';
 import { PlanetsAnalysisDataService } from '../services/planetsAnalysisDataService';
 import { DateValidationService } from '../services/dateValidationService.js';
 import { DateManagementService } from '../utils/dateManagement.js';
-import Logo from './Logo';
 
 function PlanetsAnalysisPage() {
   const navigate = useNavigate();
@@ -138,38 +137,38 @@ function PlanetsAnalysisPage() {
         if (userId) {
           console.log('📊 [PlanetsAnalysis] Attempting to fetch real Rule2 analysis data...');
           
-          // 🔍 PRIORITY FIX: Try CleanFirebaseService FIRST (most reliable)
+          // 🔍 PRIORITY FIX: Try CleanSupabaseServiceWithSeparateStorage FIRST (most reliable)
           let availableDates = [];
-          console.log('🔍 [DEBUG] Loading dates - Priority 1: CleanFirebaseService');
+          console.log('🔍 [DEBUG] Loading dates - Priority 1: CleanSupabaseServiceWithSeparateStorage');
           try {
-            const { default: cleanFirebaseService, PAGE_CONTEXTS } = await import('../services/CleanFirebaseService.js');
-            console.log('🔧 [PlanetsAnalysis] Attempting to load dates from CleanFirebaseService...');
+            const { default: cleanSupabaseService, PAGE_CONTEXTS } = await import('../services/CleanSupabaseServiceWithSeparateStorage.js');
+            console.log('🔧 [PlanetsAnalysis] Attempting to load dates from CleanSupabaseServiceWithSeparateStorage...');
             console.log('🔧 [PlanetsAnalysis] Using userId:', userId);
             console.log('🔧 [PlanetsAnalysis] Using PAGE_CONTEXTS.ABCD:', PAGE_CONTEXTS.ABCD);
             
-            availableDates = await cleanFirebaseService.getUserDates(userId, PAGE_CONTEXTS.ABCD);
-            console.log('📅 [PlanetsAnalysis] CleanFirebaseService result:', availableDates);
+            availableDates = await cleanSupabaseService.getUserDates(userId, PAGE_CONTEXTS.ABCD);
+            console.log('📅 [PlanetsAnalysis] CleanSupabaseServiceWithSeparateStorage result:', availableDates);
             console.log('📅 [PlanetsAnalysis] Result type:', typeof availableDates);
             console.log('📅 [PlanetsAnalysis] Result length:', availableDates ? availableDates.length : 'null/undefined');
             
             if (availableDates && availableDates.length > 0) {
-              console.log('✅ [PlanetsAnalysis] Successfully loaded dates from CleanFirebaseService');
-              console.log('🔍 [PRIORITY DEBUG] All dates from CleanFirebaseService:', availableDates);
+              console.log('✅ [PlanetsAnalysis] Successfully loaded dates from CleanSupabaseServiceWithSeparateStorage');
+              console.log('🔍 [PRIORITY DEBUG] All dates from CleanSupabaseServiceWithSeparateStorage:', availableDates);
               console.log('🔍 [PRIORITY DEBUG] July 2025 dates available:', availableDates.filter(d => d.startsWith('2025-07')));
             } else {
-              console.log('❌ [PlanetsAnalysis] CleanFirebaseService returned empty/null result');
+              console.log('❌ [PlanetsAnalysis] CleanSupabaseServiceWithSeparateStorage returned empty/null result');
               availableDates = []; // Ensure it's an array for the next check
             }
           } catch (e) {
-            console.log('❌ [PlanetsAnalysis] CleanFirebaseService error:', e);
+            console.log('❌ [PlanetsAnalysis] CleanSupabaseServiceWithSeparateStorage error:', e);
             console.log('❌ [PlanetsAnalysis] Error details:', e.message);
             console.log('❌ [PlanetsAnalysis] Error stack:', e.stack);
             availableDates = []; // Ensure it's an array for the next check
           }
           
-          // Fallback to localStorage only if CleanFirebaseService failed
+          // Fallback to localStorage only if CleanSupabaseServiceWithSeparateStorage failed
           if (availableDates.length === 0) {
-            console.log('🔄 [DEBUG] CleanFirebaseService failed, falling back to localStorage');
+            console.log('🔄 [DEBUG] CleanSupabaseServiceWithSeparateStorage failed, falling back to localStorage');
             try {
               const storedDates = localStorage.getItem(`abcd_dates_${userId}`);
               if (storedDates) {
@@ -280,16 +279,16 @@ function PlanetsAnalysisPage() {
               if (availableDates.length === 0) {
                 console.log('  ❌ DEBUG: No available dates found!');
                 
-                // Try to get dates from CleanFirebaseService as fallback
+                // Try to get dates from CleanSupabaseService as fallback
                 try {
-                  const { default: cleanFirebaseService, PAGE_CONTEXTS } = await import('../services/CleanFirebaseService.js');
-                  const supabaseDates = await cleanFirebaseService.getUserDates(userId, PAGE_CONTEXTS.ABCD);
-                  console.log('  📅 DEBUG: Found dates from CleanFirebaseService:', supabaseDates);
+                  const { default: cleanSupabaseService, PAGE_CONTEXTS } = await import('../services/CleanSupabaseServiceWithSeparateStorage.js');
+                  const supabaseDates = await cleanSupabaseService.getUserDates(userId, PAGE_CONTEXTS.ABCD);
+                  console.log('  📅 DEBUG: Found dates from CleanSupabaseServiceWithSeparateStorage:', supabaseDates);
                   if (supabaseDates && supabaseDates.length > 0) {
                     availableDates = supabaseDates;
                   }
                 } catch (e) {
-                  console.log('  ❌ DEBUG: CleanFirebaseService also failed:', e);
+                  console.log('  ❌ DEBUG: CleanSupabaseServiceWithSeparateStorage also failed:', e);
                 }
               }
               
@@ -1058,11 +1057,8 @@ function PlanetsAnalysisPage() {
         {/* Header */}
         <div className="bg-white rounded-lg shadow-md p-4 mb-4 border-t-4 border-teal-600">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-4">
-              <Logo size="medium" showText={false} pageTitle="Planets Analysis" />
-              <div>
-                <h1 className="text-xl font-bold text-gray-800">📅 Prediction Date</h1>
-              </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-800">🔬 Planets Analysis</h1>
             </div>
             <div>
               <button

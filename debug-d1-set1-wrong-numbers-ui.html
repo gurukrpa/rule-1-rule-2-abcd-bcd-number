@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug D-1 Set-1 Wrong Numbers Issue</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .warning { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+        .info { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        button { padding: 8px 16px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { padding: 8px; text-align: left; border: 1px solid #ddd; }
+        th { background: #f8f9fa; }
+        .highlight { background: #ffffcc; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Debug: D-1 Set-1 Wrong Numbers Issue</h1>
+        
+        <div class="section">
+            <h2>📋 Issue Summary</h2>
+            <div class="warning">
+                <strong>Expected:</strong> D-1 Set-1 Matrix shows <code>ABCD: [1,2,4,7,9]</code> and <code>BCD: [5]</code><br>
+                <strong>Currently seeing:</strong> <code>A: [1,2,4,9]</code> (missing 7, no BCD displayed)
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🔧 Diagnostic Tools</h2>
+            <button onclick="testFallbackData()">1. Test Hardcoded Fallback Data</button>
+            <button onclick="testRealAnalysisData()">2. Test Real Analysis Data</button>
+            <button onclick="testTopicLookup()">3. Test Topic Lookup Logic</button>
+            <button onclick="testUIRendering()">4. Test UI Badge Rendering</button>
+            <button onclick="runFullDiagnostic()">🚀 Run Complete Diagnostic</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+
+        function testFallbackData() {
+            log('<h3>🧪 Testing Hardcoded Fallback Data</h3>', 'info');
+            
+            // Test the exact fallback data from PlanetsAnalysisPage
+            const TOPIC_NUMBERS = {
+                'D-1 Set-1 Matrix': { abcd: [1, 2, 4, 7, 9], bcd: [5] },
+                'D-1 Set-2 Matrix': { abcd: [3, 5, 7, 10, 12], bcd: [] }
+            };
+            
+            const d1Set1 = TOPIC_NUMBERS['D-1 Set-1 Matrix'];
+            
+            log(`✅ D-1 Set-1 Fallback Data: <pre>${JSON.stringify(d1Set1, null, 2)}</pre>`, 'success');
+            log(`🔍 ABCD Array: ${d1Set1.abcd} (Length: ${d1Set1.abcd.length})`, 'info');
+            log(`🔍 BCD Array: ${d1Set1.bcd} (Length: ${d1Set1.bcd.length})`, 'info');
+            log(`🔍 Contains 7? ${d1Set1.abcd.includes(7) ? '✅ YES' : '❌ NO'}`, d1Set1.abcd.includes(7) ? 'success' : 'error');
+            log(`🔍 Contains 5 in BCD? ${d1Set1.bcd.includes(5) ? '✅ YES' : '❌ NO'}`, d1Set1.bcd.includes(5) ? 'success' : 'error');
+            
+            if (d1Set1.abcd.includes(7) && d1Set1.bcd.includes(5)) {
+                log('✅ Fallback data is CORRECT - issue is elsewhere in the pipeline', 'success');
+            } else {
+                log('❌ Fallback data is WRONG - this is the source of the issue', 'error');
+            }
+        }
+
+        async function testRealAnalysisData() {
+            log('<h3>🧪 Testing Real Analysis Data Access</h3>', 'info');
+            
+            try {
+                // Try to access the React app's data directly
+                if (window.React) {
+                    log('✅ React app is available', 'success');
+                    
+                    // Try to find the PlanetsAnalysisPage component state
+                    const reactRoot = document.querySelector('#root')?._reactInternalFiber ||
+                                     document.querySelector('#root')?._reactInternals;
+                    
+                    if (reactRoot) {
+                        log('✅ React root found - analyzing component state...', 'info');
+                        // This would require more complex React fiber traversal
+                        log('⚠️ Direct state access requires React DevTools or component inspection', 'warning');
+                    } else {
+                        log('⚠️ React root not accessible for direct state inspection', 'warning');
+                    }
+                } else {
+                    log('⚠️ React app not loaded or accessible', 'warning');
+                }
+                
+                // Check localStorage for any cached analysis data
+                const userInfo = localStorage.getItem('userInfo');
+                const selectedUser = localStorage.getItem('selectedUser');
+                
+                if (userInfo) {
+                    log(`📊 Found userInfo in localStorage: ${userInfo.substring(0, 100)}...`, 'info');
+                }
+                if (selectedUser) {
+                    log(`👤 Selected user: ${selectedUser}`, 'info');
+                }
+                
+                // Check for any analysis data in localStorage
+                const keys = Object.keys(localStorage).filter(key => 
+                    key.includes('analysis') || key.includes('abcd') || key.includes('planets')
+                );
+                
+                if (keys.length > 0) {
+                    log(`🔍 Found analysis-related localStorage keys: ${keys.join(', ')}`, 'info');
+                    keys.forEach(key => {
+                        const value = localStorage.getItem(key);
+                        log(`📋 ${key}: ${value?.substring(0, 200)}...`, 'info');
+                    });
+                } else {
+                    log('⚠️ No analysis-related data found in localStorage', 'warning');
+                }
+                
+            } catch (error) {
+                log(`❌ Error accessing real analysis data: ${error.message}`, 'error');
+            }
+        }
+
+        function testTopicLookup() {
+            log('<h3>🧪 Testing Topic Lookup Logic</h3>', 'info');
+            
+            // Simulate the topic normalization logic from PlanetsAnalysisPage
+            function normalizeTopicName(setName) {
+                if (!setName || typeof setName !== 'string') return setName;
+                
+                // Remove annotations in parentheses
+                let normalized = setName.replace(/\\s*\\([^)]*\\)\\s*/g, ' ').trim();
+                
+                // Add "Matrix" suffix if not present
+                if (!normalized.includes('Matrix')) {
+                    normalized += ' Matrix';
+                }
+                
+                // Clean up extra spaces
+                normalized = normalized.replace(/\\s+/g, ' ').trim();
+                
+                return normalized;
+            }
+            
+            const testCases = [
+                'D-1 Set-1 Matrix',
+                'D-1 Set-1',
+                'D-1 (first) Set-1 Matrix',
+                'D-1 Set-1 Matrix (annotated)',
+                'D-1  Set-1  Matrix'  // Extra spaces
+            ];
+            
+            log('<h4>Topic Normalization Tests:</h4>', 'info');
+            testCases.forEach(testCase => {
+                const normalized = normalizeTopicName(testCase);
+                const isMatch = normalized === 'D-1 Set-1 Matrix';
+                log(`📝 "${testCase}" → "${normalized}" ${isMatch ? '✅' : '❌'}`, isMatch ? 'success' : 'warning');
+            });
+        }
+
+        function testUIRendering() {
+            log('<h3>🧪 Testing UI Badge Rendering Logic</h3>', 'info');
+            
+            // Simulate the renderABCDBadges function logic
+            function simulateRenderABCDBadges(extractedNumber, abcdNumbers, bcdNumbers) {
+                if (abcdNumbers.includes(extractedNumber)) {
+                    return 'ABCD_BADGE';
+                }
+                if (bcdNumbers.includes(extractedNumber)) {
+                    return 'BCD_BADGE';
+                }
+                return null;
+            }
+            
+            const testData = {
+                abcd: [1, 2, 4, 7, 9],
+                bcd: [5]
+            };
+            
+            log('<h4>Badge Rendering Tests:</h4>', 'info');
+            
+            // Test each number that should appear
+            const testNumbers = [1, 2, 4, 5, 7, 9, 10]; // Include 10 as negative test
+            
+            testNumbers.forEach(number => {
+                const badge = simulateRenderABCDBadges(number, testData.abcd, testData.bcd);
+                let status = 'info';
+                let message = '';
+                
+                if (badge === 'ABCD_BADGE') {
+                    message = `${number} → ABCD Badge ✅`;
+                    status = 'success';
+                } else if (badge === 'BCD_BADGE') {
+                    message = `${number} → BCD Badge ✅`;
+                    status = 'success';
+                } else {
+                    message = `${number} → No Badge`;
+                    status = number <= 9 && number !== 10 ? 'warning' : 'info';
+                }
+                
+                log(`🏷️ ${message}`, status);
+            });
+        }
+
+        async function runFullDiagnostic() {
+            log('<h2>🚀 Running Complete Diagnostic</h2>', 'info');
+            document.getElementById('results').innerHTML = '';
+            
+            log('<h3>Step 1: Environment Check</h3>', 'info');
+            log(`🌐 Current URL: ${window.location.href}`, 'info');
+            log(`📅 Current Date: ${new Date().toISOString()}`, 'info');
+            log(`🖥️ User Agent: ${navigator.userAgent.substring(0, 80)}...`, 'info');
+            
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            testFallbackData();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            testTopicLookup();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            testUIRendering();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            await testRealAnalysisData();
+            
+            log('<h3>🎯 DIAGNOSTIC CONCLUSION</h3>', 'info');
+            
+            // Check if we can navigate to the actual planets analysis page
+            const planetsAnalysisUrl = window.location.origin + '/planets-analysis';
+            log(`💡 <strong>Next Steps:</strong><br>
+                1. Navigate to <a href="${planetsAnalysisUrl}" target="_blank">${planetsAnalysisUrl}</a><br>
+                2. Open browser console (F12)<br>
+                3. Look for console logs starting with "[PlanetsAnalysis]"<br>
+                4. Check what data is being loaded for D-1 Set-1 Matrix<br>
+                5. Verify selectedHour state and realAnalysisData state`, 'warning');
+            
+            log('✅ Full diagnostic complete - check console for any additional errors', 'success');
+        }
+
+        // Auto-run basic tests on page load
+        window.addEventListener('load', () => {
+            log('🔧 Diagnostic tool loaded. Click buttons above to run specific tests.', 'info');
+        });
+    </script>
+</body>
+</html>

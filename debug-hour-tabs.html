@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hour Tabs Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .user-card { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .show-tabs { background: #e8f5e8; }
+        .no-tabs { background: #ffe8e8; }
+        .test-link { background: #007bff; color: white; padding: 8px 12px; text-decoration: none; border-radius: 4px; margin: 5px 0; display: inline-block; }
+        .test-link:hover { background: #0056b3; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🕐 Hour Tabs Debug Tool</h1>
+    <p>This tool checks which users will see hour tabs in the Planets Analysis page.</p>
+    
+    <button onclick="checkUsers()" style="background: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">
+        🔍 Check Users & Generate Test Links
+    </button>
+    
+    <div id="results"></div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.skypack.dev/@supabase/supabase-js';
+
+        const supabaseUrl = 'https://gvvnvnvgowdysmopnhzt.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2dm52bnZnb3dkeXNtb3BuaHp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQzNzU1MjQsImV4cCI6MjA0OTk1MTUyNH0.aW1nq6rEX8DJiw5U_MFMJrT3p5YTWpCX1UvfwAC8ynw';
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        window.checkUsers = async function() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>🔄 Loading users...</p>';
+            
+            try {
+                const { data: users, error } = await supabase
+                    .from('users')
+                    .select('id, username, hr, days')
+                    .order('id');
+                
+                if (error) throw error;
+                
+                let html = '<h2>📊 User Analysis Results</h2>';
+                
+                const usersWithTabs = users.filter(u => u.hr > 1);
+                const usersWithoutTabs = users.filter(u => u.hr <= 1);
+                
+                html += `<div style="background: #e8f5e8; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    <h3>✅ Users who WILL see hour tabs (${usersWithTabs.length})</h3>
+                    <p>These users have hr > 1, so hour tabs will be visible</p>
+                </div>`;
+                
+                if (usersWithTabs.length > 0) {
+                    usersWithTabs.forEach(user => {
+                        html += `<div class="user-card show-tabs">
+                            <h4>👤 ${user.username} (ID: ${user.id})</h4>
+                            <p>🕐 HR: ${user.hr} | 📅 Days: ${user.days}</p>
+                            <p><strong>Hour tabs will show:</strong> HR 1, HR 2`;
+                            for (let i = 3; i <= user.hr; i++) {
+                                html += `, HR ${i}`;
+                            }
+                            html += `</p>
+                            <a href="http://localhost:5173/planets-analysis/${user.id}?date=2024-12-31" class="test-link" target="_blank">
+                                🧪 Test Hour Tabs for ${user.username}
+                            </a>
+                        </div>`;
+                    });
+                } else {
+                    html += `<p style="color: #666;">No users found with hr > 1</p>`;
+                }
+                
+                html += `<div style="background: #ffe8e8; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                    <h3>❌ Users who will NOT see hour tabs (${usersWithoutTabs.length})</h3>
+                    <p>These users have hr ≤ 1, so hour tabs won't be visible</p>
+                </div>`;
+                
+                if (usersWithoutTabs.length > 0) {
+                    usersWithoutTabs.forEach(user => {
+                        html += `<div class="user-card no-tabs">
+                            <h4>👤 ${user.username} (ID: ${user.id})</h4>
+                            <p>🕐 HR: ${user.hr} | 📅 Days: ${user.days}</p>
+                            <p><strong>Hour tabs hidden:</strong> Only 1 hour configured (need > 1)</p>
+                        </div>`;
+                    });
+                }
+                
+                // Add condition explanation
+                html += `<div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                    <h3>🔍 Hour Tabs Display Logic</h3>
+                    <pre>// Hour tabs only show when:
+userInfo && userInfo.hr && userInfo.hr > 1
+
+// This means:
+// ✓ User data loaded successfully
+// ✓ User has hr property 
+// ✓ HR value is greater than 1</pre>
+                </div>`;
+                
+                if (usersWithTabs.length > 0) {
+                    html += `<div style="background: #d4edda; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                        <h3>🎯 Recommended Testing</h3>
+                        <p>Use any of the test links above. The hour tabs should appear as:</p>
+                        <ul>
+                            <li>White rounded box with "Hour:" label</li>
+                            <li>Clickable HR buttons (HR 1, HR 2, etc.)</li>
+                            <li>Active hour highlighted in teal</li>
+                            <li>Data status indicators (✓ or ○)</li>
+                        </ul>
+                    </div>`;
+                }
+                
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div style="background: #f8d7da; padding: 15px; border-radius: 5px;">
+                    <h3>❌ Error</h3>
+                    <p>${error.message}</p>
+                </div>`;
+            }
+        };
+    </script>
+</body>
+</html>

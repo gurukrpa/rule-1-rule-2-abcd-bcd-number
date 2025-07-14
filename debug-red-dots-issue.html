@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug ABCD/BCD Topic Data Issue</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #f5f5f5; }
+        .debug-section { margin: 20px 0; padding: 15px; background: white; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        .warning { color: orange; font-weight: bold; }
+        .info { color: blue; }
+        pre { background: #f0f0f0; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        button { background: #007acc; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #005a9e; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug ABCD/BCD Topic Data Issue</h1>
+    
+    <div class="debug-section">
+        <h3>📋 Current Problem</h3>
+        <p>You're seeing red dots (○) instead of green dots (●) in the topic selector, which means:</p>
+        <ul>
+            <li><strong>hasData = false</strong> for all topics</li>
+            <li><strong>getTopicNumbersWithNormalization(topic)</strong> is returning empty arrays</li>
+            <li>Either realAnalysisData is missing, or TOPIC_NUMBERS fallback is failing</li>
+        </ul>
+    </div>
+
+    <div class="debug-section">
+        <h3>🔧 Quick Diagnostic Tools</h3>
+        <button onclick="checkCurrentState()">1. Check Current State</button>
+        <button onclick="checkTopicNumbers()">2. Check TOPIC_NUMBERS</button>
+        <button onclick="checkRealAnalysisData()">3. Check Real Analysis Data</button>
+        <button onclick="testTopicFunction()">4. Test getTopicNumbers Function</button>
+        <button onclick="runFullDiagnostic()">5. Run Full Diagnostic</button>
+    </div>
+
+    <div class="debug-section">
+        <h3>📊 Diagnostic Results</h3>
+        <div id="results"></div>
+    </div>
+
+    <div class="debug-section">
+        <h3>💡 Common Solutions</h3>
+        <ol>
+            <li><strong>Missing Real Analysis Data:</strong> Navigate to Rule2CompactPage and run analysis first</li>
+            <li><strong>Missing User Info:</strong> Ensure you're using a proper user ID in the URL</li>
+            <li><strong>Topic Name Mismatch:</strong> Check if Excel topics match expected format</li>
+            <li><strong>Fallback Issue:</strong> TOPIC_NUMBERS object might have different topic names</li>
+        </ol>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const resultsDiv = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            const colorClass = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info';
+            resultsDiv.innerHTML += `<div class="${colorClass}">[${timestamp}] ${message}</div>`;
+            console.log(`[Debug] ${message}`);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        function checkCurrentState() {
+            clearResults();
+            log('🔍 Checking current application state...', 'info');
+            
+            // Check if we're on the planets analysis page
+            const currentPath = window.location.pathname;
+            log(`Current path: ${currentPath}`, 'info');
+            
+            // Check for React app presence
+            const reactRoot = document.getElementById('root');
+            if (reactRoot) {
+                log('✅ React root element found', 'success');
+                log(`React app content: ${reactRoot.innerHTML.length > 0 ? 'Present' : 'Empty'}`, 
+                    reactRoot.innerHTML.length > 0 ? 'success' : 'warning');
+            } else {
+                log('❌ React root element not found', 'error');
+            }
+            
+            // Check for development server
+            if (currentPath.includes('localhost') || currentPath.includes('5173')) {
+                log('✅ Development server detected', 'success');
+            }
+        }
+
+        function checkTopicNumbers() {
+            clearResults();
+            log('🔍 Checking TOPIC_NUMBERS fallback data...', 'info');
+            
+            // Sample expected topics
+            const expectedTopics = [
+                'D-1 Set-1 Matrix',
+                'D-1 Set-2 Matrix', 
+                'D-3 Set-1 Matrix',
+                'D-3 Set-2 Matrix'
+            ];
+            
+            // Note: We can't directly access React component state from here,
+            // but we can provide guidance
+            log('Expected topic format examples:', 'info');
+            expectedTopics.forEach(topic => {
+                log(`  - "${topic}"`, 'info');
+            });
+            
+            log('💡 To check actual TOPIC_NUMBERS:', 'warning');
+            log('1. Open browser console', 'info');
+            log('2. Navigate to Planets Analysis page', 'info');
+            log('3. Upload Excel file', 'info');
+            log('4. Look for console messages like:', 'info');
+            log('   "⚠️ [Topic: xxx] Using FALLBACK numbers"', 'info');
+            log('   "❌ [Topic: xxx] NO ABCD/BCD NUMBERS FOUND"', 'error');
+        }
+
+        function checkRealAnalysisData() {
+            clearResults();
+            log('🔍 Checking realAnalysisData state...', 'info');
+            
+            log('💡 To check realAnalysisData:', 'warning');
+            log('1. Open browser console on Planets Analysis page', 'info');
+            log('2. Type: window.debugRealAnalysisData', 'info');
+            log('3. If null/undefined, you need to load analysis data first:', 'info');
+            log('   - Go to Rule2CompactPage', 'info');
+            log('   - Run analysis for a date', 'info');
+            log('   - Return to Planets Analysis page', 'info');
+            
+            log('Expected realAnalysisData structure:', 'info');
+            log('  - topicNumbers: {...}', 'info');
+            log('  - source: "Rule-2 Analysis" or "Past Days"', 'info');
+            log('  - timestamp: ISO date string', 'info');
+        }
+
+        function testTopicFunction() {
+            clearResults();
+            log('🔍 Testing topic lookup function...', 'info');
+            
+            log('💡 To test getTopicNumbers function:', 'warning');
+            log('1. Open browser console on Planets Analysis page', 'info');
+            log('2. Test with sample topics:', 'info');
+            log('   console.log(getTopicNumbers("D-1 Set-1 Matrix"));', 'info');
+            log('   console.log(getTopicNumbers("D-1 Set-1"));', 'info');
+            log('3. Check return values:', 'info');
+            log('   - Expected: {abcd: [...], bcd: [...]}', 'success');
+            log('   - Problem: {abcd: [], bcd: []}', 'error');
+            
+            log('🔧 Common Matrix word issues:', 'warning');
+            log('- Excel data: "D-1 Set-1" (no Matrix)', 'info');
+            log('- Fallback expects: "D-1 Set-1 Matrix" (with Matrix)', 'info');
+            log('- Function should handle both formats', 'info');
+        }
+
+        function runFullDiagnostic() {
+            clearResults();
+            log('🚀 Running full diagnostic...', 'info');
+            
+            setTimeout(() => {
+                log('1️⃣ Application State Check', 'info');
+                checkCurrentState();
+                
+                setTimeout(() => {
+                    log('\\n2️⃣ Topic Numbers Check', 'info');
+                    checkTopicNumbers();
+                    
+                    setTimeout(() => {
+                        log('\\n3️⃣ Real Analysis Data Check', 'info');
+                        checkRealAnalysisData();
+                        
+                        setTimeout(() => {
+                            log('\\n4️⃣ Function Testing Guide', 'info');
+                            testTopicFunction();
+                            
+                            setTimeout(() => {
+                                log('\\n🎯 DIAGNOSTIC COMPLETE', 'success');
+                                log('Next steps:', 'warning');
+                                log('1. Navigate to Planets Analysis page', 'info');
+                                log('2. Open browser console (F12)', 'info');
+                                log('3. Follow the guidance above to identify the specific issue', 'info');
+                                log('4. Check console for error messages starting with:', 'info');
+                                log('   - "⚠️ [Topic: ...]"', 'warning');
+                                log('   - "❌ [Topic: ...]"', 'error');
+                            }, 1000);
+                        }, 1000);
+                    }, 1000);
+                }, 1000);
+            }, 500);
+        }
+
+        // Auto-run basic check on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                log('🎬 Auto-diagnostic started...', 'info');
+                checkCurrentState();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

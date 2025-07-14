@@ -7,7 +7,7 @@ import AddNewDate from './AddNewDate';
 import ExcelUpload from './ExcelUpload';
 import * as XLSX from 'xlsx'; // Import the xlsx library
 import ExcelJS from 'exceljs'; // Import the exceljs library
-import cleanFirebaseService, { PAGE_CONTEXTS } from '../services/CleanFirebaseService'; // ✅ Firebase service with page contexts
+import cleanSupabaseService, { PAGE_CONTEXTS } from '../services/CleanSupabaseServiceWithSeparateStorage'; // ✅ True independence service
 
 function UserData() {
   const navigate = useNavigate();
@@ -44,7 +44,7 @@ function UserData() {
 
         // ✅ Load dates from user_dates_userdata table (UserData page specific - TRUE INDEPENDENCE)
         console.log('📅 Loading dates from user_dates_userdata table for user:', userId);
-        const userDates = await cleanFirebaseService.getUserDates(userId, PAGE_CONTEXTS.USERDATA);
+        const userDates = await cleanSupabaseService.getUserDates(userId, PAGE_CONTEXTS.USERDATA);
         console.log('📅 Loaded dates from user_dates_userdata table:', userDates);
 
         // Fetch HR data
@@ -143,7 +143,7 @@ function UserData() {
 
       // ✅ Save date to user_dates_userdata table (UserData page specific - TRUE INDEPENDENCE)
       console.log('💾 Adding date to user_dates_userdata table:', newDate);
-      await cleanFirebaseService.addUserDate(userId, newDate, PAGE_CONTEXTS.USERDATA);
+      await cleanSupabaseService.addUserDate(userId, newDate, PAGE_CONTEXTS.USERDATA);
       console.log('✅ Date added to user_dates_userdata table successfully');
 
       // Update local state
@@ -216,7 +216,7 @@ function UserData() {
 
       // Remove date from user_dates_userdata table
       console.log('🗑️ Removing date from user_dates_userdata table:', dateToDelete);
-      await cleanFirebaseService.removeUserDate(userId, dateToDelete, PAGE_CONTEXTS.USERDATA);
+      await cleanSupabaseService.removeUserDate(userId, dateToDelete, PAGE_CONTEXTS.USERDATA);
       console.log('✅ Date removed from user_dates_userdata table successfully');
 
       // Update local state
@@ -264,7 +264,7 @@ function UserData() {
       const allDates = Object.values(updatedDates).filter(Boolean);
       if (allDates.length > 0) {
         console.log('💾 Saving updated dates to user_dates_userdata table:', allDates);
-        await cleanFirebaseService.saveUserDates(userId, allDates, PAGE_CONTEXTS.USERDATA);
+        await cleanSupabaseService.saveUserDates(userId, allDates, PAGE_CONTEXTS.USERDATA);
         console.log('✅ Updated dates saved to user_dates_userdata table successfully');
       }
     } catch (error) {
@@ -564,7 +564,7 @@ function UserData() {
       const allDates = Object.values(dates).filter(Boolean);
       if (allDates.length > 0) {
         console.log('💾 Saving dates to user_dates_userdata table:', allDates);
-        await cleanFirebaseService.saveUserDates(userId, allDates, PAGE_CONTEXTS.USERDATA);
+        await cleanSupabaseService.saveUserDates(userId, allDates, PAGE_CONTEXTS.USERDATA);
         console.log('✅ Dates saved to user_dates_userdata table successfully');
       }
 

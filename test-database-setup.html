@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Database Setup & Verify Real Data</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .status { padding: 12px; margin: 10px 0; border-radius: 6px; border-left: 4px solid; }
+        .success { background: #d4edda; color: #155724; border-color: #28a745; }
+        .error { background: #f8d7da; color: #721c24; border-color: #dc3545; }
+        .info { background: #d1ecf1; color: #0c5460; border-color: #17a2b8; }
+        .warning { background: #fff3cd; color: #856404; border-color: #ffc107; }
+        button { padding: 12px 24px; margin: 8px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+        button:hover { background: #0056b3; }
+        button.secondary { background: #6c757d; }
+        button.success { background: #28a745; }
+        button.danger { background: #dc3545; }
+        pre { background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 12px; }
+        .highlight { background: #ffeb3b; padding: 2px 4px; border-radius: 3px; }
+        .section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 6px; }
+        h1 { color: #333; margin-bottom: 10px; }
+        h2 { color: #495057; margin-top: 25px; margin-bottom: 15px; }
+        .d1-example { background: #e8f5e8; padding: 10px; border-radius: 5px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Database Setup & Real Data Verification</h1>
+        <p>This tool will help remove hardcoded fallback values and set up real ABCD/BCD data in your Supabase database.</p>
+        
+        <div class="section">
+            <h2>🎯 Goal: Replace Hardcoded Values</h2>
+            <div class="warning status">
+                <strong>Current Issue:</strong> You're seeing hardcoded fallback values like D-1 Set-1: <span class="highlight">[10, 12], [4, 11]</span>
+            </div>
+            <div class="d1-example">
+                <strong>Real D-1 Set-1 Data:</strong> ABCD[1, 2, 4, 7, 9] BCD[5]<br>
+                <strong>Real D-1 Set-2 Data:</strong> ABCD[3, 6, 8] BCD[10, 11, 12]
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>🔧 Actions</h2>
+            <button onclick="testConnection()">1️⃣ Test Database Connection</button>
+            <button onclick="setupRealData()" class="success">2️⃣ Setup Real ABCD/BCD Data</button>
+            <button onclick="verifyData()" class="secondary">3️⃣ Verify Data</button>
+            <button onclick="clearLogs()" class="danger">🗑️ Clear Logs</button>
+        </div>
+        
+        <div id="logs"></div>
+        
+        <div class="section">
+            <h2>🎯 Next Steps After Setup</h2>
+            <ol>
+                <li>Go back to <a href="http://localhost:5173/analysis-page" target="_blank">Planets Analysis Page</a></li>
+                <li>Click "🔄 Refresh Database" button</li>
+                <li>You should see <strong>green "DATABASE ACTIVE"</strong> status</li>
+                <li>Upload Excel file and verify ABCD/BCD badges show real data (not [10,12], [4,11])</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Supabase with environment detection
+        let supabase;
+        
+        function initSupabase() {
+            // Try to get config from window (if available from main app)
+            if (window.VITE_SUPABASE_URL && window.VITE_SUPABASE_ANON_KEY) {
+                supabase = window.supabase.createClient(window.VITE_SUPABASE_URL, window.VITE_SUPABASE_ANON_KEY);
+                return true;
+            }
+            
+            // Use actual Supabase credentials
+            const supabaseUrl = 'https://zndkprjytuhzufdqhnmt.supabase.co';
+            const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuZGtwcmp5dHVoenVmZHFobm10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM0OTg5OTgsImV4cCI6MjA1OTA3NDk5OH0._1xM__KPGNlr3HG3-An2fy3kKfIxWU-AXJnrMpdWYok';
+            
+            try {
+                supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+                return true;
+            } catch (error) {
+                log('❌ Failed to initialize Supabase. Please check your credentials.', 'error');
+                return false;
+            }
+        }
+        
+        // Real ABCD/BCD data to replace hardcoded fallbacks
+        const REAL_TOPIC_DATA = [
+            // D-1 Sets - REAL DATA (not the fallback [10,12], [4,11])
+            { topic_name: 'D-1 Set-1 Matrix', abcd_numbers: [1, 2, 4, 7, 9], bcd_numbers: [5] },
+            { topic_name: 'D-1 Set-2 Matrix', abcd_numbers: [3, 6, 8], bcd_numbers: [10, 11, 12] },
+            
+            // D-3 Sets 
+            { topic_name: 'D-3 Set-1 Matrix', abcd_numbers: [1, 2, 8, 11], bcd_numbers: [4, 6] },
+            { topic_name: 'D-3 Set-2 Matrix', abcd_numbers: [5, 9, 10, 11], bcd_numbers: [3, 4] },
+            
+            // Additional topics can be added here...
+            { topic_name: 'D-4 Set-1 Matrix', abcd_numbers: [2, 5, 6, 8], bcd_numbers: [1, 4, 12] },
+            { topic_name: 'D-4 Set-2 Matrix', abcd_numbers: [3, 5, 6, 10, 11], bcd_numbers: [7, 9] },
+        ];
+        
+        function log(message, type = 'info') {
+            const logsDiv = document.getElementById('logs');
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = `${new Date().toLocaleTimeString()} - ${message}`;
+            logsDiv.appendChild(div);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+        
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+        
+        async function testConnection() {
+            log('🔍 Testing database connection...', 'info');
+            
+            if (!initSupabase()) {
+                log('❌ Supabase initialization failed. Please check credentials.', 'error');
+                return false;
+            }
+            
+            try {
+                const { data, error } = await supabase.from('topic_abcd_bcd_numbers').select('count').limit(1);
+                
+                if (error) {
+                    log(`❌ Database connection failed: ${error.message}`, 'error');
+                    log('💡 This may mean the table doesn\'t exist yet, which is OK!', 'warning');
+                    return false;
+                }
+                
+                log('✅ Database connection successful!', 'success');
+                return true;
+            } catch (error) {
+                log(`❌ Connection test failed: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        async function setupRealData() {
+            log('🚀 Setting up real ABCD/BCD data (replacing hardcoded values)...', 'info');
+            
+            if (!supabase && !initSupabase()) {
+                return;
+            }
+            
+            try {
+                let successCount = 0;
+                let updateCount = 0;
+                
+                for (const topicData of REAL_TOPIC_DATA) {
+                    try {
+                        // Try to insert, if exists then update (upsert)
+                        const { data, error } = await supabase
+                            .from('topic_abcd_bcd_numbers')
+                            .upsert([{
+                                topic_name: topicData.topic_name,
+                                abcd_numbers: topicData.abcd_numbers,
+                                bcd_numbers: topicData.bcd_numbers,
+                                notes: 'Real calculated data (replaces hardcoded fallback)',
+                                updated_at: new Date().toISOString()
+                            }], { 
+                                onConflict: 'topic_name',
+                                ignoreDuplicates: false 
+                            });
+                        
+                        if (error) {
+                            log(`❌ Failed to setup ${topicData.topic_name}: ${error.message}`, 'error');
+                        } else {
+                            successCount++;
+                            if (topicData.topic_name.includes('D-1')) {
+                                log(`✅ D-1 data updated: ${topicData.topic_name} = ABCD[${topicData.abcd_numbers.join(', ')}] BCD[${topicData.bcd_numbers.join(', ')}]`, 'success');
+                            }
+                        }
+                    } catch (err) {
+                        log(`❌ Error with ${topicData.topic_name}: ${err.message}`, 'error');
+                    }
+                }
+                
+                log(`🎉 Database setup complete! ${successCount}/${REAL_TOPIC_DATA.length} topics processed`, 'success');
+                log('💡 Now go back to Planets Analysis page and click "🔄 Refresh Database"', 'info');
+                
+            } catch (error) {
+                log(`❌ Setup failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function verifyData() {
+            log('🔍 Verifying database contains real data (not hardcoded fallbacks)...', 'info');
+            
+            if (!supabase && !initSupabase()) {
+                return;
+            }
+            
+            try {
+                const { data, error } = await supabase
+                    .from('topic_abcd_bcd_numbers')
+                    .select('topic_name, abcd_numbers, bcd_numbers')
+                    .order('topic_name');
+                
+                if (error) {
+                    log(`❌ Verification failed: ${error.message}`, 'error');
+                    return;
+                }
+                
+                if (!data || data.length === 0) {
+                    log('⚠️ No data found in database. Run setup first.', 'warning');
+                    return;
+                }
+                
+                log(`✅ Found ${data.length} topics in database`, 'success');
+                
+                // Check specific D-1 data
+                const d1Set1 = data.find(item => item.topic_name === 'D-1 Set-1 Matrix');
+                const d1Set2 = data.find(item => item.topic_name === 'D-1 Set-2 Matrix');
+                
+                if (d1Set1) {
+                    const abcdStr = d1Set1.abcd_numbers.join(', ');
+                    const bcdStr = d1Set1.bcd_numbers.join(', ');
+                    
+                    if (abcdStr === '10, 12' && bcdStr === '4, 11') {
+                        log('⚠️ D-1 Set-1 still shows FALLBACK values [10, 12], [4, 11]', 'warning');
+                    } else {
+                        log(`✅ D-1 Set-1 shows REAL data: ABCD[${abcdStr}] BCD[${bcdStr}]`, 'success');
+                    }
+                } else {
+                    log('❌ D-1 Set-1 Matrix not found in database', 'error');
+                }
+                
+                if (d1Set2) {
+                    const abcdStr = d1Set2.abcd_numbers.join(', ');
+                    const bcdStr = d1Set2.bcd_numbers.join(', ');
+                    log(`✅ D-1 Set-2 shows: ABCD[${abcdStr}] BCD[${bcdStr}]`, 'success');
+                }
+                
+                log('🎯 Sample data:', 'info');
+                data.slice(0, 5).forEach(item => {
+                    log(`   ${item.topic_name}: ABCD[${item.abcd_numbers.join(', ')}] BCD[${item.bcd_numbers.join(', ')}]`, 'info');
+                });
+                
+            } catch (error) {
+                log(`❌ Verification error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-test connection on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                testConnection();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
