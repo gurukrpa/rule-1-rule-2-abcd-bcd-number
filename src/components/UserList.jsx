@@ -205,7 +205,7 @@ function UserList() {
                     ABCD Number
                   </Link>
                   <Link
-                    to="/number-gen"
+                    to={`/number-gen/${user.id}`}
                     className="text-purple-600 hover:text-purple-900 ml-4"
                   >
                     Number Gen

@@ -187,6 +187,14 @@ function App() {
               </FirebaseProtectedRoute>
             } />
             
+            <Route path="/number-gen/:userId" element={
+              <FirebaseProtectedRoute>
+                <ErrorBoundary>
+                  <NumberGen />
+                </ErrorBoundary>
+              </FirebaseProtectedRoute>
+            } />
+            
             <Route path="/abcd-number/:userId" element={
               <FirebaseProtectedRoute>
                 <ErrorBoundary>

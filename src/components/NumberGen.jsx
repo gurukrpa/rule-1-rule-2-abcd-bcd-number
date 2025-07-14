@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import Select from 'react-select';
 import NumberGenTable from './NumberGenTable';
 import Logo from './Logo';
+import { firebaseAuthService } from '../services/FirebaseAuthService.js';
+import cleanFirebaseService from '../services/CleanFirebaseService';
 
 // Add access to Electron IPC if it exists (will be undefined in web-only mode)
 const electron = window.electron;
@@ -52,6 +54,9 @@ const createInitialRangeFilters = () => {
 
 const NumberGen = () => {
   console.log("Loading NumberGen component - " + new Date().toISOString());
+  
+  // Get userId from route parameters
+  const { userId } = useParams();
 
   const planetNumbers = {
     Sun: [1, 10, 19, 28, 37, 46, 55, 64, 73, 82, 91, 100],
@@ -79,6 +84,11 @@ const NumberGen = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [enforceAscending, setEnforceAscending] = useState(true); // New state for ascending constraint
+  const [currentUser, setCurrentUser] = useState(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [userLoading, setUserLoading] = useState(false);
+  const [availableUsers, setAvailableUsers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState(userId || '');
   
   // Format planet options for react-select
   const planetSelectOptions = Object.keys(planetNumbers).map(planet => ({
@@ -214,6 +224,94 @@ const NumberGen = () => {
       };
     }
   }, []);
+
+  // Load user data when userId is available
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (!userId) {
+        setCurrentUser(null);
+        return;
+      }
+
+      try {
+        setUserLoading(true);
+        console.log('🔍 [NumberGen] Loading user data for userId:', userId);
+        
+        const userData = await cleanFirebaseService.getUser(userId);
+        if (userData) {
+          console.log('✅ [NumberGen] User data loaded:', userData);
+          setCurrentUser(userData);
+        } else {
+          console.warn('⚠️ [NumberGen] No user data found for userId:', userId);
+          setCurrentUser(null);
+        }
+      } catch (error) {
+        console.error('❌ [NumberGen] Error loading user data:', error);
+        setCurrentUser(null);
+      } finally {
+        setUserLoading(false);
+      }
+    };
+
+    loadUserData();
+  }, [userId]);
+
+  // Update current time every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // Load available users when no userId is provided
+  useEffect(() => {
+    const loadAvailableUsers = async () => {
+      try {
+        console.log('🔍 [NumberGen] Loading available users...');
+        const users = await cleanFirebaseService.getAllUsers();
+        setAvailableUsers(users || []);
+        console.log('✅ [NumberGen] Available users loaded:', users?.length || 0);
+      } catch (error) {
+        console.error('❌ [NumberGen] Error loading available users:', error);
+        setAvailableUsers([]);
+      }
+    };
+
+    // Only load users if no userId is provided in the route
+    if (!userId) {
+      loadAvailableUsers();
+    }
+  }, [userId]);
+
+  // Handle user selection change
+  const handleUserSelection = async (selectedUserId) => {
+    setSelectedUserId(selectedUserId);
+    
+    if (!selectedUserId) {
+      setCurrentUser(null);
+      return;
+    }
+
+    try {
+      setUserLoading(true);
+      console.log('🔍 [NumberGen] Loading selected user data:', selectedUserId);
+      const userData = await cleanFirebaseService.getUser(selectedUserId);
+      if (userData) {
+        console.log('✅ [NumberGen] Selected user data loaded:', userData);
+        setCurrentUser(userData);
+      } else {
+        console.warn('⚠️ [NumberGen] No user data found for selected userId:', selectedUserId);
+        setCurrentUser(null);
+      }
+    } catch (error) {
+      console.error('❌ [NumberGen] Error loading selected user data:', error);
+      setCurrentUser(null);
+    } finally {
+      setUserLoading(false);
+    }
+  };
 
   // Generate Apple-specific button classes for styling
   const getButtonClass = (type) => {
@@ -749,7 +847,64 @@ const NumberGen = () => {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-4">
           <Logo size="medium" showText={false} />
-          <h1 className="text-3xl font-bold text-gray-800">Number Generator</h1>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800">Number Generator</h1>
+            
+            {/* User Selector (when no userId in route) */}
+            {!userId && (
+              <div className="mt-3">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select User:
+                </label>
+                <select
+                  value={selectedUserId}
+                  onChange={(e) => handleUserSelection(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md bg-white min-w-48"
+                >
+                  <option value="">-- Select a User --</option>
+                  {availableUsers.map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.username} (HR: {user.hr})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            
+            {/* User and Time Display */}
+            {(currentUser || userId) && (
+              <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+                <div className="flex items-center gap-2">
+                  <span className="text-blue-600">👤</span>
+                  <span className="font-medium">
+                    {userLoading ? (
+                      <span className="animate-pulse">Loading user...</span>
+                    ) : currentUser ? (
+                      `${currentUser.username} (HR: ${currentUser.hr})`
+                    ) : (
+                      `User ID: ${userId}`
+                    )}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-green-600">🕐</span>
+                  <span>
+                    {currentTime.toLocaleTimeString([], { 
+                      hour: '2-digit', 
+                      minute: '2-digit',
+                      hour12: true 
+                    })}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-purple-600">📅</span>
+                  <span>
+                    {currentTime.toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex gap-2">
 

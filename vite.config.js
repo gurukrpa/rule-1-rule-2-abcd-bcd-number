@@ -44,8 +44,10 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    strictPort: true, // This prevents auto-incrementing to 5174, 5175, etc.
     open: true,
-    cors: true
+    cors: true,
+    host: true // Allow external connections (useful for mobile testing)
   },
   preview: {
     port: 4173,
