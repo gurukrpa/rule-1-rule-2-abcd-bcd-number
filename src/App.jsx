@@ -1,7 +1,8 @@
-// 
-// TEMPORARY DEVELOPMENT MODE: Authentication is disabled
-// All routes are accessible without login for development purposes
-// To re-enable authentication, search for "TEMPORARY" comments and restore original logic
+//
+// LOCALHOST AUTO-LOGIN FOR DEVELOPMENT
+// Automatically logs in with specified credentials when running on localhost
+// This speeds up development by skipping manual authentication
+// Production deployments will still require proper login
 //
 import React, { useState, useEffect } from 'react';
 import { 
@@ -11,6 +12,7 @@ import {
   Navigate
 } from 'react-router-dom';
 import { supabase } from './supabaseClient';
+import { firebaseAuthService } from './services/FirebaseAuthService.js';
 import UserData from './components/UserData';
 import UserList from './components/UserList';
 import Auth from './components/Auth';
@@ -25,61 +27,104 @@ import ABCDBCDNumber from './components/ABCDBCDNumber';
 import PlanetsAnalysisPage from './components/PlanetsAnalysisPage';
 import ErrorBoundary from './components/ErrorBoundary';
 
+// Development auto-login credentials (localhost only)
+const DEV_AUTO_LOGIN = {
+  email: 'gurukrpasharma@gmail.com',
+  password: '#vanakamnanba2020#',
+  enabled: true // Set to false to disable auto-login
+};
+
 function App() {
   const [session, setSession] = useState(null);
-  // TEMPORARY: Disable authentication for development
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
-  const [isHouseCountEnabled, setIsHouseCountEnabled] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isHouseCountEnabled, setIsHouseCountEnabled] = useState(false);
+  const [isAutoLoginInProgress, setIsAutoLoginInProgress] = useState(false);
 
+  // Helper function to detect if running on localhost
+  const isLocalhost = () => {
+    return window.location.hostname === 'localhost' || 
+           window.location.hostname === '127.0.0.1' ||
+           window.location.hostname === '::1';
+  };
+
+  // Automatic authentication for localhost development
   useEffect(() => {
-    // TEMPORARY: Auto-enable house counting for development
-    localStorage.setItem('house_count_enabled', 'true');
-    localStorage.setItem('auth_type', 'simple');
+    console.log('🚀 App initialization started...');
     
-    // Create a temporary session for development
-    const tempSession = {
-      user: {
-        authenticated: true,
-        email: 'dev@temporary.com',
-        id: 'temp-dev-user'
-      }
-    };
-    localStorage.setItem('house_count_session', JSON.stringify(tempSession));
-    setSession(tempSession);
-
-    /* COMMENTED OUT FOR DEVELOPMENT - Authentication logic
-    // Check if house counting is enabled in localStorage
-    const houseCountEnabled = localStorage.getItem('house_count_enabled');
-    if (houseCountEnabled === 'true') {
+    // Check if already authenticated
+    const currentUser = firebaseAuthService.getCurrentUser();
+    if (currentUser) {
+      console.log('✅ User already authenticated:', currentUser.email);
+      setIsAuthenticated(true);
       setIsHouseCountEnabled(true);
+      setSession(currentUser);
+      localStorage.setItem('house_count_enabled', 'true');
+      localStorage.setItem('auth_type', 'firebase');
+      return;
     }
 
-    // Check if there's a valid simple auth session
-    const savedSession = localStorage.getItem('house_count_session');
-    const authType = localStorage.getItem('auth_type');
-    
-    if (savedSession && authType === 'simple') {
-      try {
-        const sessionData = JSON.parse(savedSession);
-        if (sessionData.user && sessionData.user.authenticated) {
+    // Auto-login for localhost development
+    if (isLocalhost() && DEV_AUTO_LOGIN.enabled) {
+      console.log('🔧 Localhost detected - Starting auto-login...');
+      setIsAutoLoginInProgress(true);
+      
+      // Attempt automatic login with dev credentials
+      firebaseAuthService.signIn(DEV_AUTO_LOGIN.email, DEV_AUTO_LOGIN.password)
+        .then((result) => {
+          console.log('🎉 Auto-login successful!', result.user.email);
           setIsAuthenticated(true);
-          setSession(sessionData);
-        }
-      } catch (error) {
-        console.error('Error parsing session:', error);
-        // Clear invalid session
-        localStorage.removeItem('house_count_session');
+          setIsHouseCountEnabled(true);
+          setSession(result);
+          localStorage.setItem('house_count_enabled', 'true');
+          localStorage.setItem('auth_type', 'firebase');
+          setIsAutoLoginInProgress(false);
+        })
+        .catch((error) => {
+          console.log('⚠️ Auto-login failed, will show login form:', error.message);
+          setIsAutoLoginInProgress(false);
+          // If auto-login fails, user will see the normal login form
+        });
+    } else {
+      console.log('🌐 Production mode or auto-login disabled - normal authentication required');
+    }
+
+    // Listen for authentication state changes
+    const unsubscribe = firebaseAuthService.onAuthStateChange((user) => {
+      if (user) {
+        setIsAuthenticated(true);
+        setIsHouseCountEnabled(true);
+        setSession({ user });
+        localStorage.setItem('house_count_enabled', 'true');
+        localStorage.setItem('auth_type', 'firebase');
+      } else {
+        setIsAuthenticated(false);
+        setIsHouseCountEnabled(false);
+        setSession(null);
         localStorage.removeItem('house_count_enabled');
         localStorage.removeItem('auth_type');
       }
-    }
-    */
+    });
+
+    return unsubscribe;
   }, []);
 
   const enableHouseCounting = () => {
     setIsHouseCountEnabled(true);
     localStorage.setItem('house_count_enabled', 'true');
   };
+
+  // Show loading screen during auto-login process
+  if (isAutoLoginInProgress) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">🔧 Development Auto-Login...</p>
+          <p className="mt-2 text-sm text-gray-500">Connecting with your credentials...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Router
@@ -96,8 +141,12 @@ function App() {
             <Route path="/firebase-auth" element={<FirebaseAuth />} />
             <Route path="/legacy-auth" element={<Auth onEnableHouseCounting={enableHouseCounting} />} />
             
-            {/* Default route - redirect to Firebase auth */}
-            <Route path="/" element={<Navigate to="/firebase-auth" replace />} />
+            {/* Smart redirect based on authentication state */}
+            <Route path="/" element={
+              isAuthenticated ? 
+                <Navigate to="/users" replace /> : 
+                <Navigate to="/firebase-auth" replace />
+            } />
             
             {/* User List - main landing page */}
             <Route path="/users" element={
@@ -162,8 +211,12 @@ function App() {
               </FirebaseProtectedRoute>
             } />
             
-            {/* Catch all route - redirect to Firebase auth */}
-            <Route path="*" element={<Navigate to="/firebase-auth" replace />} />
+            {/* Catch all route - smart redirect based on auth state */}
+            <Route path="*" element={
+              isAuthenticated ? 
+                <Navigate to="/users" replace /> : 
+                <Navigate to="/firebase-auth" replace />
+            } />
           </Routes>
         </div>
       </ErrorBoundary>
