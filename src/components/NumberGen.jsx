@@ -69,14 +69,16 @@ const NumberGen = () => {
   const [planetCount, setPlanetCount] = useState('');
   const [selectedPlanetsByPosition, setSelectedPlanetsByPosition] = useState([]); // This will now hold arrays of planets
   const [tableResults, setTableResults] = useState([]); // Will now contain objects with numbers and planets
-  // Using a constant 500 value instead of user-configurable maxCombinations 
-  const maxCombinations = 500; // Fixed value, no longer user configurable
+  const [maxCombinations, setMaxCombinations] = useState(100000); // User configurable max combinations (default 100k)
   const [valueRange, setValueRange] = useState(''); // Value range (1-100)
   const [minSum, setMinSum] = useState(''); // Minimum sum filter (1-500)
   const [maxSum, setMaxSum] = useState(''); // Maximum sum filter (1-500)
   const [rangeFilters, setRangeFilters] = useState(createInitialRangeFilters());
   const [filteredResults, setFilteredResults] = useState([]);
   const [isRangeFilteringActive, setIsRangeFilteringActive] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState(0);
+  const [enforceAscending, setEnforceAscending] = useState(true); // New state for ascending constraint
   
   // Format planet options for react-select
   const planetSelectOptions = Object.keys(planetNumbers).map(planet => ({
@@ -111,8 +113,10 @@ const NumberGen = () => {
           // Apply the saved settings if they exist
           if (result.settings.valueRange) setValueRange(Number(result.settings.valueRange));
           if (result.settings.minSum) setMinSum(Number(result.settings.minSum));
-          if (result.settings.maxSum) setMaxSum(Number(result.settings.maxMax));
+          if (result.settings.maxSum) setMaxSum(Number(result.settings.maxSum));
           if (result.settings.planetCount) setPlanetCount(Number(result.settings.planetCount));
+          if (result.settings.maxCombinations) setMaxCombinations(Number(result.settings.maxCombinations));
+          if (result.settings.enforceAscending !== undefined) setEnforceAscending(result.settings.enforceAscending);
           // Load range filters if they exist
           if (result.settings.rangeFilters) {
             setRangeFilters(result.settings.rangeFilters);
@@ -164,11 +168,13 @@ const NumberGen = () => {
         minSum: minSum,
         maxSum: maxSum,
         planetCount: planetCount,
+        maxCombinations: maxCombinations,
+        enforceAscending: enforceAscending,
         selectedPlanets: selectedPlanetsByPosition,
         rangeFilters: rangeFilters
       });
     }
-  }, [valueRange, minSum, maxSum, planetCount, rangeFilters]); // Don't include selectedPlanetsByPosition to avoid excessive updates
+  }, [valueRange, minSum, maxSum, planetCount, maxCombinations, enforceAscending, rangeFilters]); // Don't include selectedPlanetsByPosition to avoid excessive updates
 
   // Add Apple-specific UI enhancements
   useEffect(() => {
@@ -238,7 +244,7 @@ const NumberGen = () => {
     setSelectedPlanetsByPosition(newSelectedPlanets);
   };
 
-  const generateTableNumbers = () => {
+  const generateTableNumbers = async () => {
     console.log('=== GENERATE TABLE NUMBERS STARTED ===');
     console.log('Planet count:', planetCount);
     console.log('Value range:', valueRange);
@@ -302,16 +308,9 @@ const NumberGen = () => {
     setMinSum(minSumNum);
     setMaxSum(maxSumNum);
 
-    if (selectedPlanetsByPosition.length > 5) {
-      alert("Selecting more than 5 planets may cause performance issues. Consider reducing the number of planets.");
-    }
-
-    // Additional validation for multi-select - check if there are too many possible combinations
-    const totalCombinations = selectedPlanetsByPosition.reduce((acc, planets) => acc * planets.length, 1);
-    if (totalCombinations > 500) {
-      const confirm = window.confirm(`Your selection would generate approximately ${totalCombinations} combinations, which might slow down your browser. Do you want to continue?`);
-      if (!confirm) return;
-    }
+    // Start generation process
+    setIsGenerating(true);
+    setGenerationProgress(0);
 
     try {
       // Generate all permutations of selected planets
@@ -321,38 +320,46 @@ const NumberGen = () => {
       if (planetPermutations.length === 0) {
         console.error('No planet permutations generated');
         alert('No combinations possible. Please ensure all planet positions have at least one planet selected.');
+        setIsGenerating(false);
         return;
       }
       
-      if (planetPermutations.length > 100) {
-        console.warn(`Large number of permutations (${planetPermutations.length}). This may take time to process.`);
-        if (!confirm(`There are ${planetPermutations.length} possible planet combinations. This may take a while to process. Continue?`)) {
-          return;
-        }
-      }
+      console.log(`Processing ${planetPermutations.length} planet permutations for up to ${maxCombinations} combinations...`);
       
-      // Process each permutation and collect all results
+      // Process each permutation and collect all results with progress tracking
       let allResults = [];
       
-      for (const permutation of planetPermutations) {
+      for (let i = 0; i < planetPermutations.length; i++) {
+        const permutation = planetPermutations[i];
         const planetsWithNumbers = permutation.map((planet) => ({
           planet: planet,
           numbers: planetNumbers[planet]
         }));
 
-        console.log('Processing permutation:', permutation);
+        console.log(`Processing permutation ${i + 1}/${planetPermutations.length}:`, permutation);
         
-        const permResult = findCombinationsFromPlanetNumbers(planetsWithNumbers, permutation);
+        // Update progress
+        setGenerationProgress(Math.round((i / planetPermutations.length) * 50)); // First 50% for permutation processing
+        
+        const permResult = findCombinationsFromPlanetNumbers(planetsWithNumbers, permutation, maxCombinations - allResults.length);
         allResults = [...allResults, ...permResult];
         
-        // Limit total results for performance
+        // Stop if we've reached the maximum combinations
         if (allResults.length >= maxCombinations) {
-          console.warn(`Reached maximum combinations limit (${maxCombinations}). Stopping processing.`);
+          console.log(`Reached maximum combinations limit (${maxCombinations}). Generated ${allResults.length} combinations.`);
           break;
+        }
+        
+        // Allow UI to update periodically for large datasets
+        if (i % 10 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 1));
         }
       }
       
-      // Sort and limit results
+      console.log('Sorting results...');
+      setGenerationProgress(75);
+      
+      // Sort results efficiently
       allResults.sort((a, b) => {
         // MODIFIED: Sort by first (leftmost) value first, then second, etc. for left-to-right priority
         for (let i = 0; i < a.numbers.length; i++) {
@@ -361,7 +368,7 @@ const NumberGen = () => {
         return 0;
       });
       
-      allResults = allResults.slice(0, maxCombinations);
+      setGenerationProgress(90);
       
       console.log('Generated results:', allResults.length, 'combinations');
       console.log('=== LEFT-TO-RIGHT ASCENDING ORDERING TEST ===');
@@ -380,18 +387,27 @@ const NumberGen = () => {
         console.log("3. There's an issue with the combination algorithm");
       }
 
+      setGenerationProgress(95);
       setTableResults(allResults);
       
       // Apply range filters to the new results
       const filtered = applyRangeFilters(allResults);
       setFilteredResults(filtered);
+      
+      setGenerationProgress(100);
+      setTimeout(() => {
+        setIsGenerating(false);
+        setGenerationProgress(0);
+      }, 500);
     } catch (error) {
       console.error("Error in generateTableNumbers:", error);
       alert("There was an error generating combinations. Please try with different planets.");
+      setIsGenerating(false);
+      setGenerationProgress(0);
     }
   };
 
-  const findCombinationsFromPlanetNumbers = (planetsWithNumbers, sourcePlanets) => {
+  const findCombinationsFromPlanetNumbers = (planetsWithNumbers, sourcePlanets, remainingLimit = Infinity) => {
     const results = [];
     
     // Ensure minSum and maxSum are valid numbers for processing
@@ -404,6 +420,10 @@ const NumberGen = () => {
     console.log('Using sum range for calculations:', `${processMinSum} to ${processMaxSum}`);
     console.log('Value range limit:', valueRange);
     console.log('NOTE: Planets maintain their position order, Numbers will increase from LEFT to RIGHT');
+    console.log('Input planets with their numbers:');
+    planetsWithNumbers.forEach((p, index) => {
+      console.log(`  Position ${index + 1} - ${p.planet}: [${p.numbers.slice(0, 10).join(', ')}${p.numbers.length > 10 ? '...' : ''}] (${p.numbers.length} total)`);
+    });
 
     // Filter numbers based on valueRange and sort
     const filteredPlanets = planetsWithNumbers.map(p => ({
@@ -453,9 +473,11 @@ const NumberGen = () => {
         }
         
         for (const num of currentPlanet.numbers) {
-          // MODIFIED: For left-to-right ascending ordering, check if current number is greater than previous number
-          // This ensures numbers increase from left to right
-          if (num > prevNumber) {
+          // Check if current number is greater than previous number (if ascending constraint is enabled)
+          // If ascending constraint is disabled, allow any number
+          const passesAscendingCheck = !enforceAscending || num > prevNumber;
+          
+          if (passesAscendingCheck) {
             // Early pruning: Skip if even with minimal possible values for remaining planets, 
             // we would exceed maxSum
             const newSum = currentSum + num;
@@ -465,7 +487,7 @@ const NumberGen = () => {
               currentCombination[currentIndex] = num;
               generateCombinations(currentIndex + 1, currentCombination, newSum);
               
-              if (results.length >= maxCombinations) return;
+              if (results.length >= remainingLimit) return;
             }
           }
         }
@@ -492,7 +514,7 @@ const NumberGen = () => {
         console.log(`  ${index + 1}: [${result.numbers.join(', ')}] - planets: [${result.planets.join(', ')}]`);
       });
     }
-    return results.slice(0, maxCombinations);
+    return results.slice(0, remainingLimit);
   };
 
   // Helper function to get a nice display name for planets
@@ -520,8 +542,12 @@ const NumberGen = () => {
     setMinSum('');
     setMaxSum('');
     setPlanetCount(''); // Reset planet count to empty
+    setMaxCombinations(100000); // Reset max combinations to default
+    setEnforceAscending(true); // Reset to default ascending constraint
     setRangeFilters(createInitialRangeFilters());
     setIsRangeFilteringActive(false);
+    setIsGenerating(false);
+    setGenerationProgress(0);
     
     // If running in Electron, update the settings in the main process
     if (electron) {
@@ -530,6 +556,8 @@ const NumberGen = () => {
         minSum: '',
         maxSum: '',
         planetCount: '',
+        maxCombinations: 100000,
+        enforceAscending: true,
         rangeFilters: createInitialRangeFilters()
       });
     }
@@ -838,6 +866,59 @@ const NumberGen = () => {
           </div>
         </div>
         
+        {/* Maximum Combinations Section */}
+        <div className="flex flex-col md:flex-row border-2 border-purple-500 rounded-md p-4 mb-4">
+          <div className="w-full md:w-1/2 p-2">
+            <h3 className="font-bold text-lg mb-2">Maximum Combinations</h3>
+            <p className="text-sm text-gray-600 mb-2">Set limit for generated combinations (1 to 1,000,000)</p>
+            <input
+              type="number"
+              min="1"
+              max="1000000"
+              className="w-full border-2 border-green-500 rounded p-2"
+              value={maxCombinations}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                if (!isNaN(value) && value >= 1) {
+                  setMaxCombinations(Math.min(1000000, Math.max(1, value)));
+                }
+              }}
+            />
+          </div>
+          <div className="w-full md:w-1/2 p-2 flex items-center">
+            <div className="bg-purple-50 p-4 rounded-lg w-full">
+              <h4 className="font-semibold text-purple-800 mb-2">Generation Options</h4>
+              
+              {/* Ascending Numbers Toggle */}
+              <div className="mb-3">
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={enforceAscending}
+                    onChange={(e) => setEnforceAscending(e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm text-purple-700">Enforce Left-to-Right Ascending Numbers</span>
+                </label>
+                <p className="text-xs text-purple-600 mt-1">
+                  {enforceAscending 
+                    ? "Numbers must increase from left to right (1 < 5 < 9)" 
+                    : "Numbers can be in any order (allows 9-1-5 combinations)"}
+                </p>
+              </div>
+              
+              <p className="text-sm text-purple-700 mb-2">
+                This system can generate up to 1 million combinations efficiently with progress tracking and optimized algorithms.
+              </p>
+              <div className="text-xs text-purple-600">
+                <div>• Real-time progress tracking</div>
+                <div>• Memory-efficient processing</div>
+                <div>• Non-blocking UI updates</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
         {/* Planet Selector Section */}
         <div className="border-2 border-blue-500 rounded-md overflow-hidden mb-4">
           <div className="flex flex-wrap">
@@ -959,8 +1040,16 @@ const NumberGen = () => {
               console.log('Generate button clicked');
               generateTableNumbers();
             }}
+            disabled={isGenerating}
           >
-            Generate Combinations
+            {isGenerating ? (
+              <div className="flex items-center space-x-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span>Generating... {generationProgress}%</span>
+              </div>
+            ) : (
+              'Generate Combinations'
+            )}
           </button>
           
           <button
@@ -969,8 +1058,7 @@ const NumberGen = () => {
               console.log('=== DEBUG STATE ===');
               console.log('Planet Count:', planetCount);
               console.log('Value Range:', valueRange);
-              console.log('Min Sum:', minSum);
-              console.log('Max Sum:', maxSum);
+              console.log('Min Sum:', minSum, 'Max Sum:', maxSum);
               console.log('Selected Planets by Position:', selectedPlanetsByPosition);
               console.log('selectedPlanetsByPosition.length:', selectedPlanetsByPosition.length);
               
@@ -979,6 +1067,30 @@ const NumberGen = () => {
                 .map((planets, index) => ({ position: index + 1, planets }))
                 .filter(pos => !pos.planets || pos.planets.length === 0);
               console.log('Empty positions (debug check):', emptyPositions);
+              
+              // Test planet permutations
+              if (selectedPlanetsByPosition.length > 0) {
+                console.log('=== TESTING PLANET PERMUTATIONS ===');
+                const testPermutations = generatePlanetPermutations();
+                console.log('Generated permutations:', testPermutations);
+                console.log('Total permutations count:', testPermutations.length);
+                
+                // Check for specific combinations you mentioned
+                const expectedCombos = [
+                  ['Sun', 'Rahu', 'Moon'],
+                  ['Sun', 'Rahu', 'Jupiter'],
+                  ['Sun', 'Rahu', 'Mercury'],
+                  ['Sun', 'Rahu', 'Sun']
+                ];
+                
+                expectedCombos.forEach(expected => {
+                  const found = testPermutations.find(perm => 
+                    perm.length === expected.length &&
+                    perm.every((planet, idx) => planet === expected[idx])
+                  );
+                  console.log(`Combination [${expected.join(', ')}]:`, found ? 'FOUND' : 'MISSING');
+                });
+              }
               
               console.log('Table Results Length:', tableResults.length);
               console.log('=== END DEBUG ===');
@@ -989,12 +1101,117 @@ const NumberGen = () => {
           </button>
           
           <button
+            className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
+            onClick={() => {
+              console.log('=== TESTING YOUR SPECIFIC PLANET COMBINATIONS ===');
+              
+              // Set up test data for your example
+              const testSelections = [
+                ['Sun', 'Moon', 'Mars', 'Venus'], // Planet 1
+                ['Rahu', 'Kethu', 'Saturn', 'Venus'], // Planet 2  
+                ['Moon', 'Jupiter', 'Mercury', 'Sun'] // Planet 3
+              ];
+              
+              console.log('Test planet selections:', testSelections);
+              
+              // Generate cartesian product manually for testing
+              const testPermutations = cartesianProduct(testSelections);
+              console.log('Total test permutations:', testPermutations.length);
+              
+              // Check for your specific expected combinations
+              const expectedCombos = [
+                ['Sun', 'Rahu', 'Moon'],
+                ['Sun', 'Rahu', 'Jupiter'], 
+                ['Sun', 'Rahu', 'Mercury'],
+                ['Sun', 'Rahu', 'Sun']
+              ];
+              
+              console.log('Checking for expected combinations:');
+              expectedCombos.forEach(expected => {
+                const found = testPermutations.find(perm => 
+                  perm.length === expected.length &&
+                  perm.every((planet, idx) => planet === expected[idx])
+                );
+                console.log(`[${expected.join('-')}]:`, found ? '✅ FOUND' : '❌ MISSING');
+                if (found) {
+                  console.log('  Found at index:', testPermutations.indexOf(found));
+                }
+              });
+              
+              // Show first 20 permutations for reference
+              console.log('First 20 permutations:');
+              testPermutations.slice(0, 20).forEach((perm, idx) => {
+                console.log(`  ${idx + 1}: [${perm.join('-')}]`);
+              });
+              
+              alert('Planet combination test completed. Check console for detailed results.');
+            }}
+          >
+            Test Planet Combinations
+          </button>
+          
+          <button
             className={getButtonClass('reset')}
             onClick={resetFilters}
           >
             Reset All Filters
           </button>
         </div>
+        
+        {/* Progress Bar Section */}
+        {isGenerating && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-blue-900">
+                Generating Combinations...
+              </span>
+              <span className="text-sm text-blue-700">{generationProgress}%</span>
+            </div>
+            <div className="w-full bg-blue-200 rounded-full h-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${generationProgress}%` }}
+              ></div>
+            </div>
+            <div className="mt-2 text-xs text-blue-600">
+              <div className="flex justify-between">
+                <span>Processing planet combinations...</span>
+                <span>Max: {maxCombinations.toLocaleString()} combinations</span>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Results Summary Section */}
+        {tableResults.length > 0 && !isGenerating && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-medium text-green-800 mb-1">
+                  ✅ Generation Complete!
+                </h3>
+                <p className="text-sm text-green-700">
+                  Successfully generated {tableResults.length.toLocaleString()} combinations
+                  {isRangeFilteringActive && (
+                    <span> • Filtered to {filteredResults.length.toLocaleString()} combinations</span>
+                  )}
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-green-600">
+                  {(isRangeFilteringActive ? filteredResults : tableResults).length.toLocaleString()}
+                </div>
+                <div className="text-xs text-green-600">combinations</div>
+              </div>
+            </div>
+            {tableResults.length >= maxCombinations && (
+              <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-700">
+                <strong>Note:</strong> Reached maximum limit of {maxCombinations.toLocaleString()} combinations. 
+                Increase the "Maximum Combinations" setting to generate more.
+              </div>
+            )}
+          </div>
+        )}
         
         {/* Results Section - Always show the table component */}
         <NumberGenTable
