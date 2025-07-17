@@ -5,7 +5,7 @@ import { resolve } from 'path';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: './', // Changed from '/' to './' for Electron build
+  base: process.env.NODE_ENV === 'production' ? '/rule-1-rule-2-abcd-bcd-number/' : '/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',

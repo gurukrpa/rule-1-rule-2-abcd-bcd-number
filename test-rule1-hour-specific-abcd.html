@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rule-1 Hour-Specific ABCD/BCD Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .step {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            border-radius: 5px;
+        }
+        .debug-section {
+            background: #e9ecef;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+        .test-button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .test-button:hover {
+            background: #218838;
+        }
+        .result {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .warning { background: #fff3cd; border-color: #ffeaa7; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔍 Rule-1 Hour-Specific ABCD/BCD Test</h1>
+        <p>This test verifies whether the Rule-1 page correctly displays different ABCD/BCD numbers for each hour (HR 1-6) or incorrectly shows the same 1st hour data for all hours.</p>
+        
+        <div class="step">
+            <h2>🎯 Test Objective</h2>
+            <p><strong>Issue:</strong> User suspects that Rule-1 page shows the same ABCD/BCD numbers from the 1st hour for all hours instead of hour-specific numbers.</p>
+            <p><strong>Expected:</strong> Each HR (1-6) should show different ABCD/BCD numbers based on different planet selections.</p>
+            <p><strong>Test Method:</strong> Monitor browser console logs while switching between hours in Rule-1 page.</p>
+        </div>
+
+        <div class="step">
+            <h2>📋 Test Instructions</h2>
+            <ol>
+                <li>Open the application in browser</li>
+                <li>Navigate to <strong>Main → Rule-1 → Select Date → Rule-1 (Past Days)</strong></li>
+                <li>Open browser console (F12)</li>
+                <li>Switch between HR 1, HR 2, HR 3, etc. tabs</li>
+                <li>Click the button below to run the diagnostic script</li>
+                <li>Compare the ABCD/BCD numbers for each hour</li>
+            </ol>
+        </div>
+
+        <div class="step">
+            <h2>🔧 Diagnostic Script</h2>
+            <button class="test-button" onclick="runHourSpecificTest()">
+                🚀 Run Hour-Specific ABCD/BCD Test
+            </button>
+            <div id="testResults"></div>
+        </div>
+
+        <div class="step">
+            <h2>📊 What to Look For</h2>
+            <div class="debug-section">
+<strong>✅ CORRECT BEHAVIOR (Hour-Specific):</strong>
+HR 1: ABCD [1, 5, 9] BCD [2, 7] (Sun planet)
+HR 2: ABCD [3, 8, 12] BCD [4, 10] (Moon planet)
+HR 3: ABCD [6, 11, 15] BCD [1, 13] (Mars planet)
+... (each HR shows different numbers)
+
+<strong>❌ INCORRECT BEHAVIOR (Same 1st Hour Data):</strong>
+HR 1: ABCD [1, 5, 9] BCD [2, 7] (Sun planet)
+HR 2: ABCD [1, 5, 9] BCD [2, 7] (Sun planet) ← Same as HR 1
+HR 3: ABCD [1, 5, 9] BCD [2, 7] (Sun planet) ← Same as HR 1
+... (all HRs show identical numbers)
+            </div>
+        </div>
+
+        <div class="step">
+            <h2>🔍 Key Code Locations</h2>
+            <div class="debug-section">
+<strong>Rule1Page_Enhanced.jsx</strong> - Lines 215-235:
+- Uses `activeHR` to select different planets
+- `selectedPlanet = planetSelections[activeHR]`
+- Should log: "Using planet [PLANET] from HR [X]"
+
+<strong>extractFromDateAndSetEnhanced function</strong>:
+- Extracts numbers based on selected planet for active HR
+- Each HR should use different planet, yielding different numbers
+
+<strong>Console Logs to Monitor:</strong>
+- "🪐 [Rule-1 Enhanced] Using planet [PLANET] from HR [X]"
+- "📊 [Rule-1 Enhanced] Numbers for [DATE]:"
+- ABCD/BCD display in column headers
+            </div>
+        </div>
+
+        <div class="step">
+            <h2>💡 Troubleshooting</h2>
+            <div class="debug-section">
+<strong>If seeing same numbers for all hours:</strong>
+1. Check if `activeHR` state is updating correctly
+2. Verify planet selections exist for each HR
+3. Ensure hour entry data is complete for all HRs
+4. Check if extractFromDateAndSetEnhanced uses correct activeHR
+
+<strong>If seeing no ABCD/BCD numbers:</strong>
+1. Verify Rule-2 analysis is running
+2. Check if dates have sufficient data (need 4+ dates)
+3. Ensure Excel uploads and hour entries are complete
+4. Check console for analysis errors
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function runHourSpecificTest() {
+            const resultsDiv = document.getElementById('testResults');
+            resultsDiv.innerHTML = '<div class="result warning">🔍 Running diagnostic test...</div>';
+            
+            // Test if we're on the Rule-1 page
+            const currentUrl = window.location.href;
+            if (!currentUrl.includes('rule-1') && !currentUrl.includes('Rule1')) {
+                resultsDiv.innerHTML = `
+                    <div class="result error">
+                        <h3>❌ Not on Rule-1 Page</h3>
+                        <p>Please navigate to Rule-1 page first:</p>
+                        <ol>
+                            <li>Go to Main ABCD page</li>
+                            <li>Select a date</li>
+                            <li>Click "Rule-1 (Past Days)"</li>
+                            <li>Return here and run the test</li>
+                        </ol>
+                    </div>
+                `;
+                return;
+            }
+
+            // Instructions for manual testing
+            resultsDiv.innerHTML = `
+                <div class="result success">
+                    <h3>✅ Diagnostic Test Instructions</h3>
+                    <p><strong>Step 1:</strong> Open browser console (F12)</p>
+                    <p><strong>Step 2:</strong> Switch between HR tabs (HR 1, HR 2, HR 3, etc.)</p>
+                    <p><strong>Step 3:</strong> Look for these console logs:</p>
+                    <div class="debug-section">
+🪐 [Rule-1 Enhanced] Using planet [PLANET] from HR [X] for [SET] on [DATE]
+📊 [Rule-1 Enhanced] Numbers for [DATE]: [1, 5, 9, ...]
+                    </div>
+                    <p><strong>Step 4:</strong> Compare ABCD/BCD numbers in column headers</p>
+                    <p><strong>Step 5:</strong> Each HR should show different numbers if working correctly</p>
+                </div>
+                
+                <div class="result warning">
+                    <h3>⚠️ What to Check</h3>
+                    <ul>
+                        <li><strong>Planet Selection:</strong> Each HR should use different planet (Sun, Moon, Mars, etc.)</li>
+                        <li><strong>ABCD Numbers:</strong> Should be different for each HR</li>
+                        <li><strong>BCD Numbers:</strong> Should be different for each HR</li>
+                        <li><strong>Console Logs:</strong> Should show different planets for each HR</li>
+                    </ul>
+                </div>
+                
+                <div class="result error">
+                    <h3>🚨 If Issue Confirmed</h3>
+                    <p>If all HRs show identical ABCD/BCD numbers:</p>
+                    <ol>
+                        <li>Check if <code>activeHR</code> state is updating</li>
+                        <li>Verify <code>extractFromDateAndSetEnhanced</code> uses correct HR</li>
+                        <li>Ensure planet selections exist for each HR</li>
+                        <li>Check hour entry data completeness</li>
+                    </ol>
+                    <p><strong>Code Location:</strong> Rule1Page_Enhanced.jsx lines 215-235</p>
+                </div>
+            `;
+        }
+
+        // Auto-run test if on Rule-1 page
+        window.addEventListener('load', function() {
+            if (window.location.href.includes('rule-1') || window.location.href.includes('Rule1')) {
+                setTimeout(runHourSpecificTest, 1000);
+            }
+        });
+    </script>
+</body>
+</html>
