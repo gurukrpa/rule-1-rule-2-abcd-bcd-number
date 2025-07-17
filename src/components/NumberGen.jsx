@@ -68,8 +68,8 @@ const NumberGen = () => {
   const [planetCount, setPlanetCount] = useState('');
   const [selectedPlanetsByPosition, setSelectedPlanetsByPosition] = useState([]); // This will now hold arrays of planets
   const [tableResults, setTableResults] = useState([]); // Will now contain objects with numbers and planets
-  // Using a constant 500 value instead of user-configurable maxCombinations 
-  const maxCombinations = 500; // Fixed value, no longer user configurable
+  // Using a constant 10000 value instead of user-configurable maxCombinations 
+  const maxCombinations = 10000; // Fixed value, no longer user configurable
   const [valueRange, setValueRange] = useState(''); // Value range (1-100)
   const [minSum, setMinSum] = useState(''); // Minimum sum filter (1-500)
   const [maxSum, setMaxSum] = useState(''); // Maximum sum filter (1-500)

@@ -542,9 +542,10 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
   };
 
   // Load Rule-2 ABCD/BCD analysis results for display using real-time analysis
-  const loadRule2AnalysisResults = async () => {
+  const loadRule2AnalysisResults = async (currentHR = null) => {
     try {
-      console.log('🔍 [Rule1Page] Loading Rule-2 ABCD/BCD analysis results using real-time analysis...');
+      const hrToUse = currentHR || activeHR || 1;
+      console.log(`🔍 [Rule1Page] Loading Rule-2 ABCD/BCD analysis results for HR ${hrToUse}...`);
       
       // Get all available dates
       const availableDates = Object.keys(allDaysData).sort((a, b) => new Date(a) - new Date(b));
@@ -556,7 +557,7 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
       
       // ✅ IMPLEMENTATION: Past Days should show ABCD/BCD numbers using (N-1) pattern
       // For each date in Past Days, calculate ABCD/BCD numbers from the PREVIOUS date using rule2page logic
-      console.log('🔄 [Rule1Page] Implementing (N-1) day pattern for Past Days...');
+      console.log(`🔄 [Rule1Page] Implementing (N-1) day pattern for Past Days with HR ${hrToUse}...`);
       
       const analysisData = {};
       
@@ -570,7 +571,7 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
         if (i > 0) { // Skip first date as it has no previous date
           const previousDate = availableDates[i - 1]; // N-1 day
           
-          console.log(`📅 [Rule1Page] Processing Past Days: "${currentDate}" shows ABCD/BCD from "${previousDate}"`);
+          console.log(`📅 [Rule1Page] Processing Past Days: "${currentDate}" shows ABCD/BCD from "${previousDate}" using HR ${hrToUse}`);
           console.log(`📊 [Rule1Page] Available dates for analysis: [${availableDates.slice(0, i + 1).join(', ')}]`);
           
           try {
@@ -582,13 +583,13 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
             console.log(`   - User: ${selectedUser}`);
             console.log(`   - Trigger Date: ${previousDate}`);
             console.log(`   - Dates List: [${datesForAnalysis.join(', ')}]`);
-            console.log(`   - HR: ${activeHR || 1}`);
+            console.log(`   - HR: ${hrToUse}`);
             
             const rule2Analysis = await rule2AnalysisService.performRule2Analysis(
               selectedUser, 
               previousDate, // Analyze the PREVIOUS date (N-1)
               datesForAnalysis, // Use dates up to and including the previous date
-              activeHR || 1
+              hrToUse
             );
             
             if (rule2Analysis.success) {
@@ -688,6 +689,14 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
       loadRule2AnalysisResults();
     }
   }, [allDaysData, availableTopics, selectedUser]);
+
+  // Re-run analysis when activeHR changes
+  useEffect(() => {
+    if (Object.keys(allDaysData).length > 0 && availableTopics.length > 0 && selectedUser && activeHR) {
+      console.log(`🔄 [Rule1Page] activeHR changed to ${activeHR}, recalculating ABCD/BCD numbers...`);
+      loadRule2AnalysisResults(activeHR);
+    }
+  }, [activeHR]);
 
   // Color coding function for ABCD/BCD numbers
   const renderColorCodedDayNumber = (displayValue, setName, dateKey) => {
