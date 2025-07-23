@@ -1,0 +1,51 @@
+🔧 GITHUB PAGES MANUAL SETUP GUIDE
+====================================
+
+🎯 OBJECTIVE: Enable GitHub Pages for your repository
+
+📋 STEP-BY-STEP INSTRUCTIONS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. 🌐 OPEN GITHUB REPOSITORY:
+   Go to: https://github.com/gurukrpa/rule-1-rule-2-abcd-bcd-number
+
+2. 🔧 NAVIGATE TO SETTINGS:
+   - Click on "Settings" tab at the top of the repository page
+   - This is next to "Code", "Issues", "Pull requests", etc.
+
+3. 📄 FIND PAGES SECTION:
+   - In the left sidebar, scroll down to find "Pages"
+   - Click on "Pages"
+
+4. ⚙️ CONFIGURE SOURCE:
+   - Under "Source" section, you'll see a dropdown
+   - Select "Deploy from a branch"
+   - Choose "gh-pages" as the branch (this was created by our deployment)
+   - Select "/ (root)" as the folder
+   - Click "Save" button
+
+5. ✅ VERIFICATION:
+   - After saving, you should see a green checkmark
+   - GitHub will show: "Your site is published at [URL]"
+   - The URL will be: https://gurukrpa.github.io/rule-1-rule-2-abcd-bcd-number/
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⏱️  TIMING:
+- Setup: 30 seconds
+- GitHub processing: 2-3 minutes
+- Site availability: 2-5 minutes total
+
+🚨 TROUBLESHOOTING:
+- If "gh-pages" branch doesn't appear: Run ./deploy-to-github-pages.sh again
+- If 404 persists: Wait 5 minutes and try again
+- If still issues: Check that branch exists at: 
+  https://github.com/gurukrpa/rule-1-rule-2-abcd-bcd-number/tree/gh-pages
+
+🎉 SUCCESS INDICATORS:
+- Green checkmark in GitHub Pages settings
+- "Your site is published at..." message
+- Site loads at: https://gurukrpa.github.io/rule-1-rule-2-abcd-bcd-number/
+
+💡 QUICK SETUP COMMAND:
+./setup-github-pages.sh
