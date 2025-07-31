@@ -981,14 +981,7 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
                                   )}
                                 </div>
                               )}
-                              
-                              {/* Show analysis pattern for Past Days */}
-                              {hasAbcdBcdData && dateKey !== date && (
-                                <div className="text-xs text-gray-500 mt-1">
-                                  (N-1 Pattern)
-                                </div>
-                              )}
-                            </th>
+                              </th>
                           );
                         })}
                       </tr>
