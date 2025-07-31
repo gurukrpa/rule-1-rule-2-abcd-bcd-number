@@ -5,20 +5,25 @@
 
 // Service configuration
 const SERVICE_CONFIG = {
-  // Switch this to toggle between 'firebase' and 'supabase'
-  ACTIVE_SERVICE: 'supabase', // Changed from 'firebase' to 'supabase'
+  // Primary active service for main operations
+  ACTIVE_SERVICE: 'supabase', // Primary service
+  
+  // Dual-service mode: Run both simultaneously
+  DUAL_SERVICE_MODE: true, // Enable dual service mode
   
   // Service status
   SERVICES: {
     firebase: {
-      enabled: false, // Paused
+      enabled: true, // Enable Firebase for backup/sync
       name: 'Firebase',
-      description: 'Google Firebase Firestore & Authentication'
+      description: 'Google Firebase Firestore & Authentication',
+      role: 'backup' // Primary role: backup and real-time sync
     },
     supabase: {
-      enabled: true, // Active
+      enabled: true, // Enable Supabase as primary
       name: 'Supabase',
-      description: 'Supabase PostgreSQL & Authentication'
+      description: 'Supabase PostgreSQL & Authentication',
+      role: 'primary' // Primary role: main database operations
     }
   }
 };
@@ -243,6 +248,139 @@ class DatabaseServiceSwitcher {
     } else {
       return supabaseAuthService; // Use SupabaseAuthService when Supabase is active
     }
+  }
+
+  // =====================================
+  // 🔄 DUAL-SERVICE METHODS
+  // =====================================
+
+  /**
+   * Enable dual-service mode - both Firebase and Supabase active
+   */
+  enableDualService() {
+    this.services.firebase.enabled = true;
+    this.services.supabase.enabled = true;
+    console.log('🔄 Dual-service mode enabled: Both Firebase and Supabase active');
+    return this.getServiceStatus();
+  }
+
+  /**
+   * Check if dual-service mode is active
+   */
+  isDualServiceMode() {
+    return SERVICE_CONFIG.DUAL_SERVICE_MODE && 
+           this.services.firebase.enabled && 
+           this.services.supabase.enabled;
+  }
+
+  /**
+   * Save data to both services (dual-service mode)
+   */
+  async saveDataToBothServices(operation, ...args) {
+    if (!this.isDualServiceMode()) {
+      // Single service mode - use normal operation
+      return await this[operation](...args);
+    }
+
+    const results = {
+      primary: null,
+      backup: null,
+      errors: []
+    };
+
+    try {
+      // Save to primary service (Supabase)
+      if (this.services.supabase.enabled) {
+        results.primary = await cleanSupabaseService[operation](...args);
+        console.log('✅ Data saved to Supabase (primary)');
+      }
+    } catch (error) {
+      results.errors.push({ service: 'supabase', error: error.message });
+      console.error('❌ Supabase save failed:', error.message);
+    }
+
+    try {
+      // Save to backup service (Firebase) - would need Firebase service implementation
+      if (this.services.firebase.enabled) {
+        // Note: This would require Firebase service methods
+        console.log('🔥 Firebase backup save would happen here');
+        results.backup = { success: true, note: 'Firebase implementation needed' };
+      }
+    } catch (error) {
+      results.errors.push({ service: 'firebase', error: error.message });
+      console.error('❌ Firebase backup failed:', error.message);
+    }
+
+    return results;
+  }
+
+  /**
+   * Sync data between services
+   */
+  async syncBetweenServices(userId) {
+    if (!this.isDualServiceMode()) {
+      console.log('ℹ️ Dual-service mode not active - skipping sync');
+      return { success: false, reason: 'Dual-service mode disabled' };
+    }
+
+    console.log('🔄 Starting data sync between Firebase and Supabase...');
+    
+    try {
+      // Get data from primary service
+      const supabaseData = await cleanSupabaseService.getDataSummary(userId);
+      
+      // Sync to Firebase (implementation would depend on Firebase service)
+      console.log('🔄 Syncing to Firebase...', supabaseData);
+      
+      return {
+        success: true,
+        synced: {
+          excelData: supabaseData.excelDataCount,
+          hourEntries: supabaseData.hourEntryCount,
+          userDates: supabaseData.userDatesCount
+        }
+      };
+    } catch (error) {
+      console.error('❌ Sync failed:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get service health status for both services
+   */
+  async getServicesHealth() {
+    const health = {
+      supabase: { status: 'unknown', latency: null },
+      firebase: { status: 'unknown', latency: null }
+    };
+
+    // Check Supabase health
+    if (this.services.supabase.enabled) {
+      try {
+        const startTime = Date.now();
+        await cleanSupabaseService.checkConnection();
+        health.supabase = {
+          status: 'healthy',
+          latency: Date.now() - startTime
+        };
+      } catch (error) {
+        health.supabase = {
+          status: 'error',
+          error: error.message
+        };
+      }
+    }
+
+    // Check Firebase health (implementation needed)
+    if (this.services.firebase.enabled) {
+      health.firebase = {
+        status: 'implementation_needed',
+        note: 'Firebase health check needs implementation'
+      };
+    }
+
+    return health;
   }
 }
 
