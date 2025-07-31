@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Select from 'react-select';
 import NumberGenTable from './NumberGenTable';
+import DataSyncStatus from './DataSyncStatus';
 
 // Add access to Electron IPC if it exists (will be undefined in web-only mode)
 const electron = window.electron;
@@ -733,6 +734,9 @@ const NumberGen = () => {
           </Link>
         </div>
       </div>
+
+      {/* Add DataSyncStatus component */}
+      <DataSyncStatus />
 
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         {/* Settings Section */}
