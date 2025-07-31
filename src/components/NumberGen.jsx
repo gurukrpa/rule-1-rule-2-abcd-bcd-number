@@ -68,8 +68,9 @@ const NumberGen = () => {
   const [planetCount, setPlanetCount] = useState('');
   const [selectedPlanetsByPosition, setSelectedPlanetsByPosition] = useState([]); // This will now hold arrays of planets
   const [tableResults, setTableResults] = useState([]); // Will now contain objects with numbers and planets
-  // Using a constant 500 value instead of user-configurable maxCombinations 
-  const maxCombinations = 500; // Fixed value, no longer user configurable
+  // User-configurable maxCombinations with unlimited option
+  const [maxCombinations, setMaxCombinations] = useState(500); // Default 500, but user can change
+  const [unlimitedMode, setUnlimitedMode] = useState(false); // Toggle for unlimited combinations
   const [valueRange, setValueRange] = useState(''); // Value range (1-100)
   const [minSum, setMinSum] = useState(''); // Minimum sum filter (1-500)
   const [maxSum, setMaxSum] = useState(''); // Maximum sum filter (1-500)
@@ -307,8 +308,11 @@ const NumberGen = () => {
 
     // Additional validation for multi-select - check if there are too many possible combinations
     const totalCombinations = selectedPlanetsByPosition.reduce((acc, planets) => acc * planets.length, 1);
-    if (totalCombinations > 500) {
+    if (!unlimitedMode && totalCombinations > 500) {
       const confirm = window.confirm(`Your selection would generate approximately ${totalCombinations} combinations, which might slow down your browser. Do you want to continue?`);
+      if (!confirm) return;
+    } else if (unlimitedMode && totalCombinations > 10000) {
+      const confirm = window.confirm(`⚠️ UNLIMITED MODE: Your selection could generate ${totalCombinations}+ combinations! This might freeze your browser for a long time. Are you sure you want to continue?`);
       if (!confirm) return;
     }
 
@@ -344,8 +348,8 @@ const NumberGen = () => {
         const permResult = findCombinationsFromPlanetNumbers(planetsWithNumbers, permutation);
         allResults = [...allResults, ...permResult];
         
-        // Limit total results for performance
-        if (allResults.length >= maxCombinations) {
+        // Limit total results for performance (only if not in unlimited mode)
+        if (!unlimitedMode && allResults.length >= maxCombinations) {
           console.warn(`Reached maximum combinations limit (${maxCombinations}). Stopping processing.`);
           break;
         }
@@ -360,7 +364,7 @@ const NumberGen = () => {
         return 0;
       });
       
-      allResults = allResults.slice(0, maxCombinations);
+      allResults = unlimitedMode ? allResults : allResults.slice(0, maxCombinations);
       
       console.log('Generated results:', allResults.length, 'combinations');
       console.log('=== LEFT-TO-RIGHT ASCENDING ORDERING TEST ===');
@@ -464,7 +468,7 @@ const NumberGen = () => {
               currentCombination[currentIndex] = num;
               generateCombinations(currentIndex + 1, currentCombination, newSum);
               
-              if (results.length >= maxCombinations) return;
+              if (!unlimitedMode && results.length >= maxCombinations) return;
             }
           }
         }
@@ -491,7 +495,7 @@ const NumberGen = () => {
         console.log(`  ${index + 1}: [${result.numbers.join(', ')}] - planets: [${result.planets.join(', ')}]`);
       });
     }
-    return results.slice(0, maxCombinations);
+    return unlimitedMode ? results : results.slice(0, maxCombinations);
   };
 
   // Helper function to get a nice display name for planets
@@ -831,6 +835,52 @@ const NumberGen = () => {
                 }
               }}
             />
+          </div>
+        </div>
+        
+        {/* Max Combinations Control Section */}
+        <div className="flex flex-col md:flex-row border-2 border-purple-500 rounded-md p-4 mb-4 bg-purple-50">
+          <div className="w-full md:w-1/2 p-2">
+            <h3 className="font-bold text-lg mb-2 text-purple-800">Maximum Combinations</h3>
+            <div className="flex items-center gap-2 mb-3">
+              <input
+                type="checkbox"
+                id="unlimitedMode"
+                checked={unlimitedMode}
+                onChange={(e) => setUnlimitedMode(e.target.checked)}
+                className="w-4 h-4 text-purple-600"
+              />
+              <label htmlFor="unlimitedMode" className="text-sm font-medium text-purple-700">
+                Unlimited Mode (Generate all possible combinations)
+              </label>
+            </div>
+            {!unlimitedMode && (
+              <input
+                type="number"
+                min="1"
+                max="10000"
+                className="w-full border-2 border-purple-500 rounded p-2"
+                value={maxCombinations}
+                onChange={(e) => {
+                  const value = Number(e.target.value);
+                  if (value > 0) {
+                    setMaxCombinations(value);
+                  }
+                }}
+                placeholder="Enter max combinations (e.g., 500, 1000)"
+              />
+            )}
+          </div>
+          <div className="w-full md:w-1/2 p-2">
+            <h3 className="font-bold text-lg mb-2 text-purple-800">Performance Warning</h3>
+            <div className="text-sm text-purple-700 space-y-1">
+              <p>⚠️ <strong>Unlimited mode</strong> may generate thousands of combinations</p>
+              <p>🐌 Large numbers can slow down your browser</p>
+              <p>💡 Recommended: Start with 1000-5000 for testing</p>
+              {unlimitedMode && (
+                <p className="text-red-600 font-semibold">🚨 UNLIMITED MODE ACTIVE - No limits applied!</p>
+              )}
+            </div>
           </div>
         </div>
         
