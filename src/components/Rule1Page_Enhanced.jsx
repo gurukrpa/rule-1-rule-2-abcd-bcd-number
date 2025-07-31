@@ -176,6 +176,7 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
   const checkNumberInTopicData = (number, setName, dateKey) => {
     const dayData = allDaysData[dateKey];
     if (!dayData?.success || !dayData.hrData[activeHR]?.sets[setName]) {
+      console.log(`🔍 [NumberBoxes] No data available for ${setName}/${dateKey}/HR${activeHR}`);
       return false;
     }
 
@@ -188,20 +189,21 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
       if (elementData?.hasData && elementData.rawData) {
         const extractedNumber = extractElementNumber(elementData.rawData);
         if (extractedNumber === number) {
-          console.log(`🎯 [NumberBoxes] Found number ${number} in ${setName}/${dateKey}/${elementName}`);
+          console.log(`🎯 [NumberBoxes] Found number ${number} in ${setName}/${dateKey}/${elementName} for HR ${activeHR}`);
           return true;
         }
       }
     }
+    console.log(`❌ [NumberBoxes] Number ${number} not found in ${setName}/${dateKey} for HR ${activeHR}`);
     return false;
   };
 
   // ✅ NEW: Handle number box clicks
   const handleNumberBoxClick = (number, setName, dateKey) => {
-    console.log(`🔢 [NumberBoxes] Clicked number ${number} for ${setName}/${dateKey}`);
+    console.log(`🔢 [NumberBoxes] Clicked number ${number} for ${setName}/${dateKey} HR${activeHR}`);
     
-    // Generate unique key for this number-topic-date combination
-    const boxKey = `${setName}_${dateKey}_${number}`;
+    // Generate unique key for this number-topic-date-HR combination
+    const boxKey = `${setName}_${dateKey}_${number}_HR${activeHR}`;
     
     // Check if number is present in the data
     const isPresent = checkNumberInTopicData(number, setName, dateKey);
@@ -219,6 +221,21 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
     }));
     
     console.log(`🎯 [NumberBoxes] Number ${number} is ${isPresent ? 'PRESENT' : 'NOT PRESENT'} in ${setName}/${dateKey}`);
+    
+    if (isPresent) {
+      // Check if this number also belongs to ABCD/BCD analysis
+      const setAnalysis = abcdBcdAnalysis[setName];
+      const dateAnalysis = setAnalysis?.[dateKey];
+      const isAbcd = dateAnalysis?.abcdNumbers?.includes(number);
+      const isBcd = dateAnalysis?.bcdNumbers?.includes(number);
+      
+      if (isAbcd || isBcd) {
+        console.log(`🟠🎯 [NumberBoxes] BONUS! Number ${number} is BOTH found in data AND belongs to ${isAbcd ? 'ABCD' : 'BCD'} analysis!`);
+        console.log(`🎨 [NumberBoxes] Will show: ORANGE OUTLINE + ${isAbcd ? 'ABCD' : 'BCD'} TAG for maximum visual impact`);
+      } else {
+        console.log(`🟠 [NumberBoxes] Will highlight with ORANGE OUTLINE (found in data but not in ABCD/BCD analysis)`);
+      }
+    }
   };
 
   // Enhanced data fetching with retry mechanism and timeout protection
@@ -597,7 +614,7 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
   // Load Rule-2 ABCD/BCD analysis results for display using real-time analysis
   const loadRule2AnalysisResults = async () => {
     try {
-      console.log('🔍 [Rule1Page] Loading Rule-2 ABCD/BCD analysis results using real-time analysis...');
+      console.log(`🔍 [Rule1Page] Loading Rule-2 ABCD/BCD analysis results for HR ${activeHR} using real-time analysis...`);
       
       // Get all available dates
       const availableDates = Object.keys(allDaysData).sort((a, b) => new Date(a) - new Date(b));
@@ -607,9 +624,14 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
         return;
       }
       
+      if (!activeHR) {
+        console.log('⚠️ [Rule1Page] No active HR selected, skipping ABCD/BCD analysis');
+        return;
+      }
+      
       // ✅ IMPLEMENTATION: Past Days should show ABCD/BCD numbers using (N-1) pattern
       // For each date in Past Days, calculate ABCD/BCD numbers from the PREVIOUS date using rule2page logic
-      console.log('🔄 [Rule1Page] Implementing (N-1) day pattern for Past Days...');
+      console.log(`🔄 [Rule1Page] Implementing (N-1) day pattern for Past Days with HR ${activeHR}...`);
       
       const analysisData = {};
       
@@ -623,7 +645,7 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
         if (i > 0) { // Skip first date as it has no previous date
           const previousDate = availableDates[i - 1]; // N-1 day
           
-          console.log(`📅 [Rule1Page] Processing Past Days: "${currentDate}" shows ABCD/BCD from "${previousDate}"`);
+          console.log(`📅 [Rule1Page] Processing Past Days: "${currentDate}" shows ABCD/BCD from "${previousDate}" for HR ${activeHR}`);
           console.log(`📊 [Rule1Page] Available dates for analysis: [${availableDates.slice(0, i + 1).join(', ')}]`);
           
           try {
@@ -635,20 +657,21 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
             console.log(`   - User: ${selectedUser}`);
             console.log(`   - Trigger Date: ${previousDate}`);
             console.log(`   - Dates List: [${datesForAnalysis.join(', ')}]`);
-            console.log(`   - HR: ${activeHR || 1}`);
+            console.log(`   - HR: ${activeHR} (HR-SPECIFIC ANALYSIS)`);
             
             const rule2Analysis = await rule2AnalysisService.performRule2Analysis(
               selectedUser, 
               previousDate, // Analyze the PREVIOUS date (N-1)
               datesForAnalysis, // Use dates up to and including the previous date
-              activeHR || 1
+              activeHR // ✅ FIX: Use the actual active HR instead of fallback
             );
             
             if (rule2Analysis.success) {
-              console.log(`✅ [Rule1Page] Real-time analysis SUCCESS for "${previousDate}" (shown in "${currentDate}"):`);
+              console.log(`✅ [Rule1Page] Real-time analysis SUCCESS for "${previousDate}" (shown in "${currentDate}") HR ${activeHR}:`);
               console.log(`   📊 ABCD Numbers: [${rule2Analysis.abcdNumbers.join(', ')}] (${rule2Analysis.abcdNumbers.length} total)`);
               console.log(`   📊 BCD Numbers: [${rule2Analysis.bcdNumbers.join(', ')}] (${rule2Analysis.bcdNumbers.length} total)`);
               console.log(`   📊 Analysis Date: ${rule2Analysis.analysisDate}`);
+              console.log(`   📊 HR Used: ${activeHR}`);
               console.log(`   📊 Summary:`, rule2Analysis.summary);
               
               // ✅ IMPORTANT: Store topic-specific ABCD/BCD numbers, not overall combined numbers
@@ -660,7 +683,7 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
               
               // Extract topic-specific results from the Rule2 analysis
               const topicResults = rule2Analysis.setResults || [];
-              console.log(`📊 [Rule1Page] Found ${topicResults.length} topic-specific results`);
+              console.log(`📊 [Rule1Page] Found ${topicResults.length} topic-specific results for HR ${activeHR}`);
               
               // Process each topic individually (like Rule2CompactPage does)
               topicResults.forEach(topicResult => {
@@ -670,7 +693,7 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
                   analysisData[topicName] = {};
                 }
                 
-                console.log(`🔍 [Rule1Page] Topic "${topicName}" individual analysis:`, {
+                console.log(`🔍 [Rule1Page] Topic "${topicName}" individual analysis for HR ${activeHR}:`, {
                   abcdCount: topicResult.abcdNumbers.length,
                   bcdCount: topicResult.bcdNumbers.length,
                   abcdNumbers: topicResult.abcdNumbers,
@@ -685,17 +708,18 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
                   date: currentDate,
                   analysisDate: previousDate, // Track which date was actually analyzed
                   pattern: 'N-1', // Mark as Past Days N-1 pattern
-                  topicName: topicName
+                  topicName: topicName,
+                  hrUsed: activeHR // ✅ FIX: Track which HR was used for this analysis
                 };
               });
               
-              console.log(`✅ [Rule1Page] Successfully stored topic-specific ABCD/BCD data for ${topicResults.length} topics on date "${currentDate}"`);
+              console.log(`✅ [Rule1Page] Successfully stored topic-specific ABCD/BCD data for ${topicResults.length} topics on date "${currentDate}" for HR ${activeHR}`);
             } else {
-              console.error(`❌ [Rule1Page] Real-time analysis FAILED for "${previousDate}":`, rule2Analysis.error);
+              console.error(`❌ [Rule1Page] Real-time analysis FAILED for "${previousDate}" HR ${activeHR}:`, rule2Analysis.error);
               console.log(`❌ [Rule1Page] Analysis details:`, rule2Analysis);
             }
           } catch (analysisError) {
-            console.error(`❌ [Rule1Page] Error in real-time analysis for "${previousDate}":`, analysisError);
+            console.error(`❌ [Rule1Page] Error in real-time analysis for "${previousDate}" HR ${activeHR}:`, analysisError);
           }
         } else {
           console.log(`⚠️ [Rule1Page] Skipping first date "${currentDate}" - no previous date for N-1 pattern`);
@@ -704,27 +728,28 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
       
       // Update abcdBcdAnalysis state with real-time Rule-2 results
       if (Object.keys(analysisData).length > 0) {
-        console.log(`🎯 [Rule1Page] Setting real-time ABCD/BCD analysis data for ${Object.keys(analysisData).length} topics`);
+        console.log(`🎯 [Rule1Page] Setting real-time ABCD/BCD analysis data for ${Object.keys(analysisData).length} topics for HR ${activeHR}`);
         console.log(`📊 [Rule1Page] Past Days dates processed:`, Object.keys(analysisData[availableTopics[0]] || {}));
         
         // Debug: Show a sample of the analysis data structure
         const firstTopic = availableTopics[0];
         if (firstTopic && analysisData[firstTopic]) {
-          console.log(`🔍 [Rule1Page] Sample analysis data for topic "${firstTopic}":`, analysisData[firstTopic]);
+          console.log(`🔍 [Rule1Page] Sample analysis data for topic "${firstTopic}" HR ${activeHR}:`, analysisData[firstTopic]);
         }
         
         setAbcdBcdAnalysis(analysisData);
-        console.log(`✅ [Rule1Page] abcdBcdAnalysis state updated successfully`);
+        console.log(`✅ [Rule1Page] abcdBcdAnalysis state updated successfully for HR ${activeHR}`);
       } else {
-        console.log('ℹ️ [Rule1Page] No real-time ABCD/BCD numbers generated for any dates');
+        console.log(`ℹ️ [Rule1Page] No real-time ABCD/BCD numbers generated for any dates for HR ${activeHR}`);
         console.log('🔍 [Rule1Page] This could mean:');
         console.log('   - No dates had sufficient data for Rule2 analysis');
         console.log('   - All Rule2 analyses failed');
         console.log('   - Not enough dates available (need at least 4 dates for Rule2)');
+        console.log(`   - HR ${activeHR} has no planet selections`);
       }
       
     } catch (error) {
-      console.error('❌ [Rule1Page] Error loading real-time Rule-2 analysis results:', error);
+      console.error(`❌ [Rule1Page] Error loading real-time Rule-2 analysis results for HR ${activeHR}:`, error);
     }
   };
 
@@ -737,12 +762,19 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
 
   // Load Rule-2 analysis results after data is loaded
   useEffect(() => {
-    if (Object.keys(allDaysData).length > 0 && availableTopics.length > 0 && selectedUser) {
+    if (Object.keys(allDaysData).length > 0 && availableTopics.length > 0 && selectedUser && activeHR) {
       loadRule2AnalysisResults();
     }
-  }, [allDaysData, availableTopics, selectedUser]);
+  }, [allDaysData, availableTopics, selectedUser, activeHR]);
 
-  // Color coding function for ABCD/BCD numbers
+  // ✅ NEW: Force re-render when number boxes are clicked to update cell colors
+  useEffect(() => {
+    // This effect will trigger re-rendering when clickedNumbers or numberPresenceStatus changes
+    // This ensures that cell highlighting updates immediately when number boxes are clicked
+    console.log(`🔄 [NumberBoxes] Number box state changed, triggering cell color updates`);
+  }, [clickedNumbers, numberPresenceStatus]);
+
+  // Color coding function for ABCD/BCD numbers and number box highlighting
   const renderColorCodedDayNumber = (displayValue, setName, dateKey) => {
     if (displayValue === '—' || displayValue === '(No Data)') {
       return displayValue;
@@ -751,19 +783,26 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
     const elementNumber = extractElementNumber(displayValue);
     if (elementNumber === null) return displayValue;
 
+    // ✅ NEW: Check if this number was clicked in the number boxes and is present
+    const checkNumberBoxHighlight = () => {
+      const boxKey = `${setName}_${dateKey}_${elementNumber}_HR${activeHR}`;
+      const isClicked = clickedNumbers[boxKey];
+      const isPresent = numberPresenceStatus[boxKey];
+      
+      if (isClicked && isPresent) {
+        // Return orange outline for all found numbers (consistent styling)
+        return 'border-orange-500 border-2 bg-orange-50';
+      }
+      return null;
+    };
+
+    const numberBoxHighlight = checkNumberBoxHighlight();
+
     // Check if we have analysis data for this set and date
     const setAnalysis = abcdBcdAnalysis[setName];
-    if (!setAnalysis) {
-      return displayValue;
-    }
-    
-    if (!setAnalysis[dateKey]) {
-      return displayValue;
-    }
-
-    const dateAnalysis = setAnalysis[dateKey];
-    const abcdNumbers = dateAnalysis.abcdNumbers || [];
-    const bcdNumbers = dateAnalysis.bcdNumbers || [];
+    const dateAnalysis = setAnalysis?.[dateKey];
+    const abcdNumbers = dateAnalysis?.abcdNumbers || [];
+    const bcdNumbers = dateAnalysis?.bcdNumbers || [];
     
     // 🔍 DETAILED DEBUG: Only log when we find a match
     if (abcdNumbers.includes(elementNumber) || bcdNumbers.includes(elementNumber)) {
@@ -777,9 +816,45 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
       });
     }
     
-    // Check if this number is in ABCD or BCD results
-    if (abcdNumbers.includes(elementNumber)) {
-      console.log(`✅ [Rule1Page] Rendering ABCD tag for number ${elementNumber} (expected: 7, 10)`);
+    // ✅ ENHANCED: Combine number box highlighting with ABCD/BCD tags
+    const isAbcd = abcdNumbers.includes(elementNumber);
+    const isBcd = bcdNumbers.includes(elementNumber);
+    
+    if (numberBoxHighlight) {
+      console.log(`🟠 [Rule1Page] Applying number box highlight with orange outline for ${elementNumber}`);
+      
+      // Show ABCD/BCD tag WITH orange outline if it belongs to ABCD/BCD analysis
+      if (isAbcd) {
+        return (
+          <div className={`p-1 rounded ${numberBoxHighlight} flex items-center justify-center gap-1`}>
+            <span className="text-data-value">{displayValue}</span>
+            <span className="bg-green-200 text-green-800 text-xs font-medium px-1 py-0.5 rounded">
+              ABCD
+            </span>
+          </div>
+        );
+      } else if (isBcd) {
+        return (
+          <div className={`p-1 rounded ${numberBoxHighlight} flex items-center justify-center gap-1`}>
+            <span className="text-data-value">{displayValue}</span>
+            <span className="bg-blue-200 text-blue-800 text-xs font-medium px-1 py-0.5 rounded">
+              BCD
+            </span>
+          </div>
+        );
+      } else {
+        // Just number box highlighting without ABCD/BCD tag
+        return (
+          <div className={`p-1 rounded ${numberBoxHighlight}`}>
+            {displayValue}
+          </div>
+        );
+      }
+    }
+    
+    // Standard ABCD/BCD analysis highlighting (when no number box click)
+    if (isAbcd) {
+      console.log(`✅ [Rule1Page] Rendering standard ABCD tag for number ${elementNumber}`);
       return (
         <div className="flex items-center justify-center gap-1">
           <span className="text-data-value">{displayValue}</span>
@@ -788,8 +863,8 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
           </span>
         </div>
       );
-    } else if (bcdNumbers.includes(elementNumber)) {
-      console.log(`✅ [Rule1Page] Rendering BCD tag for number ${elementNumber} (expected: 3, 6, 8)`);
+    } else if (isBcd) {
+      console.log(`✅ [Rule1Page] Rendering standard BCD tag for number ${elementNumber}`);
       return (
         <div className="flex items-center justify-center gap-1">
           <span className="text-data-value">{displayValue}</span>
@@ -815,7 +890,7 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
         {/* Row 1: Numbers 1-6 */}
         <div className="flex gap-1 justify-center">
           {[1, 2, 3, 4, 5, 6].map(number => {
-            const boxKey = `${setName}_${dateKey}_${number}`;
+            const boxKey = `${setName}_${dateKey}_${number}_HR${activeHR}`;
             const isClicked = clickedNumbers[boxKey];
             const isPresent = numberPresenceStatus[boxKey];
             
@@ -849,7 +924,7 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
         {/* Row 2: Numbers 7-12 */}
         <div className="flex gap-1 justify-center">
           {[7, 8, 9, 10, 11, 12].map(number => {
-            const boxKey = `${setName}_${dateKey}_${number}`;
+            const boxKey = `${setName}_${dateKey}_${number}_HR${activeHR}`;
             const isClicked = clickedNumbers[boxKey];
             const isPresent = numberPresenceStatus[boxKey];
             
