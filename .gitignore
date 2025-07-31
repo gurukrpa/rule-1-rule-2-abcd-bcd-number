@@ -49,6 +49,27 @@ yarn-error.log*
 # Temporary files
 *.tmp
 *.temp
+
+# Debug and test HTML files (keep them out of root)
+debug-*.html
+test-*.html
+fix-*.html
+setup-*.html
+verify-*.html
+ketu-*.html
+rule2-*.html
+manual-*.html
+progressive-*.html
+quick-*.html
+solution-*.html
+topic-*.html
+hr-*.html
+missing-*.html
+diagnostic-*.html
+fetch-*.html
+july-*.html
+add-*.html
+check-*.html
 # macOS hidden system files
 ._*
 .DS_Store

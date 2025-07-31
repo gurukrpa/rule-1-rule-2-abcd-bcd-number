@@ -5,11 +5,18 @@ import { resolve } from 'path';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: './', // Changed from '/' to './' for Electron build
+  base: '/rule-1-rule-2-abcd-bcd-number/',
+  root: '.',
+  publicDir: 'public',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html')
+      }
+    }
   },
   resolve: {
     alias: {
