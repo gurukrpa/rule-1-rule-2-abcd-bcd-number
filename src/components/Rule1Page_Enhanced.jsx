@@ -28,6 +28,10 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
   // Column headers with validation status
   const [columnHeaders, setColumnHeaders] = useState({});
   
+  // ✅ NEW: Number boxes state for 1-12 clickable numbers feature
+  const [clickedNumbers, setClickedNumbers] = useState({}); // Track clicked numbers per topic-date
+  const [numberPresenceStatus, setNumberPresenceStatus] = useState({}); // Track if numbers are present in data
+  
   // Redis caching hooks
   const { 
     cacheStats, 
@@ -166,6 +170,55 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
     // Look for pattern: element-NUMBER-/planet-(number SIGN number) and extract element-NUMBER- SIGN
     const match = str.match(/^([a-z]+-\d+-)[^(]*\((\d+)\s+([A-Za-z]+)\s+\d+\)/);
     return match ? `${match[1]} ${match[3].toLowerCase()}` : null;
+  };
+
+  // ✅ NEW: Check if a number is present in the topic data for a specific date
+  const checkNumberInTopicData = (number, setName, dateKey) => {
+    const dayData = allDaysData[dateKey];
+    if (!dayData?.success || !dayData.hrData[activeHR]?.sets[setName]) {
+      return false;
+    }
+
+    const setData = dayData.hrData[activeHR].sets[setName];
+    const elementNames = ['Lagna', 'Moon', 'Hora Lagna', 'Ghati Lagna', 'Vighati Lagna', 'Varnada Lagna', 'Sree Lagna', 'Pranapada Lagna', 'Indu Lagna'];
+    
+    // Search through all elements in this topic for the exact number
+    for (const elementName of elementNames) {
+      const elementData = setData[elementName];
+      if (elementData?.hasData && elementData.rawData) {
+        const extractedNumber = extractElementNumber(elementData.rawData);
+        if (extractedNumber === number) {
+          console.log(`🎯 [NumberBoxes] Found number ${number} in ${setName}/${dateKey}/${elementName}`);
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  // ✅ NEW: Handle number box clicks
+  const handleNumberBoxClick = (number, setName, dateKey) => {
+    console.log(`🔢 [NumberBoxes] Clicked number ${number} for ${setName}/${dateKey}`);
+    
+    // Generate unique key for this number-topic-date combination
+    const boxKey = `${setName}_${dateKey}_${number}`;
+    
+    // Check if number is present in the data
+    const isPresent = checkNumberInTopicData(number, setName, dateKey);
+    
+    // Update clicked numbers state
+    setClickedNumbers(prev => ({
+      ...prev,
+      [boxKey]: !prev[boxKey] // Toggle clicked state
+    }));
+    
+    // Update presence status
+    setNumberPresenceStatus(prev => ({
+      ...prev,
+      [boxKey]: isPresent
+    }));
+    
+    console.log(`🎯 [NumberBoxes] Number ${number} is ${isPresent ? 'PRESENT' : 'NOT PRESENT'} in ${setName}/${dateKey}`);
   };
 
   // Enhanced data fetching with retry mechanism and timeout protection
@@ -750,6 +803,86 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
     return displayValue;
   };
 
+  // ✅ NEW: Render 1-12 number boxes for dates starting from 5th date
+  const renderNumberBoxes = (setName, dateKey, dateIndex) => {
+    // Only show for 5th date onwards (index >= 4)
+    if (dateIndex < 4) {
+      return null;
+    }
+
+    return (
+      <div className="mt-2 space-y-1">
+        {/* Row 1: Numbers 1-6 */}
+        <div className="flex gap-1 justify-center">
+          {[1, 2, 3, 4, 5, 6].map(number => {
+            const boxKey = `${setName}_${dateKey}_${number}`;
+            const isClicked = clickedNumbers[boxKey];
+            const isPresent = numberPresenceStatus[boxKey];
+            
+            // Determine button style
+            const getButtonStyle = () => {
+              if (isClicked && isPresent) {
+                // Orange for found numbers
+                return 'bg-orange-500 text-white hover:bg-orange-600';
+              } else if (isClicked && !isPresent) {
+                // Default style for not found (no special styling)
+                return 'bg-gray-200 text-gray-700 hover:bg-gray-300';
+              } else {
+                // Default unclicked style
+                return 'bg-gray-200 text-gray-700 hover:bg-gray-300';
+              }
+            };
+            
+            return (
+              <button
+                key={number}
+                onClick={() => handleNumberBoxClick(number, setName, dateKey)}
+                className={`w-6 h-6 text-xs font-medium rounded border transition-colors ${getButtonStyle()}`}
+                title={`Click to check if number ${number} exists in ${setName} data for this date`}
+              >
+                {number}
+              </button>
+            );
+          })}
+        </div>
+        
+        {/* Row 2: Numbers 7-12 */}
+        <div className="flex gap-1 justify-center">
+          {[7, 8, 9, 10, 11, 12].map(number => {
+            const boxKey = `${setName}_${dateKey}_${number}`;
+            const isClicked = clickedNumbers[boxKey];
+            const isPresent = numberPresenceStatus[boxKey];
+            
+            // Determine button style
+            const getButtonStyle = () => {
+              if (isClicked && isPresent) {
+                // Dark green for found numbers
+                return 'bg-green-700 text-white hover:bg-green-800';
+              } else if (isClicked && !isPresent) {
+                // Default style for not found (no special styling)
+                return 'bg-gray-200 text-gray-700 hover:bg-gray-300';
+              } else {
+                // Default unclicked style
+                return 'bg-gray-200 text-gray-700 hover:bg-gray-300';
+              }
+            };
+            
+            return (
+              <button
+                key={number}
+                onClick={() => handleNumberBoxClick(number, setName, dateKey)}
+                className={`w-6 h-6 text-xs font-medium rounded border transition-colors ${getButtonStyle()}`}
+                title={`Click to check if number ${number} exists in ${setName} data for this date`}
+              >
+                {number}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
@@ -934,6 +1067,9 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
                           const year = dateObj.getFullYear().toString().slice(-2); // Get last 2 digits of year
                           const formattedDate = `${day}-${month}-${year}`;
                           
+                          // Get date index for 5th date check
+                          const dateIndex = availableDates.indexOf(dateKey);
+                          
                           const planetAbbr = (() => {
                             const dayData = allDaysData[dateKey];
                             if (dayData?.success && dayData.hrData[activeHR]) {
@@ -981,6 +1117,9 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
                                   )}
                                 </div>
                               )}
+                              
+                              {/* ✅ NEW: Add 1-12 number boxes below BCD numbers for 5th date onwards */}
+                              {renderNumberBoxes(setName, dateKey, dateIndex)}
                               </th>
                           );
                         })}
