@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/x-icon" href="/rule-1-rule-2-abcd-bcd-number/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>House Count App</title>
+    <script>
+      // Single Page Application redirect for GitHub Pages
+      // This script redirects 404 requests to index.html for client-side routing
+      (function() {
+        const currentPath = window.location.pathname;
+        const basePath = '/rule-1-rule-2-abcd-bcd-number/';
+        
+        if (currentPath !== basePath && currentPath !== basePath + 'index.html') {
+          // Store the requested path in sessionStorage to restore after redirect
+          sessionStorage.setItem('redirectPath', currentPath + window.location.search + window.location.hash);
+          
+          // Redirect to the base GitHub Pages URL
+          window.location.replace(basePath);
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+  </body>
+</html>
