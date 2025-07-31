@@ -11,9 +11,10 @@ class DualServiceManager {
   constructor() {
     this.primary = cleanSupabaseService;
     this.backup = firebaseService;
-    this.isEnabled = false;
+    this.isEnabled = true; // Enable dual-service mode for shared data
     
-    console.log('🔄 Dual-Service Manager initialized');
+    console.log('🔄 Dual-Service Manager initialized with REAL Firebase service');
+    console.log('🌐 Data will sync between localhost and viboothi.in via Firebase');
   }
 
   // =====================================
@@ -353,6 +354,13 @@ class DualServiceManager {
    */
   async getUserDates(userId) {
     return await this.dualFetch('getUserDates', userId);
+  }
+
+  /**
+   * Create user in both services
+   */
+  async createUser(userData) {
+    return await this.dualSave('createUser', userData);
   }
 }
 

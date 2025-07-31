@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import DataSyncStatus from './DataSyncStatus'; // Import the sync status component
 
 function UserList() {
   const navigate = useNavigate();
@@ -157,6 +158,9 @@ function UserList() {
                 <Link to="/number-gen" className="text-gray-700 hover:text-gray-900">
                   Number Generator
                 </Link>
+                <Link to="/dual-service-demo" className="text-gray-700 hover:text-gray-900">
+                  Firebase Sync Demo
+                </Link>
                 <Link to="/test" className="text-gray-700 hover:text-gray-900">
                   Test
                 </Link>
@@ -178,6 +182,9 @@ function UserList() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
+          {/* Add DataSyncStatus at the top */}
+          <DataSyncStatus />
+          
           <h2 className="text-2xl font-bold mb-6">User Management</h2>
 
           <div className="bg-white p-6 rounded-lg shadow-md mb-8">
@@ -268,6 +275,11 @@ function UserList() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Data Sync Status Component */}
+      <div className="mt-8">
+        <DataSyncStatus />
       </div>
       </div>
       </main>

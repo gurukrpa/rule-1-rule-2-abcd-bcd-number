@@ -5,22 +5,22 @@
 
 // Service configuration
 const SERVICE_CONFIG = {
-  // Primary active service for main operations
-  ACTIVE_SERVICE: 'supabase', // Primary service
+  // Environment-based service selection
+  ACTIVE_SERVICE: getActiveServiceForEnvironment(),
   
-  // Dual-service mode: Run both simultaneously
-  DUAL_SERVICE_MODE: true, // Enable dual service mode
+  // Dual-service mode: Environment dependent
+  DUAL_SERVICE_MODE: isDualServiceModeEnabled(),
   
   // Service status
   SERVICES: {
     firebase: {
-      enabled: true, // Enable Firebase for backup/sync
+      enabled: isFirebaseEnabled(), // Environment dependent
       name: 'Firebase',
       description: 'Google Firebase Firestore & Authentication',
       role: 'backup' // Primary role: backup and real-time sync
     },
     supabase: {
-      enabled: true, // Enable Supabase as primary
+      enabled: true, // Always enabled
       name: 'Supabase',
       description: 'Supabase PostgreSQL & Authentication',
       role: 'primary' // Primary role: main database operations
@@ -28,10 +28,63 @@ const SERVICE_CONFIG = {
   }
 };
 
+/**
+ * Determine active service based on environment
+ */
+function getActiveServiceForEnvironment() {
+  const isProduction = import.meta.env.NODE_ENV === 'production';
+  const isDevelopment = import.meta.env.DEV;
+  
+  if (isDevelopment) {
+    // Local development: Supabase only
+    console.log('🏠 Development environment: Using Supabase only');
+    return 'supabase';
+  } else if (isProduction) {
+    // Production (GitHub Pages): Supabase primary with Firebase backup
+    console.log('🌐 Production environment: Using dual-service mode');
+    return 'supabase';
+  }
+  
+  // Default to Supabase
+  return 'supabase';
+}
+
+/**
+ * Check if dual-service mode should be enabled
+ */
+function isDualServiceModeEnabled() {
+  // Enable dual-service mode for shared data between localhost and viboothi.in
+  console.log('🔄 Dual-service mode ENABLED for data sharing');
+  return true;
+}
+
+/**
+ * Check if Firebase should be enabled
+ */
+function isFirebaseEnabled() {
+  // Firebase is now ALWAYS enabled for shared data
+  console.log('🔥 Firebase ENABLED for shared data between localhost and viboothi.in');
+  return true;
+}
+
 // Import services
-import { firebaseAuthService } from './FirebaseAuthService.js';
 import { supabaseAuthService } from './SupabaseAuthService.js';
 import { cleanSupabaseService } from './CleanSupabaseService.js';
+
+// Firebase imports (NOW ENABLED for shared data)
+import { firebaseService } from './FirebaseService.js';
+
+// Create real Firebase auth service placeholder
+const firebaseAuthService = {
+  signIn: () => Promise.reject(new Error('Use Supabase for authentication')),
+  signUp: () => Promise.reject(new Error('Use Supabase for authentication')),
+  signOut: () => Promise.resolve(true),
+  getCurrentUser: () => null,
+  isAuthenticated: () => false,
+  onAuthStateChange: () => () => {},
+  authenticateUser: () => Promise.reject(new Error('Use Supabase for authentication')),
+  getAuthErrorMessage: (msg) => msg || 'Firebase auth not configured - use Supabase'
+};
 
 /**
  * Database Service Switcher Class
