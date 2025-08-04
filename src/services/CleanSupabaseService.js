@@ -27,7 +27,7 @@ class CleanSupabaseService {
           hr_count: userData.hr || 1
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       console.log('✅ User created:', data.id);
@@ -44,7 +44,7 @@ class CleanSupabaseService {
         .from('users')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       return data;
@@ -100,7 +100,7 @@ class CleanSupabaseService {
           onConflict: 'user_id,date'  // Specify composite key for conflict resolution
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       
@@ -121,7 +121,7 @@ class CleanSupabaseService {
         .select('*')
         .eq('user_id', userId)
         .eq('date', date)
-        .single();
+        .maybeSingle();
 
       if (error) {
         if (error.code === 'PGRST116') {
@@ -210,7 +210,7 @@ class CleanSupabaseService {
           onConflict: 'user_id,date_key'  // Specify composite key for conflict resolution
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       
@@ -231,7 +231,7 @@ class CleanSupabaseService {
         .select('*')
         .eq('user_id', userId)
         .eq('date_key', date) // Use date_key column as per actual schema
-        .single();
+        .maybeSingle();
 
       if (error) {
         if (error.code === 'PGRST116') {
@@ -318,7 +318,7 @@ class CleanSupabaseService {
         .from('user_dates')
         .select('dates')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       if (error) {
         if (error.code === 'PGRST116') {
@@ -346,7 +346,7 @@ class CleanSupabaseService {
           onConflict: 'user_id'  // Specify the column to use for conflict resolution
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       
@@ -518,6 +518,81 @@ class CleanSupabaseService {
         userDatesCount: 0,
         userDates: []
       };
+    }
+  }
+
+  // =====================================
+  // 🎯 TOPIC CLICKS MANAGEMENT (for clickable number boxes)
+  // =====================================
+
+  async saveTopicClick(userId, topicName, dateKey, hour, clickedNumber, isMatched = false) {
+    try {
+      const { data, error } = await this.supabase
+        .from('topic_clicks')
+        .upsert({
+          user_id: userId,
+          topic_name: topicName,
+          date_key: dateKey,
+          hour: hour,
+          clicked_number: clickedNumber,
+          is_matched: isMatched
+        }, {
+          onConflict: 'user_id,topic_name,date_key,hour,clicked_number'
+        })
+        .select();
+
+      if (error) throw error;
+      console.log('✅ Topic click saved:', { userId, topicName, dateKey, hour, clickedNumber, isMatched });
+      return data[0];
+    } catch (error) {
+      console.error('❌ Error saving topic click:', error);
+      throw error;
+    }
+  }
+
+  async getTopicClicks(userId, topicName = null, dateKey = null) {
+    try {
+      let query = this.supabase
+        .from('topic_clicks')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (topicName) {
+        query = query.eq('topic_name', topicName);
+      }
+
+      if (dateKey) {
+        query = query.eq('date_key', dateKey);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
+
+      if (error) throw error;
+      console.log(`✅ Retrieved ${data.length} topic clicks for user ${userId}`);
+      return data;
+    } catch (error) {
+      console.error('❌ Error getting topic clicks:', error);
+      throw error;
+    }
+  }
+
+  async deleteTopicClick(userId, topicName, dateKey, hour, clickedNumber) {
+    try {
+      const { error } = await this.supabase
+        .from('topic_clicks')
+        .delete()
+        .eq('user_id', userId)
+        .eq('topic_name', topicName)
+        .eq('date_key', dateKey)
+        .eq('hour', hour)
+        .eq('clicked_number', clickedNumber);
+
+      if (error) throw error;
+      console.log('✅ Topic click deleted:', { userId, topicName, dateKey, hour, clickedNumber });
+      return true;
+    } catch (error) {
+      console.error('❌ Error deleting topic click:', error);
+      throw error;
     }
   }
 

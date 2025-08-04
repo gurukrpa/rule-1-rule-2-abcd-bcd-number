@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Number Box Persistence Testing Bookmarklets</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .bookmarklet { 
+            display: inline-block; 
+            background: #007bff; 
+            color: white; 
+            padding: 10px 20px; 
+            text-decoration: none; 
+            border-radius: 5px; 
+            margin: 10px 5px;
+            font-weight: bold;
+        }
+        .bookmarklet:hover { background: #0056b3; }
+        .instructions { 
+            background: white; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+        }
+        .manual-steps {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Number Box Persistence Testing Tools</h1>
+    
+    <div class="instructions">
+        <h2>📋 How to Use Bookmarklets</h2>
+        <ol>
+            <li><strong>Drag</strong> the buttons below to your browser's bookmarks bar</li>
+            <li>Navigate to your application: <code>http://localhost:5173</code></li>
+            <li>Select a user and click "Past Days" on any 5th+ date</li>
+            <li><strong>Click</strong> the bookmarklet buttons to run tests</li>
+        </ol>
+    </div>
+
+    <h2>🔧 Test Tools (Drag to Bookmarks Bar)</h2>
+    
+    <a href="javascript:(function(){
+        if (!window.rule1PageDebug) {
+            alert('❌ Debug functions not available. Make sure you are on Rule1Page_Enhanced.');
+            return;
+        }
+        
+        console.log('🔍 QUICK DIAGNOSTIC');
+        console.log('===================');
+        
+        const state = window.rule1PageDebug.getStateInfo();
+        console.log('📊 Current State:', state);
+        
+        const domState = window.rule1PageDebug.verifyDOMState();
+        console.log('🎨 DOM State:', domState);
+        
+        if (state.hasData) {
+            console.log('✅ Has clicked numbers data');
+        } else {
+            console.log('❌ No clicked numbers data');
+        }
+        
+        if (domState.styledBoxes.length > 0) {
+            console.log('✅ Visual styling is working');
+        } else {
+            console.log('❌ No visual styling found');
+        }
+        
+        alert('Quick Diagnostic Complete - Check console for details');
+    })();" class="bookmarklet">🔍 Quick Diagnostic</a>
+
+    <a href="javascript:(function(){
+        if (!window.dualServiceManager) {
+            alert('❌ Database service not available');
+            return;
+        }
+        
+        if (!window.rule1PageDebug) {
+            alert('❌ Debug functions not available');
+            return;
+        }
+        
+        const state = window.rule1PageDebug.getStateInfo();
+        if (!state.selectedUser || !state.date) {
+            alert('❌ Missing user or date information');
+            return;
+        }
+        
+        console.log('💾 DATABASE CHECK');
+        console.log('=================');
+        console.log('User:', state.selectedUser);
+        console.log('Date:', state.date);
+        console.log('HR:', state.activeHR);
+        
+        window.dualServiceManager.getAllNumberBoxClicksForUserDate(state.selectedUser, state.date)
+            .then(data => {
+                console.log('📦 Database Records:', data?.length || 0);
+                if (data && data.length > 0) {
+                    const hrRecords = data.filter(r => r.hr_number.toString() === state.activeHR.toString());
+                    console.log('🎯 Records for current HR:', hrRecords.length);
+                    hrRecords.forEach((record, i) => {
+                        console.log(`  ${i+1}. ${record.set_name}_${record.number_value}: clicked=${record.is_clicked}, present=${record.is_present}`);
+                    });
+                } else {
+                    console.log('❌ No database records found');
+                }
+                alert('Database Check Complete - Check console for details');
+            })
+            .catch(error => {
+                console.error('❌ Database check failed:', error);
+                alert('❌ Database check failed - see console');
+            });
+    })();" class="bookmarklet">💾 Check Database</a>
+
+    <a href="javascript:(function(){
+        if (!window.rule1PageDebug) {
+            alert('❌ Debug functions not available');
+            return;
+        }
+        
+        console.log('🔄 FORCE RELOAD TEST');
+        console.log('===================');
+        
+        window.rule1PageDebug.forceReloadNumberBoxes()
+            .then(() => {
+                console.log('✅ Force reload completed');
+                
+                setTimeout(() => {
+                    const state = window.rule1PageDebug.getStateInfo();
+                    const domState = window.rule1PageDebug.verifyDOMState();
+                    
+                    console.log('📊 Post-reload State:', {
+                        clickedNumbers: Object.keys(state.clickedNumbers).length,
+                        styledBoxes: domState.styledBoxes.length
+                    });
+                    
+                    if (Object.keys(state.clickedNumbers).length > 0 && domState.styledBoxes.length > 0) {
+                        alert('✅ Force reload successful - state and styling restored');
+                    } else {
+                        alert('❌ Force reload had issues - check console');
+                    }
+                }, 1000);
+            })
+            .catch(error => {
+                console.error('❌ Force reload failed:', error);
+                alert('❌ Force reload failed - see console');
+            });
+    })();" class="bookmarklet">🔄 Force Reload</a>
+
+    <a href="javascript:(function(){
+        const numberBoxes = Array.from(document.querySelectorAll('button')).filter(btn => {
+            const text = btn.textContent?.trim();
+            return text && /^(1[0-2]|[1-9])$/.test(text);
+        });
+        
+        if (numberBoxes.length === 0) {
+            alert('❌ No number boxes found');
+            return;
+        }
+        
+        console.log('🖱️ AUTO CLICK TEST');
+        console.log('==================');
+        console.log('Found', numberBoxes.length, 'number boxes');
+        
+        // Click first 3 boxes
+        const toClick = numberBoxes.slice(0, Math.min(3, numberBoxes.length));
+        
+        toClick.forEach((box, i) => {
+            setTimeout(() => {
+                const number = box.textContent.trim();
+                console.log(`🖱️ Clicking box ${number}...`);
+                box.click();
+                
+                if (i === toClick.length - 1) {
+                    setTimeout(() => {
+                        if (window.rule1PageDebug) {
+                            const state = window.rule1PageDebug.getStateInfo();
+                            const domState = window.rule1PageDebug.verifyDOMState();
+                            console.log('📊 After clicks:', {
+                                clickedNumbers: Object.keys(state.clickedNumbers).length,
+                                styledBoxes: domState.styledBoxes.length
+                            });
+                            
+                            if (Object.keys(state.clickedNumbers).length > 0) {
+                                alert('✅ Auto click test successful - ' + Object.keys(state.clickedNumbers).length + ' numbers clicked');
+                            } else {
+                                alert('❌ Auto click test failed - no state updated');
+                            }
+                        }
+                    }, 500);
+                }
+            }, i * 300);
+        });
+    })();" class="bookmarklet">🖱️ Auto Click Test</a>
+
+    <div class="manual-steps">
+        <h2>🔄 Manual Refresh Test</h2>
+        <p><strong>After running the auto-click test above:</strong></p>
+        <ol>
+            <li>Note which number boxes are colored/styled</li>
+            <li>Refresh the page (Cmd+R or F5)</li>
+            <li>Wait for page to fully load</li>
+            <li>Click the "🔍 Quick Diagnostic" bookmarklet again</li>
+            <li>Check if the same boxes are still colored</li>
+        </ol>
+        <p><strong>✅ Success:</strong> Previously clicked boxes remain colored after refresh</p>
+        <p><strong>❌ Failure:</strong> Boxes lose their color after refresh</p>
+    </div>
+
+    <h2>🗂️ Alternative Methods</h2>
+    
+    <div class="instructions">
+        <h3>Method 2: Enable Pasting in Chrome Console</h3>
+        <ol>
+            <li>Open Chrome DevTools (F12)</li>
+            <li>Go to Console tab</li>
+            <li><strong>Type</strong> (don't paste): <code>allow pasting</code></li>
+            <li>Press Enter</li>
+            <li>Now you can paste code normally</li>
+        </ol>
+    </div>
+
+    <div class="instructions">
+        <h3>Method 3: Use Developer Tools Sources</h3>
+        <ol>
+            <li>Open Chrome DevTools (F12)</li>
+            <li>Go to <strong>Sources</strong> tab</li>
+            <li>Click <strong>Snippets</strong> in left sidebar</li>
+            <li>Click <strong>+ New snippet</strong></li>
+            <li>Paste the diagnostic code there</li>
+            <li>Right-click and select <strong>Run</strong></li>
+        </ol>
+    </div>
+
+    <h2>📝 Manual Console Commands</h2>
+    <p>If bookmarklets don't work, type these commands one by one in console:</p>
+    
+    <h3>Check Current State:</h3>
+    <pre>window.rule1PageDebug?.getStateInfo()</pre>
+    
+    <h3>Check DOM State:</h3>
+    <pre>window.rule1PageDebug?.verifyDOMState()</pre>
+    
+    <h3>Force Reload:</h3>
+    <pre>window.rule1PageDebug?.forceReloadNumberBoxes()</pre>
+    
+    <h3>Check Database:</h3>
+    <pre>window.dualServiceManager?.getAllNumberBoxClicksForUserDate("user_id", "2024-01-01")</pre>
+
+</body>
+</html>

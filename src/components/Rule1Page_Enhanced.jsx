@@ -8,6 +8,7 @@ import { useCachedData, useAnalysisCache } from '../hooks/useCachedData';
 import { redisCache } from '../services/redisClient';
 import { Rule2ResultsService } from '../services/rule2ResultsService';
 import rule2AnalysisService from '../services/rule2AnalysisService';
+import cleanSupabaseService from '../services/CleanSupabaseService';
 import ProgressBar from './ProgressBar';
 
 function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack, users }) {
@@ -27,6 +28,11 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
   
   // Column headers with validation status
   const [columnHeaders, setColumnHeaders] = useState({});
+  
+  // Clickable number boxes state
+  const [clickedNumbers, setClickedNumbers] = useState({}); // {topicName: {dateKey: {hour: [numbers]}}}
+  const [highlightedCells, setHighlightedCells] = useState({}); // {topicName: {dateKey: {elementName: {type: 'ABCD'|'BCD', highlighted: boolean}}}}
+  const [numberBoxLoading, setNumberBoxLoading] = useState(false);
   
   // Redis caching hooks
   const { 
@@ -352,6 +358,325 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
       return availableTopics;
     }
     return availableTopics.filter(topic => selectedTopics.has(topic));
+  };
+
+  // =====================================
+  // 🎯 CLICKABLE NUMBER BOXES FUNCTIONALITY
+  // =====================================
+  
+  // Load previously clicked numbers from database
+  const loadClickedNumbers = async () => {
+    if (!selectedUser || !activeHR) return;
+
+    try {
+      setNumberBoxLoading(true);
+      console.log('📥 Loading previously clicked numbers...');
+
+      const clickedData = await cleanSupabaseService.getTopicClicks(selectedUser);
+      
+      // Organize clicked data by topic, date, and hour
+      const organizedClicks = {};
+      const organizedHighlights = {};
+      
+      clickedData.forEach(click => {
+        const { topic_name, date_key, hour, clicked_number, is_matched } = click;
+        
+        // Initialize nested structure
+        if (!organizedClicks[topic_name]) {
+          organizedClicks[topic_name] = {};
+          organizedHighlights[topic_name] = {};
+        }
+        if (!organizedClicks[topic_name][date_key]) {
+          organizedClicks[topic_name][date_key] = {};
+          organizedHighlights[topic_name][date_key] = {};
+        }
+        if (!organizedClicks[topic_name][date_key][hour]) {
+          organizedClicks[topic_name][date_key][hour] = [];
+        }
+
+        organizedClicks[topic_name][date_key][hour].push(clicked_number);
+        
+        // Store match type information for highlighting with different colors
+        if (is_matched) {
+          // Determine if this was an ABCD or BCD match
+          const abcdNumbers = abcdBcdAnalysis[topic_name]?.[date_key]?.abcdNumbers || [];
+          const bcdNumbers = abcdBcdAnalysis[topic_name]?.[date_key]?.bcdNumbers || [];
+          const isAbcdMatch = abcdNumbers.includes(clicked_number);
+          const matchType = isAbcdMatch ? 'ABCD' : 'BCD';
+          
+          organizedHighlights[topic_name][date_key][`matched_${clicked_number}`] = {
+            highlighted: true,
+            type: matchType
+          };
+        }
+      });
+
+      setClickedNumbers(organizedClicks);
+      setHighlightedCells(organizedHighlights);
+      
+      console.log(`✅ Loaded ${clickedData.length} previously clicked numbers`);
+    } catch (error) {
+      console.error('❌ Error loading clicked numbers:', error);
+    } finally {
+      setNumberBoxLoading(false);
+    }
+  };
+
+  // Handle number box click with toggle functionality
+  const handleNumberBoxClick = async (topicName, dateKey, number) => {
+    if (!selectedUser || !activeHR) return;
+
+    try {
+      console.log(`🔢 Number box clicked: ${number} for topic ${topicName} on ${dateKey} HR${activeHR}`);
+      
+      // Check if number is already clicked (for toggle logic)
+      const currentClicks = clickedNumbers[topicName]?.[dateKey]?.[`HR${activeHR}`] || [];
+      const isAlreadyClicked = currentClicks.includes(number);
+      
+      // Check if number matches ABCD or BCD arrays for this topic/date
+      const abcdNumbers = abcdBcdAnalysis[topicName]?.[dateKey]?.abcdNumbers || [];
+      const bcdNumbers = abcdBcdAnalysis[topicName]?.[dateKey]?.bcdNumbers || [];
+      const isAbcdMatch = abcdNumbers.includes(number);
+      const isBcdMatch = bcdNumbers.includes(number);
+      const isMatched = isAbcdMatch || isBcdMatch;
+      const matchType = isAbcdMatch ? 'ABCD' : isBcdMatch ? 'BCD' : null;
+      
+      console.log(`🎯 Match check: Number ${number}`, {
+        isAbcdMatch,
+        isBcdMatch,
+        matchType,
+        abcdNumbers,
+        bcdNumbers
+      });
+      console.log(`🔄 Toggle check: Number ${number} is ${isAlreadyClicked ? 'ALREADY CLICKED (will remove)' : 'NOT CLICKED (will add)'}`);
+      
+      if (isAlreadyClicked) {
+        // UNCLICK: Remove from database and local state
+        console.log(`🗑️ Removing number ${number} from database and state`);
+        
+        await cleanSupabaseService.deleteTopicClick(
+          selectedUser, 
+          topicName, 
+          dateKey, 
+          `HR${activeHR}`, 
+          number
+        );
+        
+        // Remove from local state
+        setClickedNumbers(prev => {
+          const updated = { ...prev };
+          if (updated[topicName]?.[dateKey]?.[`HR${activeHR}`]) {
+            const hrNumbers = updated[topicName][dateKey][`HR${activeHR}`];
+            const index = hrNumbers.indexOf(number);
+            if (index > -1) {
+              hrNumbers.splice(index, 1);
+            }
+          }
+          return updated;
+        });
+
+        // Remove highlighting if it was matched
+        if (isMatched) {
+          console.log(`🎯 Removing grid cell highlighting for number ${number}`);
+          setHighlightedCells(prev => {
+            const updated = { ...prev };
+            if (updated[topicName]?.[dateKey]) {
+              delete updated[topicName][dateKey][`matched_${number}`];
+            }
+            return updated;
+          });
+        }
+        
+        console.log(`✅ Number ${number} successfully REMOVED (unclicked)`);
+        
+      } else {
+        // CLICK: Add to database and local state
+        console.log(`➕ Adding number ${number} to database and state`);
+        
+        await cleanSupabaseService.saveTopicClick(
+          selectedUser, 
+          topicName, 
+          dateKey, 
+          `HR${activeHR}`, 
+          number, 
+          isMatched
+        );
+        
+        // Add to local state
+        setClickedNumbers(prev => {
+          const updated = { ...prev };
+          if (!updated[topicName]) updated[topicName] = {};
+          if (!updated[topicName][dateKey]) updated[topicName][dateKey] = {};
+          if (!updated[topicName][dateKey][`HR${activeHR}`]) {
+            updated[topicName][dateKey][`HR${activeHR}`] = [];
+          }
+          
+          const hrNumbers = updated[topicName][dateKey][`HR${activeHR}`];
+          if (!hrNumbers.includes(number)) {
+            hrNumbers.push(number);
+          }
+          
+          return updated;
+        });
+
+        // Add highlighting if matched
+        if (isMatched) {
+          console.log(`🎯 Adding grid cell highlighting for number ${number} with type ${matchType}`);
+          setHighlightedCells(prev => {
+            const updated = { ...prev };
+            if (!updated[topicName]) updated[topicName] = {};
+            if (!updated[topicName][dateKey]) updated[topicName][dateKey] = {};
+            updated[topicName][dateKey][`matched_${number}`] = {
+              highlighted: true,
+              type: matchType
+            };
+            return updated;
+          });
+        }
+        
+        console.log(`✅ Number ${number} successfully ADDED (clicked)`);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error handling number box click:', error);
+    }
+  };
+
+  // Check if cell should be highlighted and return match type
+  const shouldHighlightCell = (cellValue, topicName, dateKey) => {
+    const highlights = highlightedCells[topicName]?.[dateKey] || {};
+    
+    // Extract number from cell value
+    const match = cellValue.match(/(\d+)/);
+    if (!match) return { highlighted: false };
+    
+    const cellNumber = parseInt(match[1]);
+    const highlightInfo = highlights[`matched_${cellNumber}`];
+    
+    if (highlightInfo && highlightInfo.highlighted) {
+      return {
+        highlighted: true,
+        type: highlightInfo.type || 'ABCD' // fallback to ABCD for backward compatibility
+      };
+    }
+    
+    return { highlighted: false };
+  };
+
+  // Render clickable number boxes for dates from 5th onward
+  const renderNumberBoxes = (topicName, dateKey) => {
+    // Only show for dates from 5th onward
+    const availableDates = Object.keys(allDaysData).sort((a, b) => new Date(a) - new Date(b));
+    const dateIndex = availableDates.indexOf(dateKey);
+    
+    if (dateIndex < 4) return null; // Don't show for first 4 dates
+    
+    const currentClicks = clickedNumbers[topicName]?.[dateKey]?.[`HR${activeHR}`] || [];
+    
+    // Get ABCD/BCD numbers for this topic and date
+    const abcdNumbers = abcdBcdAnalysis[topicName]?.[dateKey]?.abcdNumbers || [];
+    const bcdNumbers = abcdBcdAnalysis[topicName]?.[dateKey]?.bcdNumbers || [];
+    
+    // Helper function to get button styling based on match type
+    const getButtonStyle = (num, isClicked) => {
+      if (!isClicked) {
+        return 'bg-white text-gray-700 border-gray-300 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:border-gray-400 hover:shadow-sm';
+      }
+      
+      const isAbcdMatch = abcdNumbers.includes(num);
+      const isBcdMatch = bcdNumbers.includes(num);
+      
+      if (isAbcdMatch) {
+        // Orange for ABCD matches
+        return 'text-white border-orange-400 shadow-md scale-105';
+      } else if (isBcdMatch) {
+        // Teal (#41B3A2) for BCD matches
+        return 'text-white shadow-md scale-105';
+      } else {
+        // Default green for non-matching clicked numbers
+        return 'bg-gradient-to-r from-green-400 to-emerald-500 text-white border-emerald-400 shadow-md scale-105';
+      }
+    };
+    
+    // Helper function to get inline styles
+    const getInlineStyle = (num, isClicked) => {
+      if (!isClicked) return {};
+      
+      const isAbcdMatch = abcdNumbers.includes(num);
+      const isBcdMatch = bcdNumbers.includes(num);
+      
+      if (isAbcdMatch) {
+        // Orange for ABCD matches
+        return {
+          backgroundColor: '#FB923C',
+          borderColor: '#F97316',
+          color: 'white'
+        };
+      } else if (isBcdMatch) {
+        // Teal (#41B3A2) for BCD matches
+        return {
+          backgroundColor: '#41B3A2',
+          borderColor: '#359486',
+          color: 'white'
+        };
+      } else {
+        // Default green for non-matching clicked numbers
+        return {
+          background: 'linear-gradient(to right, #4ade80, #10b981)',
+          color: 'white',
+          borderColor: '#10b981'
+        };
+      }
+    };
+    
+    // Debug logging
+    console.log(`🔢 Rendering number boxes for ${topicName} ${dateKey} HR${activeHR}:`, {
+      currentClicks,
+      abcdNumbers,
+      bcdNumbers,
+      clickedNumbersState: clickedNumbers
+    });
+    
+    return (
+      <div className="mt-2 space-y-1">
+        {/* Row 1: Numbers 1-6 */}
+        <div className="flex gap-1 justify-center">
+          {[1, 2, 3, 4, 5, 6].map(num => {
+            const isClicked = currentClicks.includes(num);
+            
+            return (
+              <button
+                key={`${topicName}-${dateKey}-${num}`}
+                onClick={() => handleNumberBoxClick(topicName, dateKey, num)}
+                disabled={numberBoxLoading}
+                className={`w-6 h-6 text-xs font-bold rounded border transition-all transform ${getButtonStyle(num, isClicked)}`}
+                style={getInlineStyle(num, isClicked)}
+              >
+                {num}
+              </button>
+            );
+          })}
+        </div>
+        {/* Row 2: Numbers 7-12 */}
+        <div className="flex gap-1 justify-center">
+          {[7, 8, 9, 10, 11, 12].map(num => {
+            const isClicked = currentClicks.includes(num);
+            
+            return (
+              <button
+                key={`${topicName}-${dateKey}-${num}`}
+                onClick={() => handleNumberBoxClick(topicName, dateKey, num)}
+                disabled={numberBoxLoading}
+                className={`w-6 h-6 text-xs font-bold rounded border transition-all transform ${getButtonStyle(num, isClicked)}`}
+                style={getInlineStyle(num, isClicked)}
+              >
+                {num}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   // Enhanced data loading with caching
@@ -689,6 +1014,13 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
     }
   }, [allDaysData, availableTopics, selectedUser]);
 
+  // Load clicked numbers when activeHR changes or component mounts
+  useEffect(() => {
+    if (selectedUser && activeHR && Object.keys(allDaysData).length > 0) {
+      loadClickedNumbers();
+    }
+  }, [selectedUser, activeHR, allDaysData]);
+
   // Color coding function for ABCD/BCD numbers
   const renderColorCodedDayNumber = (displayValue, setName, dateKey) => {
     if (displayValue === '—' || displayValue === '(No Data)') {
@@ -852,13 +1184,13 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
               <div className="flex gap-2">
                 <button
                   onClick={handleSelectAll}
-                  className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm"
+                  className="bg-green-300 hover:bg-green-400 text-green-800 px-3 py-1 rounded text-sm"
                 >
                   Select All
                 </button>
                 <button
                   onClick={handleClearAll}
-                  className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm"
+                  className="bg-red-300 hover:bg-red-400 text-red-800 px-3 py-1 rounded text-sm"
                 >
                   Clear All
                 </button>
@@ -982,12 +1314,8 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
                                 </div>
                               )}
                               
-                              {/* Show analysis pattern for Past Days */}
-                              {hasAbcdBcdData && dateKey !== date && (
-                                <div className="text-xs text-gray-500 mt-1">
-                                  (N-1 Pattern)
-                                </div>
-                              )}
+                              {/* Clickable Number Boxes - Only show from 5th date onward */}
+                              {renderNumberBoxes(setName, dateKey)}
                             </th>
                           );
                         })}
@@ -1018,17 +1346,65 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
                               
                               const baseClass = 'border border-gray-300 px-3 py-2 text-center font-mono text-sm min-w-[140px]';
                               const isTargetDate = dateKey === date;
+                              const highlightInfo = shouldHighlightCell(cellValue, setName, dateKey);
+                              
+                              // Define colors for different match types
+                              const getHighlightStyle = (highlightInfo) => {
+                                if (!highlightInfo.highlighted) return {};
+                                
+                                if (highlightInfo.type === 'ABCD') {
+                                  return {
+                                    backgroundColor: '#FCE7C8', // Orange for ABCD
+                                    color: '#8B4513',
+                                    fontWeight: 'bold',
+                                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                                  };
+                                } else if (highlightInfo.type === 'BCD') {
+                                  return {
+                                    backgroundColor: '#41B3A2', // Custom teal color for BCD
+                                    color: '#FFFFFF', // White text for better contrast
+                                    fontWeight: 'bold',
+                                    boxShadow: '0 4px 6px -1px rgba(65, 179, 162, 0.4), 0 2px 4px -1px rgba(65, 179, 162, 0.3)'
+                                  };
+                                }
+                                
+                                // Fallback to original orange color
+                                return {
+                                  backgroundColor: '#FCE7C8',
+                                  color: '#8B4513',
+                                  fontWeight: 'bold',
+                                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                                };
+                              };
+                              
+                              const getCSSClass = (highlightInfo) => {
+                                if (!highlightInfo.highlighted) return '';
+                                
+                                if (highlightInfo.type === 'ABCD') {
+                                  // Orange for ABCD matches
+                                  return 'bg-orange-200 text-orange-900 ring-2 ring-orange-400 shadow-lg';
+                                } else if (highlightInfo.type === 'BCD') {
+                                  // Custom teal color for BCD matches
+                                  return 'bg-teal-600 text-white ring-2 ring-teal-500 shadow-lg';
+                                }
+                                
+                                // Fallback to original orange class
+                                return 'bg-orange-200 text-orange-900 ring-2 ring-orange-400 shadow-lg';
+                              };
                               
                               return (
                                 <td
                                   key={dateKey}
                                   className={`${baseClass} ${
-                                    isTargetDate
-                                      ? 'ring-2 ring-blue-400 bg-blue-50'
-                                      : hasData 
-                                        ? 'bg-green-50 text-gray-800' 
-                                        : 'bg-red-50 text-gray-400'
+                                    highlightInfo.highlighted
+                                      ? getCSSClass(highlightInfo)
+                                      : isTargetDate
+                                        ? 'ring-2 ring-blue-400 bg-blue-50'
+                                        : hasData 
+                                          ? 'bg-gray-100 text-gray-800' 
+                                          : 'bg-red-50 text-gray-400'
                                   }`}
+                                  style={getHighlightStyle(highlightInfo)}
                                 >
                                   {renderColorCodedDayNumber(cellValue, setName, dateKey)}
                                 </td>

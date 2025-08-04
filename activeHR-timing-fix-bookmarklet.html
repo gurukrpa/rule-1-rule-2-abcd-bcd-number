@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ActiveHR Timing Fix Bookmarklet</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .bookmarklet { 
+            display: inline-block; 
+            background: #dc3545; 
+            color: white; 
+            padding: 15px 25px; 
+            text-decoration: none; 
+            border-radius: 8px; 
+            margin: 10px 5px;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .bookmarklet:hover { background: #c82333; }
+        .instructions { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin: 15px 0;
+            border-left: 5px solid #dc3545;
+        }
+        .success { border-left-color: #28a745; }
+        .warning { border-left-color: #ffc107; }
+    </style>
+</head>
+<body>
+    <h1>🚨 ActiveHR Timing Issue Fix</h1>
+    
+    <div class="instructions warning">
+        <h2>⚠️ Problem Identified</h2>
+        <p><strong>Issue:</strong> The number box loader runs before <code>activeHR</code> is available, causing clicks to not be restored after page refresh.</p>
+        <p><strong>Evidence:</strong> Database has records, but React state is empty because HR filtering fails.</p>
+    </div>
+
+    <div class="instructions">
+        <h2>🔧 Quick Fix</h2>
+        <p><strong>Drag this button to your bookmarks bar:</strong></p>
+    </div>
+
+    <a href="javascript:(function(){
+        console.log('🚨 ACTIVE HR TIMING FIX');
+        console.log('=======================');
+        
+        if (!window.rule1PageDebug) {
+            alert('❌ Not on Rule1Page or debug functions not available');
+            return;
+        }
+        
+        const state = window.rule1PageDebug.getStateInfo();
+        console.log('Current State Check:', state.readinessCheck);
+        
+        if (!state.isFullyReady) {
+            const missing = Object.entries(state.readinessCheck)
+                .filter(([key, value]) => !value)
+                .map(([key]) => key);
+            
+            alert('❌ Not ready yet. Missing: ' + missing.join(', ') + '. Wait for page to fully load.');
+            return;
+        }
+        
+        if (Object.keys(state.clickedNumbers).length > 0) {
+            alert('✅ Number boxes already loaded (' + Object.keys(state.clickedNumbers).length + ' clicks)');
+            return;
+        }
+        
+        console.log('🔧 All dependencies ready, forcing number box restoration...');
+        
+        window.rule1PageDebug.forceReloadNumberBoxes()
+            .then(() => {
+                console.log('✅ Force reload completed');
+                setTimeout(() => {
+                    const newState = window.rule1PageDebug.getStateInfo();
+                    const domState = window.rule1PageDebug.verifyDOMState();
+                    
+                    if (Object.keys(newState.clickedNumbers).length > 0) {
+                        alert('✅ SUCCESS! Restored ' + Object.keys(newState.clickedNumbers).length + ' number box clicks with ' + domState.styledBoxes.length + ' visual boxes');
+                    } else {
+                        alert('❌ Restoration failed - no clicks found in database for current user/date/HR');
+                    }
+                }, 1000);
+            })
+            .catch(error => {
+                console.error('❌ Force reload failed:', error);
+                alert('❌ Restoration failed: ' + error.message);
+            });
+    })();" class="bookmarklet">🚨 Fix ActiveHR Timing</a>
+
+    <div class="instructions success">
+        <h2>✅ How to Use</h2>
+        <ol>
+            <li><strong>Drag</strong> the red button above to your bookmarks bar</li>
+            <li><strong>Navigate</strong> to Rule1Page (select user, click "Past Days")</li>
+            <li><strong>Wait</strong> for page to fully load</li>
+            <li><strong>Click</strong> the bookmarklet to force restoration</li>
+            <li><strong>Verify</strong> that previously clicked number boxes are now colored</li>
+        </ol>
+    </div>
+
+    <div class="instructions">
+        <h2>🧪 Testing Steps</h2>
+        <ol>
+            <li>Click some number boxes (they should change color)</li>
+            <li>Refresh the page</li>
+            <li>Use the bookmarklet to restore the clicks</li>
+            <li>Verify the same boxes are colored again</li>
+        </ol>
+    </div>
+
+    <div class="instructions warning">
+        <h2>🔍 Permanent Fix Applied</h2>
+        <p>The code has been updated with:</p>
+        <ul>
+            <li><strong>Strict dependency checking:</strong> Loader won't run without activeHR</li>
+            <li><strong>Auto-restoration trigger:</strong> Automatic restoration when all dependencies are ready</li>
+            <li><strong>Better HR filtering:</strong> More robust HR comparison in database queries</li>
+            <li><strong>Enhanced logging:</strong> Better debugging for timing issues</li>
+        </ul>
+        <p>After the next page refresh, the issue should be permanently resolved.</p>
+    </div>
+
+</body>
+</html>

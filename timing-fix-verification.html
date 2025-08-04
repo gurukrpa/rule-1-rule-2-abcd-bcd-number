@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rule1Page Timing Fix Verification</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .header {
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+        }
+        .status-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .status-pass { border-left: 4px solid #10b981; background: #f0fdf4; }
+        .status-fail { border-left: 4px solid #ef4444; background: #fef2f2; }
+        .status-warning { border-left: 4px solid #f59e0b; background: #fffbeb; }
+        .code-block {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 16px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin: 12px 0;
+        }
+        .test-button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 12px;
+            margin-bottom: 12px;
+        }
+        .test-button:hover {
+            background: #2563eb;
+        }
+        .test-button.success {
+            background: #10b981;
+        }
+        .test-button.warning {
+            background: #f59e0b;
+        }
+        .test-button.danger {
+            background: #ef4444;
+        }
+        .step-list {
+            background: #f8fafc;
+            border-radius: 6px;
+            padding: 16px;
+            margin: 16px 0;
+        }
+        .step-list ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .step-list li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        .highlight {
+            background: #fef3c7;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧪 Rule1Page Timing Fix Verification</h1>
+            <p>This page helps verify that the critical timing issue in Rule1Page_Enhanced has been resolved.</p>
+        </div>
+
+        <div class="status-card status-warning">
+            <h3>⚠️ Issue Summary</h3>
+            <p>Number box clicks were saved to database successfully, but after page refresh, the "Show Clicked Numbers" button displayed <span class="highlight">"Present in data: 0"</span> instead of showing correct presence counts.</p>
+            <p><strong>Root Cause:</strong> <code>renderNumberBoxes()</code> executed before <code>reverseTopicMatcher</code> was ready, causing key format mismatch between database storage (clean topic names) and component rendering (annotated topic names).</p>
+        </div>
+
+        <div class="status-card status-pass">
+            <h3>✅ Applied Fixes</h3>
+            <ul>
+                <li><strong>Timing Guard:</strong> Added guard in <code>renderNumberBoxes()</code> to prevent execution when <code>reverseTopicMatcher</code> is not ready</li>
+                <li><strong>Enhanced useEffect:</strong> Updated trigger to include <code>reverseTopicMatcher.size > 0</code> condition</li>
+                <li><strong>Key Conversion:</strong> Ensured database keys are converted to clean format using <code>reverseTopicMatcher.get(dbSetName) || dbSetName</code></li>
+                <li><strong>Comprehensive Logging:</strong> Added detailed debugging to track timing and key conversion</li>
+            </ul>
+        </div>
+
+        <div class="status-card">
+            <h3>🧪 Test Instructions</h3>
+            <div class="step-list">
+                <ol>
+                    <li>Navigate to the Rule1Page_Enhanced in your application (Past Days analysis)</li>
+                    <li>Make sure you have data loaded and can see the matrix with number boxes</li>
+                    <li>Open browser developer console (F12)</li>
+                    <li>Run the timing fix test script below</li>
+                    <li>Follow the manual verification steps</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="status-card">
+            <h3>📋 Test Script</h3>
+            <p>Copy and paste this script into your browser console while on Rule1Page_Enhanced:</p>
+            <div class="code-block">
+// Load the timing fix test script
+fetch('/test-timing-fixes-final.js')
+  .then(response => response.text())
+  .then(script => {
+    eval(script);
+    console.log('✅ Timing fix test script loaded and executed');
+  })
+  .catch(() => {
+    console.log('📥 Loading test script directly...');
+    // Fallback: load script content directly
+    // [Script content would be embedded here for manual copying]
+  });
+            </div>
+            
+            <button class="test-button" onclick="copyTestScript()">📋 Copy Test Script</button>
+            <button class="test-button success" onclick="window.open('/test-timing-fixes-final.js', '_blank')">📄 View Test Script</button>
+        </div>
+
+        <div class="status-card">
+            <h3>🔍 Manual Verification Steps</h3>
+            <div class="step-list">
+                <ol>
+                    <li><strong>Click Test Numbers:</strong> Click on number boxes <span class="highlight">1</span> and <span class="highlight">7</span> in any topic</li>
+                    <li><strong>Verify Styling:</strong> Confirm the boxes show orange/green background indicating they're clicked and present</li>
+                    <li><strong>Check Database:</strong> Use "Show Clicked Numbers" button to verify numbers are saved</li>
+                    <li><strong>Refresh Page:</strong> Perform a full page refresh (Ctrl+F5 or Cmd+Shift+R)</li>
+                    <li><strong>Verify Persistence:</strong> After page loads, check that numbers 1 and 7 still show as clicked and styled</li>
+                    <li><strong>Test "Show Clicked Numbers":</strong> Click the button again - should show correct presence counts, not "Present in data: 0"</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="status-card">
+            <h3>🎯 Expected Results</h3>
+            <ul>
+                <li>✅ Number boxes maintain clicked state after page refresh</li>
+                <li>✅ "Show Clicked Numbers" shows correct presence counts</li>
+                <li>✅ Console shows timing guard logs preventing key format mismatch</li>
+                <li>✅ No "STATE/RENDER MISMATCH DETECTED" warnings in console</li>
+                <li>✅ Database operations complete successfully</li>
+            </ul>
+        </div>
+
+        <div class="status-card status-warning">
+            <h3>🚨 Troubleshooting</h3>
+            <p>If you still see issues:</p>
+            <ul>
+                <li>Check browser console for error messages</li>
+                <li>Verify <code>reverseTopicMatcher</code> is properly initialized</li>
+                <li>Check database connectivity and table structure</li>
+                <li>Ensure all dependencies are ready before <code>loadNumberBoxClicks()</code> executes</li>
+            </ul>
+        </div>
+
+        <div class="status-card">
+            <h3>📊 Component State Debugging</h3>
+            <p>Use these console commands for debugging:</p>
+            <div class="code-block">
+// Check component state
+window.rule1PageDebug.getStateInfo()
+
+// Test topic mapping
+window.rule1PageDebug.testTopicMapping()
+
+// Force reload number box clicks
+window.rule1PageDebug.forceReloadNumberBoxes()
+
+// Show clicked numbers analysis
+window.rule1PageDebug.showClickedNumbers()
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function copyTestScript() {
+            const testScript = `// ✅ TIMING FIX VERIFICATION SCRIPT
+// Copy and paste this entire script into browser console on Rule1Page_Enhanced
+
+if (!window.rule1PageDebug) {
+  console.error('❌ Rule1Page debug object not available. Make sure you\\'re on Rule1Page_Enhanced.');
+} else {
+  console.log('🧪 Running timing fix verification...');
+  
+  // Test timing guard
+  const mappingTest = window.rule1PageDebug.testTopicMapping();
+  console.log('🗺️ Timing Guard Status:', {
+    reverseMapperReady: mappingTest.reverseTopicMatcher.size > 0,
+    wouldBlockRender: mappingTest.reverseTopicMatcher.size === 0
+  });
+  
+  // Test persistence
+  window.rule1PageDebug.forceReloadNumberBoxes()
+    .then(() => console.log('✅ Persistence test completed'))
+    .catch(err => console.error('❌ Persistence test failed:', err));
+  
+  // Show current state
+  const state = window.rule1PageDebug.getStateInfo();
+  console.log('📊 Component State:', {
+    clickedNumbers: Object.keys(state.clickedNumbers).length,
+    activeHR: state.activeHR,
+    dataReady: state.allDaysDataKeys.length > 0
+  });
+}`;
+
+            navigator.clipboard.writeText(testScript).then(() => {
+                alert('✅ Test script copied to clipboard! Paste it in the browser console on Rule1Page_Enhanced.');
+            }).catch(() => {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = testScript;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                alert('✅ Test script copied to clipboard! Paste it in the browser console on Rule1Page_Enhanced.');
+            });
+        }
+    </script>
+</body>
+</html>
