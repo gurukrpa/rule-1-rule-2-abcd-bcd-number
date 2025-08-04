@@ -396,7 +396,7 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
 
         organizedClicks[topic_name][date_key][hour].push(clicked_number);
         
-        // Store match type information for highlighting with different colors
+        // Store match type information for highlighting with different colors (HR-specific)
         if (is_matched) {
           // Determine if this was an ABCD or BCD match
           const abcdNumbers = abcdBcdAnalysis[topic_name]?.[date_key]?.abcdNumbers || [];
@@ -404,7 +404,11 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
           const isAbcdMatch = abcdNumbers.includes(clicked_number);
           const matchType = isAbcdMatch ? 'ABCD' : 'BCD';
           
-          organizedHighlights[topic_name][date_key][`matched_${clicked_number}`] = {
+          // Make highlighting HR-specific
+          if (!organizedHighlights[topic_name][date_key][hour]) {
+            organizedHighlights[topic_name][date_key][hour] = {};
+          }
+          organizedHighlights[topic_name][date_key][hour][`matched_${clicked_number}`] = {
             highlighted: true,
             type: matchType
           };
@@ -475,13 +479,13 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
           return updated;
         });
 
-        // Remove highlighting if it was matched
+        // Remove highlighting if it was matched (HR-specific)
         if (isMatched) {
           console.log(`🎯 Removing grid cell highlighting for number ${number}`);
           setHighlightedCells(prev => {
             const updated = { ...prev };
-            if (updated[topicName]?.[dateKey]) {
-              delete updated[topicName][dateKey][`matched_${number}`];
+            if (updated[topicName]?.[dateKey]?.[`HR${activeHR}`]) {
+              delete updated[topicName][dateKey][`HR${activeHR}`][`matched_${number}`];
             }
             return updated;
           });
@@ -519,14 +523,15 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
           return updated;
         });
 
-        // Add highlighting if matched
+        // Add highlighting if matched (HR-specific)
         if (isMatched) {
           console.log(`🎯 Adding grid cell highlighting for number ${number} with type ${matchType}`);
           setHighlightedCells(prev => {
             const updated = { ...prev };
             if (!updated[topicName]) updated[topicName] = {};
             if (!updated[topicName][dateKey]) updated[topicName][dateKey] = {};
-            updated[topicName][dateKey][`matched_${number}`] = {
+            if (!updated[topicName][dateKey][`HR${activeHR}`]) updated[topicName][dateKey][`HR${activeHR}`] = {};
+            updated[topicName][dateKey][`HR${activeHR}`][`matched_${number}`] = {
               highlighted: true,
               type: matchType
             };
@@ -542,9 +547,9 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
     }
   };
 
-  // Check if cell should be highlighted and return match type
+  // Check if cell should be highlighted and return match type (HR-specific)
   const shouldHighlightCell = (cellValue, topicName, dateKey) => {
-    const highlights = highlightedCells[topicName]?.[dateKey] || {};
+    const highlights = highlightedCells[topicName]?.[dateKey]?.[`HR${activeHR}`] || {};
     
     // Extract number from cell value
     const match = cellValue.match(/(\d+)/);
@@ -643,14 +648,23 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
         <div className="flex gap-1 justify-center">
           {[1, 2, 3, 4, 5, 6].map(num => {
             const isClicked = currentClicks.includes(num);
+            const isInAbcdBcd = abcdNumbers.includes(num) || bcdNumbers.includes(num);
+            const isDisabled = !isInAbcdBcd || numberBoxLoading;
+            
+            console.log(`Number ${num} - isClicked: ${isClicked}, isInAbcdBcd: ${isInAbcdBcd}, isDisabled: ${isDisabled}`);
             
             return (
               <button
                 key={`${topicName}-${dateKey}-${num}`}
                 onClick={() => handleNumberBoxClick(topicName, dateKey, num)}
-                disabled={numberBoxLoading}
-                className={`w-6 h-6 text-xs font-bold rounded border transition-all transform ${getButtonStyle(num, isClicked)}`}
-                style={getInlineStyle(num, isClicked)}
+                disabled={isDisabled}
+                className={`w-6 h-6 text-xs font-bold rounded border transition-all transform ${
+                  isDisabled 
+                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50' 
+                    : getButtonStyle(num, isClicked)
+                }`}
+                style={isDisabled ? {} : getInlineStyle(num, isClicked)}
+                title={!isInAbcdBcd ? 'Number not in ABCD/BCD arrays' : ''}
               >
                 {num}
               </button>
@@ -661,14 +675,21 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
         <div className="flex gap-1 justify-center">
           {[7, 8, 9, 10, 11, 12].map(num => {
             const isClicked = currentClicks.includes(num);
+            const isInAbcdBcd = abcdNumbers.includes(num) || bcdNumbers.includes(num);
+            const isDisabled = !isInAbcdBcd || numberBoxLoading;
             
             return (
               <button
                 key={`${topicName}-${dateKey}-${num}`}
                 onClick={() => handleNumberBoxClick(topicName, dateKey, num)}
-                disabled={numberBoxLoading}
-                className={`w-6 h-6 text-xs font-bold rounded border transition-all transform ${getButtonStyle(num, isClicked)}`}
-                style={getInlineStyle(num, isClicked)}
+                disabled={isDisabled}
+                className={`w-6 h-6 text-xs font-bold rounded border transition-all transform ${
+                  isDisabled 
+                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50' 
+                    : getButtonStyle(num, isClicked)
+                }`}
+                style={isDisabled ? {} : getInlineStyle(num, isClicked)}
+                title={!isInAbcdBcd ? 'Number not in ABCD/BCD arrays' : ''}
               >
                 {num}
               </button>
@@ -1009,10 +1030,10 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
 
   // Load Rule-2 analysis results after data is loaded
   useEffect(() => {
-    if (Object.keys(allDaysData).length > 0 && availableTopics.length > 0 && selectedUser) {
+    if (Object.keys(allDaysData).length > 0 && availableTopics.length > 0 && selectedUser && activeHR) {
       loadRule2AnalysisResults();
     }
-  }, [allDaysData, availableTopics, selectedUser]);
+  }, [allDaysData, availableTopics, selectedUser, activeHR]);
 
   // Load clicked numbers when activeHR changes or component mounts
   useEffect(() => {
