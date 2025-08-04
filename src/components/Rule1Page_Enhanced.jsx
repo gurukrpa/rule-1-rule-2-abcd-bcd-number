@@ -396,21 +396,15 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
 
         organizedClicks[topic_name][date_key][hour].push(clicked_number);
         
-        // Store match type information for highlighting with different colors (HR-specific)
+        // Store highlighting information (HR-specific) - match type will be determined dynamically
         if (is_matched) {
-          // Determine if this was an ABCD or BCD match
-          const abcdNumbers = abcdBcdAnalysis[topic_name]?.[date_key]?.abcdNumbers || [];
-          const bcdNumbers = abcdBcdAnalysis[topic_name]?.[date_key]?.bcdNumbers || [];
-          const isAbcdMatch = abcdNumbers.includes(clicked_number);
-          const matchType = isAbcdMatch ? 'ABCD' : 'BCD';
-          
           // Make highlighting HR-specific
           if (!organizedHighlights[topic_name][date_key][hour]) {
             organizedHighlights[topic_name][date_key][hour] = {};
           }
           organizedHighlights[topic_name][date_key][hour][`matched_${clicked_number}`] = {
-            highlighted: true,
-            type: matchType
+            highlighted: true
+            // type will be determined dynamically in shouldHighlightCell
           };
         }
       });
@@ -532,8 +526,8 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
             if (!updated[topicName][dateKey]) updated[topicName][dateKey] = {};
             if (!updated[topicName][dateKey][`HR${activeHR}`]) updated[topicName][dateKey][`HR${activeHR}`] = {};
             updated[topicName][dateKey][`HR${activeHR}`][`matched_${number}`] = {
-              highlighted: true,
-              type: matchType
+              highlighted: true
+              // type will be determined dynamically in shouldHighlightCell
             };
             return updated;
           });
@@ -559,9 +553,25 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
     const highlightInfo = highlights[`matched_${cellNumber}`];
     
     if (highlightInfo && highlightInfo.highlighted) {
+      // Determine match type dynamically based on current HR's ABCD/BCD analysis
+      const currentAnalysis = abcdBcdAnalysis[topicName]?.[dateKey];
+      if (currentAnalysis) {
+        const abcdNumbers = currentAnalysis.abcdNumbers || [];
+        const bcdNumbers = currentAnalysis.bcdNumbers || [];
+        const isAbcdMatch = abcdNumbers.includes(cellNumber);
+        const isBcdMatch = bcdNumbers.includes(cellNumber);
+        
+        if (isAbcdMatch) {
+          return { highlighted: true, type: 'ABCD' };
+        } else if (isBcdMatch) {
+          return { highlighted: true, type: 'BCD' };
+        }
+      }
+      
+      // Fallback to stored type if analysis not available
       return {
         highlighted: true,
-        type: highlightInfo.type || 'ABCD' // fallback to ABCD for backward compatibility
+        type: highlightInfo.type || 'ABCD'
       };
     }
     
