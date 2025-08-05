@@ -36,6 +36,9 @@ function PlanetsAnalysisPage() {
   const [databaseLoading, setDatabaseLoading] = useState(false);
   const [realAnalysisData, setRealAnalysisData] = useState(null);
   const [dataSource, setDataSource] = useState('loading');
+  
+  // Interactive number boxes state - track clicked numbers per topic
+  const [clickedNumbersByTopic, setClickedNumbersByTopic] = useState({});
 
   // Load user information if userId is provided
   useEffect(() => {
@@ -1051,6 +1054,131 @@ function PlanetsAnalysisPage() {
   // Use a single, constant array for planet order everywhere
   const PLANET_CODES = ['Su', 'Mo', 'Ma', 'Me', 'Ju', 'Ve', 'Sa', 'Ra', 'Ke'];
 
+  // Handle number box clicks - toggle clicked state for specific topic
+  const handleNumberBoxClick = (topicName, number) => {
+    setClickedNumbersByTopic(prev => {
+      const topicKey = `${topicName}_HR${selectedHour}`;
+      const currentClicked = prev[topicKey] || new Set();
+      const newClicked = new Set(currentClicked);
+      
+      if (newClicked.has(number)) {
+        newClicked.delete(number);
+      } else {
+        newClicked.add(number);
+      }
+      
+      return {
+        ...prev,
+        [topicKey]: newClicked
+      };
+    });
+  };
+
+  // Check if a number is clicked for a specific topic
+  const isNumberClicked = (topicName, number) => {
+    const topicKey = `${topicName}_HR${selectedHour}`;
+    const clickedNumbers = clickedNumbersByTopic[topicKey] || new Set();
+    return clickedNumbers.has(number);
+  };
+
+  // Render interactive number boxes (1-12) for a topic - DEPRECATED: Now using clickable ABCD/BCD numbers directly
+  // const renderNumberBoxes = (topicName) => {
+  //   const numbers = Array.from({ length: 12 }, (_, i) => i + 1);
+  //   
+  //   return (
+  //     <div className="mt-2 space-y-1">
+  //       <div className="text-xs font-semibold text-gray-600">Click numbers to highlight:</div>
+  //       {/* Row 1: Numbers 1-6 */}
+  //       <div className="flex gap-1 justify-center">
+  //         {numbers.slice(0, 6).map(num => (
+  //           <button
+  //             key={num}
+  //             onClick={() => handleNumberBoxClick(topicName, num)}
+  //             className={`w-8 h-8 rounded text-xs font-bold border-2 transition-all duration-200 ${
+  //               isNumberClicked(topicName, num)
+  //                 ? 'bg-yellow-400 border-yellow-600 text-yellow-900 shadow-md transform scale-105'
+  //                 : 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200 hover:border-gray-400'
+  //             }`}
+  //           >
+  //             {num}
+  //           </button>
+  //         ))}
+  //       </div>
+  //       {/* Row 2: Numbers 7-12 */}
+  //       <div className="flex gap-1 justify-center">
+  //         {numbers.slice(6, 12).map(num => (
+  //           <button
+  //             key={num}
+  //             onClick={() => handleNumberBoxClick(topicName, num)}
+  //             className={`w-8 h-8 rounded text-xs font-bold border-2 transition-all duration-200 ${
+  //               isNumberClicked(topicName, num)
+  //                 ? 'bg-yellow-400 border-yellow-600 text-yellow-900 shadow-md transform scale-105'
+  //                 : 'bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200 hover:border-gray-400'
+  //             }`}
+  //           >
+  //             {num}
+  //           </button>
+  //         ))}
+  //       </div>
+  //     </div>
+  //   );
+  // };
+
+  // Check if a planet cell should be highlighted (if its number is clicked)
+  const shouldHighlightPlanetCell = (topicName, rawData) => {
+    if (!rawData) return { highlighted: false };
+    const number = extractElementNumber(rawData);
+    if (!number) return { highlighted: false };
+    const isClicked = isNumberClicked(topicName, number);
+    
+    if (!isClicked) return { highlighted: false };
+    
+    // Determine if this is ABCD or BCD highlighting
+    const { abcd, bcd } = getTopicNumbersWithNormalization(topicName);
+    const isAbcd = abcd.includes(number);
+    const isBcd = bcd.includes(number);
+    
+    return { 
+      highlighted: true, 
+      type: isAbcd ? 'ABCD' : isBcd ? 'BCD' : 'unknown'
+    };
+  };
+  
+  // Get planet cell highlight styles based on Rule1Page colors
+  const getPlanetCellHighlightStyle = (highlightInfo) => {
+    if (!highlightInfo.highlighted) return {};
+    
+    if (highlightInfo.type === 'ABCD') {
+      return {
+        backgroundColor: '#FCE7C8',
+        borderColor: '#F97316',
+        color: '#8B4513',
+        fontWeight: 'bold',
+        fontSize: '0.875rem', // text-sm equivalent (14px)
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+      };
+    } else if (highlightInfo.type === 'BCD') {
+      return {
+        backgroundColor: '#41B3A2',
+        borderColor: '#359486',
+        color: '#FFFFFF',
+        fontWeight: 'bold',
+        fontSize: '0.875rem', // text-sm equivalent (14px)
+        boxShadow: '0 4px 6px -1px rgba(65, 179, 162, 0.4), 0 2px 4px -1px rgba(65, 179, 162, 0.3)'
+      };
+    }
+    
+    // Fallback
+    return {
+      backgroundColor: '#FCE7C8',
+      borderColor: '#F97316',
+      color: '#8B4513',
+      fontWeight: 'bold',
+      fontSize: '0.875rem',
+      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+    };
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-full px-2 py-4">
@@ -1299,15 +1427,6 @@ function PlanetsAnalysisPage() {
                   </div>
                 </div>
               )}
-              {/* Hour switching reminder */}
-              {userInfo && userInfo.hr > 1 && (
-                <div className="mt-1 p-1 bg-blue-50 rounded border text-xs">
-                  <div className="font-medium text-blue-800">💡 Tip:</div>
-                  <div className="text-blue-700">
-                    Click different HR tabs above to see ABCD/BCD numbers change for each hour!
-                  </div>
-                </div>
-              )}
             </div>
           ) : null}
           
@@ -1470,7 +1589,7 @@ function PlanetsAnalysisPage() {
                     )}
                   </h4>
                   
-                  {/* All ABCD/BCD numbers row for this topic (separated) */}
+                  {/* Clickable ABCD/BCD numbers row for this topic - click to highlight matching planets */}
                   {(() => {
                     // Get ABCD/BCD numbers for this topic (hour-specific if available)
                     const { abcd, bcd } = getTopicNumbersWithNormalization(setName);
@@ -1480,13 +1599,41 @@ function PlanetsAnalysisPage() {
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-semibold text-green-700 mr-1">ABCD:</span>
                           {abcd && abcd.length > 0 ? abcd.sort((a,b)=>a-b).map(num => (
-                            <span key={num} className="px-2 py-0.5 bg-green-200 text-green-900 rounded text-xs font-mono font-bold">{num}</span>
+                            <button
+                              key={num}
+                              onClick={() => handleNumberBoxClick(setName, num)}
+                              className={`px-2 py-0.5 rounded text-xs font-mono font-bold border-2 transition-all duration-200 cursor-pointer hover:scale-105 ${
+                                isNumberClicked(setName, num)
+                                  ? 'shadow-md transform scale-105'
+                                  : 'bg-green-200 text-green-900 border-green-300 hover:bg-green-300'
+                              }`}
+                              style={isNumberClicked(setName, num) 
+                                ? { backgroundColor: '#FB923C', borderColor: '#F97316', color: 'white' }
+                                : {}
+                              }
+                            >
+                              {num}
+                            </button>
                           )) : <span className="text-xs text-gray-400">None</span>}
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-semibold text-blue-700 mr-1">BCD:</span>
                           {bcd && bcd.length > 0 ? bcd.sort((a,b)=>a-b).map(num => (
-                            <span key={num} className="px-2 py-0.5 bg-blue-200 text-blue-900 rounded text-xs font-mono font-bold">{num}</span>
+                            <button
+                              key={num}
+                              onClick={() => handleNumberBoxClick(setName, num)}
+                              className={`px-2 py-0.5 rounded text-xs font-mono font-bold border-2 transition-all duration-200 cursor-pointer hover:scale-105 ${
+                                isNumberClicked(setName, num)
+                                  ? 'shadow-md transform scale-105'
+                                  : 'bg-blue-200 text-blue-900 border-blue-300 hover:bg-blue-300'
+                              }`}
+                              style={isNumberClicked(setName, num) 
+                                ? { backgroundColor: '#41B3A2', borderColor: '#359486', color: 'white' }
+                                : {}
+                              }
+                            >
+                              {num}
+                            </button>
                           )) : <span className="text-xs text-gray-400">None</span>}
                         </div>
                       </div>
@@ -1566,10 +1713,27 @@ function PlanetsAnalysisPage() {
                                     const formattedData = formatPlanetData(rawData);
                                     
                                     return (
-                                      <td key={planet} className="border border-gray-300 px-1 py-1 text-center">
+                                      <td 
+                                        key={planet} 
+                                        className={`border border-gray-300 px-1 py-1 text-center transition-all duration-200 ${
+                                          shouldHighlightPlanetCell(setName, rawData).highlighted 
+                                            ? 'shadow-md' 
+                                            : ''
+                                        }`}
+                                        style={getPlanetCellHighlightStyle(shouldHighlightPlanetCell(setName, rawData))}
+                                      >
                                         {rawData ? (
                                           <div className="flex flex-col items-center gap-0.5">
-                                            <span className="font-mono text-gray-700 text-xs">
+                                            <span className={`font-mono text-gray-700 text-xs ${
+                                              shouldHighlightPlanetCell(setName, rawData).highlighted 
+                                                ? 'font-bold' 
+                                                : ''
+                                            }`}
+                                              style={shouldHighlightPlanetCell(setName, rawData).highlighted 
+                                                ? { color: getPlanetCellHighlightStyle(shouldHighlightPlanetCell(setName, rawData)).color }
+                                                : {}
+                                              }
+                                            >
                                               {formattedData}
                                             </span>
                                             {renderABCDBadges(rawData, setName)}
