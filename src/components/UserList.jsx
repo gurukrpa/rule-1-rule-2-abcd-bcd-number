@@ -182,9 +182,6 @@ function UserList() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
-          {/* Add DataSyncStatus at the top */}
-          <DataSyncStatus />
-          
           <h2 className="text-2xl font-bold mb-6">User Management</h2>
 
           <div className="bg-white p-6 rounded-lg shadow-md mb-8">
