@@ -1242,61 +1242,7 @@ const IndexPage = ({
 
         {/* HR Selection & Matrix */}
         <div className="bg-white rounded-lg shadow-md mb-6">
-          {/* Developer Debug Panel */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="border-b border-gray-200 p-3 bg-yellow-50">
-              <details>
-                <summary className="text-sm font-medium text-gray-700 cursor-pointer">
-                  🐛 Developer Debug Panel (Click to expand)
-                </summary>
-                <div className="mt-2 text-xs space-y-2">
-                  <div><strong>Loading:</strong> {loading.toString()}</div>
-                  <div><strong>ActiveHR:</strong> {activeHR || 'null'}</div>
-                  <div><strong>Available Labels:</strong> [{availableLabels.join(', ')}]</div>
-                  <div><strong>HR Choices:</strong> [{hrChoices.join(', ')}]</div>
-                  <div><strong>Analysis Keys:</strong> [{Object.keys(abcdBcdAnalysis).join(', ')}]</div>
-                  <div><strong>All Days Data Keys:</strong> [{Object.keys(allDaysData).join(', ')}]</div>
-                  
-                  {activeHR && availableLabels.length > 0 && (
-                    <div className="mt-2 p-2 bg-white rounded border">
-                      <strong>Sample Data Check:</strong>
-                      {(() => {
-                        const sampleDay = availableLabels[0];
-                        const sampleHRData = allDaysData[sampleDay]?.hrData?.[activeHR];
-                        return (
-                          <div className="text-xs mt-1 space-y-1">
-                            <div><strong>Sample Day:</strong> {sampleDay}</div>
-                            <div><strong>Has HR Data:</strong> {!!sampleHRData}</div>
-                            <div><strong>Sets:</strong> {sampleHRData ? Object.keys(sampleHRData.sets || {}).join(', ') : 'none'}</div>
-                            <div><strong>Selected Planet:</strong> {sampleHRData?.selectedPlanet || 'none'}</div>
-                            {sampleHRData?.sets && Object.keys(sampleHRData.sets).length > 0 && (
-                              <div>
-                                <strong>Sample Set Elements:</strong> {Object.keys(Object.values(sampleHRData.sets)[0] || {}).join(', ')}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  )}
-                  
-                  <div className="mt-2 p-2 bg-white rounded border">
-                    <strong>Analysis State:</strong>
-                    <div className="text-xs mt-1 space-y-1">
-                      <div><strong>Progress:</strong> {analysisProgress}%</div>
-                      <div><strong>Message:</strong> {analysisMessage}</div>
-                      <div><strong>Total Sets with Analysis:</strong> {Object.keys(abcdBcdAnalysis).length}</div>
-                      {Object.entries(abcdBcdAnalysis).map(([setName, analysis]) => (
-                        <div key={setName} className="ml-2">
-                          <strong>{setName}:</strong> ABCD={analysis.abcdNumbers?.length || 0}, BCD={analysis.bcdNumbers?.length || 0}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </details>
-            </div>
-          )}
+          {/* Developer Debug Panel - Removed */}
           
           <div className="border-b border-gray-200 p-4">
             <span className="text-sm font-medium text-gray-600 mr-4">Select HR:</span>

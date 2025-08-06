@@ -1,26 +1,10 @@
 import React from 'react';
 
 function DebugComponent() {
-  console.log('🎯 DebugComponent rendering...');
+  console.log('🎯 DebugComponent rendering... (visual element disabled)');
   
-  return (
-    <div style={{
-      position: 'fixed',
-      top: '10px',
-      right: '10px',
-      background: '#4CAF50',
-      color: 'white',
-      padding: '10px',
-      borderRadius: '5px',
-      zIndex: 9999,
-      fontSize: '14px',
-      fontFamily: 'Arial, sans-serif'
-    }}>
-      ✅ React is Working!
-      <br />
-      Time: {new Date().toLocaleTimeString()}
-    </div>
-  );
+  // Visual debug box disabled - only console logging active
+  return null;
 }
 
 export default DebugComponent;

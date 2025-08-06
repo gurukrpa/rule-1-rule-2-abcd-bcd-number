@@ -225,72 +225,11 @@ function setupPageMonitoring() {
     });
 }
 
-// 7. Create debugging interface
+// 7. Create debugging interface (visual panel disabled)
 function createDebuggingInterface() {
-    const debugPanel = document.createElement('div');
-    debugPanel.id = 'state-debug-panel';
-    debugPanel.innerHTML = `
-        <div style="
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            background: #1a1a1a;
-            color: #00ff00;
-            padding: 15px;
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 12px;
-            z-index: 10000;
-            max-width: 400px;
-            border: 2px solid #00ff00;
-        ">
-            <div style="font-weight: bold; margin-bottom: 10px;">
-                🧪 STATE DEBUGGER
-            </div>
-            <button onclick="window.debugNumberBoxState()" style="
-                background: #333;
-                color: #00ff00;
-                border: 1px solid #00ff00;
-                padding: 5px 10px;
-                margin: 2px;
-                border-radius: 3px;
-                cursor: pointer;
-            ">🔍 Analyze State</button>
-            <button onclick="window.clearStateDebugLogs()" style="
-                background: #333;
-                color: #00ff00;
-                border: 1px solid #00ff00;
-                padding: 5px 10px;
-                margin: 2px;
-                border-radius: 3px;
-                cursor: pointer;
-            ">🗑️ Clear Logs</button>
-            <button onclick="document.getElementById('state-debug-panel').remove()" style="
-                background: #ff3333;
-                color: white;
-                border: 1px solid #ff3333;
-                padding: 5px 10px;
-                margin: 2px;
-                border-radius: 3px;
-                cursor: pointer;
-            ">❌ Close</button>
-            <div id="debug-status" style="margin-top: 10px; font-size: 10px;">
-                Ready for debugging...
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(debugPanel);
-    
-    // Update status periodically
-    setInterval(() => {
-        const status = document.getElementById('debug-status');
-        if (status) {
-            const numberBoxes = document.querySelectorAll('button').length;
-            const tables = document.querySelectorAll('table').length;
-            status.textContent = `Boxes: ${numberBoxes}, Tables: ${tables}`;
-        }
-    }, 2000);
+    // Visual debug panel disabled - debug functions available in console only
+    console.log('💡 Debug interface loaded (console-only mode)');
+    console.log('💡 Use window.debugNumberBoxState() to analyze state');
 }
 
 // 8. Clear logs function
@@ -332,4 +271,5 @@ console.log('1. Navigate to Rule-1 Enhanced page');
 console.log('2. Click on number boxes (1-12)');
 console.log('3. Watch console for state change logs');
 console.log('4. Use window.debugNumberBoxState() for manual analysis');
-console.log('5. Look for debugging panel in top-left corner');
+console.log('5. Visual debug panel disabled - use console commands');
+console.log('6. All debug functions available via window.stateDebugger object');

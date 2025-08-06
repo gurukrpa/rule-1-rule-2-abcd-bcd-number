@@ -31,8 +31,12 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
   
   // Clickable number boxes state
   const [clickedNumbers, setClickedNumbers] = useState({}); // {topicName: {dateKey: {hour: [numbers]}}}
-  const [highlightedCells, setHighlightedCells] = useState({}); // {topicName: {dateKey: {elementName: {type: 'ABCD'|'BCD', highlighted: boolean}}}}
   const [numberBoxLoading, setNumberBoxLoading] = useState(false);
+  
+  // Highlighted topics count state
+  const [highlightedTopicCountPerDate, setHighlightedTopicCountPerDate] = useState({}); // {dateKey: count}
+  
+
   
   // Redis caching hooks
   const { 
@@ -123,7 +127,8 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
   const extractElementNumber = (str) => {
     if (typeof str !== 'string') return null;
     
-    // Look for pattern: element-NUMBER/ or element-NUMBER-
+    // Look for pattern: element-NUMBER/ or element-NUMBER- or element-NUMBER-letters (for grid cells)
+    // Updated regex to handle grid cell formats like "as-9-sg", "mo-1-le"
     const match = str.match(/^[a-z]+-(\d+)[\/\-]/);
     return match ? Number(match[1]) : null;
   };
@@ -348,6 +353,25 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
     setSelectedTopics(new Set());
   };
 
+  // 🆕 Bulk topic selection handlers for Set-1 and Set-2
+  const handleBulkSetToggle = (setNumber) => {
+    const setTopics = availableTopics.filter(topic => topic.includes(`Set-${setNumber}`));
+    const newSelectedTopics = new Set(selectedTopics);
+    
+    // Check if all topics in this set are currently selected
+    const allSelected = setTopics.every(topic => selectedTopics.has(topic));
+    
+    if (allSelected) {
+      // Deselect all topics in this set
+      setTopics.forEach(topic => newSelectedTopics.delete(topic));
+    } else {
+      // Select all topics in this set
+      setTopics.forEach(topic => newSelectedTopics.add(topic));
+    }
+    
+    setSelectedTopics(newSelectedTopics);
+  };
+
   const formatSetName = (setName) => {
     return setName.replace(/\s+Matrix$/i, '');
   };
@@ -365,54 +389,39 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
   // =====================================
   
   // Load previously clicked numbers from database
+  // ✅ CLEAN SUPABASE-ONLY: Only load clicked numbers, no highlighting state
   const loadClickedNumbers = async () => {
     if (!selectedUser || !activeHR) return;
 
     try {
       setNumberBoxLoading(true);
-      console.log('📥 Loading previously clicked numbers...');
+      console.log('📥 Loading previously clicked numbers from Supabase...');
 
       const clickedData = await cleanSupabaseService.getTopicClicks(selectedUser);
       
       // Organize clicked data by topic, date, and hour
       const organizedClicks = {};
-      const organizedHighlights = {};
       
       clickedData.forEach(click => {
-        const { topic_name, date_key, hour, clicked_number, is_matched } = click;
+        const { topic_name, date_key, hour, clicked_number } = click;
         
         // Initialize nested structure
         if (!organizedClicks[topic_name]) {
           organizedClicks[topic_name] = {};
-          organizedHighlights[topic_name] = {};
         }
         if (!organizedClicks[topic_name][date_key]) {
           organizedClicks[topic_name][date_key] = {};
-          organizedHighlights[topic_name][date_key] = {};
         }
         if (!organizedClicks[topic_name][date_key][hour]) {
           organizedClicks[topic_name][date_key][hour] = [];
         }
 
         organizedClicks[topic_name][date_key][hour].push(clicked_number);
-        
-        // Store highlighting information (HR-specific) - match type will be determined dynamically
-        if (is_matched) {
-          // Make highlighting HR-specific
-          if (!organizedHighlights[topic_name][date_key][hour]) {
-            organizedHighlights[topic_name][date_key][hour] = {};
-          }
-          organizedHighlights[topic_name][date_key][hour][`matched_${clicked_number}`] = {
-            highlighted: true
-            // type will be determined dynamically in shouldHighlightCell
-          };
-        }
       });
 
       setClickedNumbers(organizedClicks);
-      setHighlightedCells(organizedHighlights);
       
-      console.log(`✅ Loaded ${clickedData.length} previously clicked numbers`);
+      console.log(`✅ Loaded ${clickedData.length} previously clicked numbers (highlighting determined by ABCD/BCD analysis)`);
     } catch (error) {
       console.error('❌ Error loading clicked numbers:', error);
     } finally {
@@ -427,17 +436,28 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
     try {
       console.log(`🔢 Number box clicked: ${number} for topic ${topicName} on ${dateKey} HR${activeHR}`);
       
-      // Check if number is already clicked (for toggle logic)
-      const currentClicks = clickedNumbers[topicName]?.[dateKey]?.[`HR${activeHR}`] || [];
-      const isAlreadyClicked = currentClicks.includes(number);
-      
       // Check if number matches ABCD or BCD arrays for this topic/date
       const abcdNumbers = abcdBcdAnalysis[topicName]?.[dateKey]?.abcdNumbers || [];
       const bcdNumbers = abcdBcdAnalysis[topicName]?.[dateKey]?.bcdNumbers || [];
       const isAbcdMatch = abcdNumbers.includes(number);
       const isBcdMatch = bcdNumbers.includes(number);
       const isMatched = isAbcdMatch || isBcdMatch;
-      const matchType = isAbcdMatch ? 'ABCD' : isBcdMatch ? 'BCD' : null;
+      
+      // Only proceed if the number is matched (in ABCD or BCD)
+      if (!isMatched) {
+        console.log(`❌ Number ${number} is not in ABCD/BCD arrays - cannot click`, {
+          number,
+          abcdNumbers,
+          bcdNumbers,
+          explanation: 'Only numbers present in ABCD or BCD arrays can be clicked'
+        });
+        return; // Exit early if not matched
+      }
+      
+      // Check if number is already clicked (for toggle logic)
+      const currentClicks = clickedNumbers[topicName]?.[dateKey]?.[`HR${activeHR}`] || [];
+      const isAlreadyClicked = currentClicks.includes(number);
+      const matchType = isAbcdMatch ? 'ABCD' : 'BCD';
       
       console.log(`🎯 Match check: Number ${number}`, {
         isAbcdMatch,
@@ -472,24 +492,12 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
           }
           return updated;
         });
-
-        // Remove highlighting if it was matched (HR-specific)
-        if (isMatched) {
-          console.log(`🎯 Removing grid cell highlighting for number ${number}`);
-          setHighlightedCells(prev => {
-            const updated = { ...prev };
-            if (updated[topicName]?.[dateKey]?.[`HR${activeHR}`]) {
-              delete updated[topicName][dateKey][`HR${activeHR}`][`matched_${number}`];
-            }
-            return updated;
-          });
-        }
         
         console.log(`✅ Number ${number} successfully REMOVED (unclicked)`);
         
       } else {
-        // CLICK: Add to database and local state
-        console.log(`➕ Adding number ${number} to database and state`);
+        // CLICK: Add to database and local state (only matched numbers reach here)
+        console.log(`➕ Adding matched number ${number} (${matchType}) to database and state`);
         
         await cleanSupabaseService.saveTopicClick(
           selectedUser, 
@@ -497,7 +505,7 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
           dateKey, 
           `HR${activeHR}`, 
           number, 
-          isMatched
+          isMatched // This will always be true here
         );
         
         // Add to local state
@@ -516,24 +524,8 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
           
           return updated;
         });
-
-        // Add highlighting if matched (HR-specific)
-        if (isMatched) {
-          console.log(`🎯 Adding grid cell highlighting for number ${number} with type ${matchType}`);
-          setHighlightedCells(prev => {
-            const updated = { ...prev };
-            if (!updated[topicName]) updated[topicName] = {};
-            if (!updated[topicName][dateKey]) updated[topicName][dateKey] = {};
-            if (!updated[topicName][dateKey][`HR${activeHR}`]) updated[topicName][dateKey][`HR${activeHR}`] = {};
-            updated[topicName][dateKey][`HR${activeHR}`][`matched_${number}`] = {
-              highlighted: true
-              // type will be determined dynamically in shouldHighlightCell
-            };
-            return updated;
-          });
-        }
         
-        console.log(`✅ Number ${number} successfully ADDED (clicked)`);
+        console.log(`✅ Number ${number} successfully ADDED (clicked as ${matchType})`);
       }
       
     } catch (error) {
@@ -542,37 +534,31 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
   };
 
   // Check if cell should be highlighted and return match type (HR-specific)
+  // ✅ CLEAN SUPABASE-ONLY: Only use ABCD/BCD analysis, no localStorage/highlightedCells fallback
   const shouldHighlightCell = (cellValue, topicName, dateKey) => {
-    const highlights = highlightedCells[topicName]?.[dateKey]?.[`HR${activeHR}`] || {};
-    
     // Extract number from cell value
     const match = cellValue.match(/(\d+)/);
     if (!match) return { highlighted: false };
     
     const cellNumber = parseInt(match[1]);
-    const highlightInfo = highlights[`matched_${cellNumber}`];
     
-    if (highlightInfo && highlightInfo.highlighted) {
-      // Determine match type dynamically based on current HR's ABCD/BCD analysis
+    // Check if this number was clicked by the user for this topic/date/HR
+    const userClickedNumbers = clickedNumbers[topicName]?.[dateKey]?.[`HR${activeHR}`] || [];
+    const wasClickedByUser = userClickedNumbers.includes(cellNumber);
+    
+    // Only highlight if the number was clicked AND appears in current ABCD/BCD analysis
+    if (wasClickedByUser) {
       const currentAnalysis = abcdBcdAnalysis[topicName]?.[dateKey];
       if (currentAnalysis) {
         const abcdNumbers = currentAnalysis.abcdNumbers || [];
         const bcdNumbers = currentAnalysis.bcdNumbers || [];
-        const isAbcdMatch = abcdNumbers.includes(cellNumber);
-        const isBcdMatch = bcdNumbers.includes(cellNumber);
+        const isInAbcd = abcdNumbers.includes(cellNumber);
+        const isInBcd = bcdNumbers.includes(cellNumber);
         
-        if (isAbcdMatch) {
-          return { highlighted: true, type: 'ABCD' };
-        } else if (isBcdMatch) {
-          return { highlighted: true, type: 'BCD' };
+        if (isInAbcd || isInBcd) {
+          return { highlighted: true, type: isInAbcd ? 'ABCD' : 'BCD' };
         }
       }
-      
-      // Fallback to stored type if analysis not available
-      return {
-        highlighted: true,
-        type: highlightInfo.type || 'ABCD'
-      };
     }
     
     return { highlighted: false };
@@ -660,8 +646,6 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
             const isClicked = currentClicks.includes(num);
             const isInAbcdBcd = abcdNumbers.includes(num) || bcdNumbers.includes(num);
             const isDisabled = !isInAbcdBcd || numberBoxLoading;
-            
-            console.log(`Number ${num} - isClicked: ${isClicked}, isInAbcdBcd: ${isInAbcdBcd}, isDisabled: ${isDisabled}`);
             
             return (
               <button
@@ -1052,13 +1036,290 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
     }
   }, [selectedUser, activeHR, allDaysData]);
 
-  // Color coding function for ABCD/BCD numbers
+  // Calculate highlighted topics count per date (only count topics with clicked+highlighted numbers)
+  useEffect(() => {
+    if (Object.keys(abcdBcdAnalysis).length === 0 || availableTopics.length === 0 || !activeHR) {
+      console.log('🚫 [HighlightedCount] Skipping calculation - missing dependencies:', {
+        hasAbcdBcdAnalysis: Object.keys(abcdBcdAnalysis).length > 0,
+        hasAvailableTopics: availableTopics.length > 0,
+        hasActiveHR: !!activeHR
+      });
+      setHighlightedTopicCountPerDate({});
+      return;
+    }
+
+    const availableDates = Object.keys(allDaysData).sort((a, b) => new Date(a) - new Date(b));
+    const countPerDate = {};
+
+    console.log('🔍 [HighlightedCount] Starting calculation for clicked+highlighted topics...');
+    console.log('📊 [HighlightedCount] Dependencies check:', {
+      availableTopics: availableTopics.length,
+      availableDates: availableDates,
+      activeHR: activeHR,
+      clickedNumbersKeys: Object.keys(clickedNumbers),
+      abcdBcdAnalysisKeys: Object.keys(abcdBcdAnalysis),
+      clickedNumbersStructure: Object.fromEntries(
+        Object.entries(clickedNumbers).slice(0, 2).map(([topic, dates]) => [
+          topic, 
+          Object.fromEntries(
+            Object.entries(dates).slice(0, 2).map(([date, hrs]) => [
+              date,
+              Object.keys(hrs)
+            ])
+          )
+        ])
+      )
+    });
+
+    // Only process dates from the 5th onward (skip first 4 dates as they don't have ABCD/BCD numbers)
+    availableDates.forEach((dateKey, dateIndex) => {
+      if (dateIndex < 4) {
+        // Skip first 4 dates - they don't have ABCD/BCD numbers from previous dates
+        console.log(`⏭️ [HighlightedCount] Skipping date ${dateIndex + 1}: "${dateKey}" - no ABCD/BCD available (first 4 dates)`);
+        return;
+      }
+      
+      let highlightedTopicsForThisDate = 0;
+      let totalTopicsWithClicks = 0;
+      let totalTopicsWithAnyData = 0;
+
+      console.log(`📊 [HighlightedCount] Processing date ${dateIndex + 1}: "${dateKey}" - ABCD/BCD numbers available`);
+
+      availableTopics.forEach(topicName => {
+        // Check if topic has ABCD/BCD analysis data for this date
+        const topicAnalysis = abcdBcdAnalysis[topicName];
+        if (!topicAnalysis || !topicAnalysis[dateKey]) {
+          return; // Skip if no analysis data for this topic/date
+        }
+
+        totalTopicsWithAnyData++;
+        const dateAnalysis = topicAnalysis[dateKey];
+        const abcdNumbers = dateAnalysis.abcdNumbers || [];
+        const bcdNumbers = dateAnalysis.bcdNumbers || [];
+        
+        // Get clicked numbers for this topic/date/HR
+        const topicClickedNumbers = clickedNumbers[topicName]?.[dateKey]?.[`HR${activeHR}`] || [];
+        
+        // Special debug for 30-6-25 date
+        if (dateKey === '2025-06-30' || dateKey.includes('30-6') || dateKey.includes('06-30')) {
+          console.log(`🔍 [HighlightedCount] SPECIAL DEBUG for date ${dateKey} topic ${topicName}:`, {
+            topicClickedNumbers,
+            abcdNumbers,
+            bcdNumbers,
+            fullClickedNumbersState: clickedNumbers[topicName]?.[dateKey],
+            hasClickedData: !!clickedNumbers[topicName]?.[dateKey]
+          });
+        }
+        
+        if (topicClickedNumbers.length === 0) {
+          return; // Skip if no clicked numbers for this topic/date/HR
+        }
+
+        totalTopicsWithClicks++;
+
+        // 👉 A topic should be counted for a date ONLY IF:
+        // - The user clicked at least one number (1–12), AND
+        // - That clicked number is also present in the ABCD or BCD array for that topic and date, AND
+        // - That clicked number actually appears in the topic's row data (in rawData strings like "as-3-sg", "mo-3-le")
+        
+        let hasClickedHighlightedNumber = false;
+        
+        // Get the topic's raw data for this date/HR to check if clicked numbers appear in it
+        const dayData = allDaysData[dateKey];
+        let topicRawDataStrings = [];
+        
+        if (dayData?.success && dayData.hrData[activeHR]?.sets[topicName]) {
+          const topicSet = dayData.hrData[activeHR].sets[topicName];
+          // Collect all raw data strings from all elements in this topic set
+          Object.values(topicSet).forEach(elementData => {
+            if (elementData?.rawData && typeof elementData.rawData === 'string') {
+              topicRawDataStrings.push(elementData.rawData);
+            }
+          });
+        }
+        
+        // Check if topicClickedNumbers has any matches with ABCD or BCD AND appears in topic data
+        if (topicClickedNumbers.length > 0) {
+          const matchingNumbers = topicClickedNumbers.filter(num => {
+            // First check: is the number in ABCD or BCD arrays?
+            const isInAbcdBcd = abcdNumbers.includes(num) || bcdNumbers.includes(num);
+            
+            // Second check: does this number actually appear in the topic's raw data?
+            const appearsInTopicData = topicRawDataStrings.some(rawData => 
+              rawData.includes(`-${num}-`)
+            );
+            
+            return isInAbcdBcd && appearsInTopicData;
+          });
+          
+          hasClickedHighlightedNumber = matchingNumbers.length > 0;
+        }
+
+        // Enhanced logging for debugging
+        console.log(`📊 [HighlightedCount] Analysis for "${topicName}" on "${dateKey}" HR${activeHR}:`, {
+          hasClickedNumbers: topicClickedNumbers.length > 0,
+          clickedNumbers: topicClickedNumbers,
+          abcdNumbers,
+          bcdNumbers,
+          topicRawDataStrings: topicRawDataStrings.slice(0, 3), // Show first 3 for debugging
+          hasClickedHighlightedNumber,
+          willCountTopic: hasClickedHighlightedNumber,
+          validationDetail: topicClickedNumbers.length > 0 ? topicClickedNumbers.map(num => ({
+            number: num,
+            inAbcdBcd: abcdNumbers.includes(num) || bcdNumbers.includes(num),
+            inTopicData: topicRawDataStrings.some(rawData => rawData.includes(`-${num}-`))
+          })) : []
+        });
+        
+        // Only count this topic if it has clicked numbers that are in ABCD or BCD
+        if (hasClickedHighlightedNumber) {
+          highlightedTopicsForThisDate++;
+          console.log(`🎯 [HighlightedCount] TOPIC COUNTED: "${topicName}" on "${dateKey}" HR${activeHR} - has clicked+highlighted numbers`);
+        } else if (topicClickedNumbers.length > 0) {
+          console.log(`⚪ [HighlightedCount] TOPIC NOT COUNTED: "${topicName}" on "${dateKey}" HR${activeHR} - clicked numbers but none are highlighted`);
+        }
+      });
+
+      countPerDate[dateKey] = highlightedTopicsForThisDate;
+      console.log(`📊 [HighlightedCount] Date "${dateKey}" HR${activeHR}: ${highlightedTopicsForThisDate} topics with clicked+highlighted numbers`);
+      console.log(`📈 [HighlightedCount] Date "${dateKey}" HR${activeHR} breakdown:`, {
+        totalTopicsWithData: totalTopicsWithAnyData,
+        totalTopicsWithClicks: totalTopicsWithClicks,
+        finalCountedTopics: highlightedTopicsForThisDate,
+        explanation: 'Only topics with clicked numbers that appear in ABCD/BCD AND are visible in topic raw data are counted'
+      });
+    });
+
+    setHighlightedTopicCountPerDate(countPerDate);
+    console.log('🎯 [HighlightedCount] Final clicked+highlighted counts per date:', countPerDate);
+  }, [abcdBcdAnalysis, availableTopics, allDaysData, clickedNumbers, activeHR]);
+
+  // Function to show detailed highlight debugging
+  const showHighlightDebugging = () => {
+    console.log('🔍 [DEBUG] COMPLETE HIGHLIGHT STATE ANALYSIS');
+    console.log('==========================================');
+    
+    console.log('📊 Current States:');
+    console.log('  - clickedNumbers:', clickedNumbers);
+    console.log('  - highlightedCells:', highlightedCells);
+    console.log('  - abcdBcdAnalysis keys:', Object.keys(abcdBcdAnalysis));
+    console.log('  - activeHR:', activeHR);
+    
+    console.log('\n🎯 Per-Topic Analysis:');
+    availableTopics.forEach(topicName => {
+      const availableDates = Object.keys(allDaysData).sort((a, b) => new Date(a) - new Date(b));
+      
+      availableDates.forEach(dateKey => {
+        const topicClickedNumbers = clickedNumbers[topicName]?.[dateKey]?.[`HR${activeHR}`] || [];
+        const abcdNumbers = abcdBcdAnalysis[topicName]?.[dateKey]?.abcdNumbers || [];
+        const bcdNumbers = abcdBcdAnalysis[topicName]?.[dateKey]?.bcdNumbers || [];
+        
+        if (topicClickedNumbers.length > 0) {
+          console.log(`\n📋 ${topicName} on ${dateKey} HR${activeHR}:`);
+          console.log(`  Clicked: [${topicClickedNumbers.join(', ')}]`);
+          console.log(`  ABCD: [${abcdNumbers.join(', ')}]`);
+          console.log(`  BCD: [${bcdNumbers.join(', ')}]`);
+          
+          // Get topic raw data for validation
+          const dayData = allDaysData[dateKey];
+          let topicRawDataStrings = [];
+          if (dayData?.success && dayData.hrData[activeHR]?.sets[topicName]) {
+            const topicSet = dayData.hrData[activeHR].sets[topicName];
+            Object.values(topicSet).forEach(elementData => {
+              if (elementData?.rawData && typeof elementData.rawData === 'string') {
+                topicRawDataStrings.push(elementData.rawData);
+              }
+            });
+          }
+          
+          // Check which numbers meet all three conditions
+          const validMatches = topicClickedNumbers.filter(num => {
+            const isInAbcdBcd = abcdNumbers.includes(num) || bcdNumbers.includes(num);
+            const appearsInTopicData = topicRawDataStrings.some(rawData => rawData.includes(`-${num}-`));
+            return isInAbcdBcd && appearsInTopicData;
+          });
+          
+          console.log(`  ABCD/BCD Matches: [${topicClickedNumbers.filter(num => abcdNumbers.includes(num) || bcdNumbers.includes(num)).join(', ')}]`);
+          console.log(`  Topic Raw Data: [${topicRawDataStrings.slice(0, 2).join(', ')}${topicRawDataStrings.length > 2 ? '...' : ''}]`);
+          console.log(`  Valid Matches (All 3 conditions): [${validMatches.join(', ')}] - ${validMatches.length > 0 ? 'COUNTS' : 'NO COUNT'}`);
+          
+          // Check visual highlighting status
+          const visualHighlights = topicClickedNumbers.map(num => ({
+            number: num,
+            visuallyHighlighted: shouldHighlightCell(`test-${num}`, topicName, dateKey).highlighted
+          }));
+          console.log(`  Visual highlighting:`, visualHighlights);
+        }
+      });
+    });
+    
+    console.log('\n📈 Summary:');
+    console.log(`  Highlighted topics count per date:`, highlightedTopicCountPerDate);
+    
+    // Show detailed breakdown of what's being counted (only dates from 5th onward)
+    console.log('\n🔬 DETAILED COUNT BREAKDOWN (From 5th Date Onward):');
+    Object.keys(highlightedTopicCountPerDate)
+      .sort((a, b) => new Date(a) - new Date(b))
+      .forEach((dateKey, dateIndex) => {
+        // Only show breakdown for dates that have ABCD/BCD numbers (5th onward)
+        const count = highlightedTopicCountPerDate[dateKey];
+        if (count > 0) {
+          console.log(`\n📅 Date ${dateKey} (Count: ${count}):`);
+          let topicCount = 0;
+          availableTopics.forEach(topicName => {
+          const topicClickedNumbers = clickedNumbers[topicName]?.[dateKey]?.[`HR${activeHR}`] || [];
+          const abcdNumbers = abcdBcdAnalysis[topicName]?.[dateKey]?.abcdNumbers || [];
+          const bcdNumbers = abcdBcdAnalysis[topicName]?.[dateKey]?.bcdNumbers || [];
+          
+          if (topicClickedNumbers.length > 0) {
+            // Get topic raw data for validation
+            const dayData = allDaysData[dateKey];
+            let topicRawDataStrings = [];
+            if (dayData?.success && dayData.hrData[activeHR]?.sets[topicName]) {
+              const topicSet = dayData.hrData[activeHR].sets[topicName];
+              Object.values(topicSet).forEach(elementData => {
+                if (elementData?.rawData && typeof elementData.rawData === 'string') {
+                  topicRawDataStrings.push(elementData.rawData);
+                }
+              });
+            }
+            
+            // Check which numbers meet all three conditions
+            const validMatches = topicClickedNumbers.filter(num => {
+              const isInAbcdBcd = abcdNumbers.includes(num) || bcdNumbers.includes(num);
+              const appearsInTopicData = topicRawDataStrings.some(rawData => rawData.includes(`-${num}-`));
+              return isInAbcdBcd && appearsInTopicData;
+            });
+            
+            if (validMatches.length > 0) {
+              topicCount++;
+              console.log(`  ${topicCount}. ${topicName} - Clicked: [${topicClickedNumbers.join(', ')}], Valid Matches: [${validMatches.join(', ')}]`);
+            }
+          }
+        });
+      }
+    });
+    
+    alert('🔍 Highlight debugging completed! Check console for detailed analysis.');
+  };
   const renderColorCodedDayNumber = (displayValue, setName, dateKey) => {
     if (displayValue === '—' || displayValue === '(No Data)') {
       return displayValue;
     }
 
     const elementNumber = extractElementNumber(displayValue);
+    
+    // 🔍 DEBUG: Always log extraction attempts for this specific case
+    if (dateKey === '2025-06-30' || displayValue.includes('-3-') || displayValue.includes('as-9') || displayValue.includes('mo-1') || displayValue.includes('hl-4')) {
+      console.log(`🔍 [GridDebug] Extracting from "${displayValue}":`, {
+        displayValue,
+        extractedNumber: elementNumber,
+        setName,
+        dateKey,
+        extractFunction: 'extractElementNumber'
+      });
+    }
+    
     if (elementNumber === null) return displayValue;
 
     // Check if we have analysis data for this set and date
@@ -1075,8 +1336,8 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
     const abcdNumbers = dateAnalysis.abcdNumbers || [];
     const bcdNumbers = dateAnalysis.bcdNumbers || [];
     
-    // 🔍 DETAILED DEBUG: Only log when we find a match
-    if (abcdNumbers.includes(elementNumber) || bcdNumbers.includes(elementNumber)) {
+    // 🔍 DETAILED DEBUG: Enhanced logging for troubleshooting
+    if (dateKey === '2025-06-30' && (abcdNumbers.includes(elementNumber) || bcdNumbers.includes(elementNumber))) {
       console.log(`🎯 [Rule1Page] MATCH FOUND! Element ${elementNumber} in "${setName}" on "${dateKey}":`, {
         displayValue,
         elementNumber,
@@ -1089,7 +1350,7 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
     
     // Check if this number is in ABCD or BCD results
     if (abcdNumbers.includes(elementNumber)) {
-      console.log(`✅ [Rule1Page] Rendering ABCD tag for number ${elementNumber} (expected: 7, 10)`);
+      console.log(`✅ [Rule1Page] Rendering ABCD tag for number ${elementNumber} from "${displayValue}"`);
       return (
         <div className="flex items-center justify-center gap-1">
           <span className="text-data-value">{displayValue}</span>
@@ -1099,7 +1360,7 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
         </div>
       );
     } else if (bcdNumbers.includes(elementNumber)) {
-      console.log(`✅ [Rule1Page] Rendering BCD tag for number ${elementNumber} (expected: 3, 6, 8)`);
+      console.log(`✅ [Rule1Page] Rendering BCD tag for number ${elementNumber} from "${displayValue}"`);
       return (
         <div className="flex items-center justify-center gap-1">
           <span className="text-data-value">{displayValue}</span>
@@ -1153,22 +1414,21 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 w-full">
       <div className="w-full px-6 py-6">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-lg p-4 mb-6 border-t-4 border-purple-600">
+        {/* ✅ STICKY HEADER with Highlighted Topics Summary */}
+        <div className="sticky top-0 z-50 bg-white shadow-md rounded-lg p-4 mb-6 border-t-4 border-purple-600">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">Past Days</h1>
+            <div className="flex-1">
+              <h1 className="text-2xl font-bold text-gray-800">Rule-1 Matrix Analysis - HR {activeHR || '?'}</h1>
+              {/* User Name Display */}
               <div className="text-sm text-purple-800 mt-1">
-                <p>👤 User ID: {selectedUser}</p>
-                <p>📅 Target Date: {date}</p>
-                {analysisDate && analysisDate !== date && (
-                  <p>🔍 Analysis Source: {analysisDate} (rule2page logic)</p>
-                )}
-                <p>📊 ABCD/BCD Pattern: (N-1) Past Days - Real-time Topic-Specific Rule2 Analysis</p>
-                <p>🪟 {windowType}</p>
+                <p>👤 User: {(() => {
+                  const currentUser = users?.find(user => user.id === selectedUser);
+                  return currentUser ? currentUser.username : `ID: ${selectedUser}`;
+                })()}</p>
               </div>
             </div>
-            <div className="flex gap-2">
+            
+            <div className="flex gap-2 ml-4">
               <button
                 onClick={onBack}
                 className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg"
@@ -1176,7 +1436,54 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
                 ← Back to Main
               </button>
             </div>
-          </div>        </div>
+          </div>
+          
+          {/* Highlighted Topics Summary */}
+          {Object.keys(highlightedTopicCountPerDate).length > 0 && (
+            <div className="mt-3 pt-3 border-t border-gray-200">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-gray-700">📊 Highlighted Topics Summary</h3>
+                <span className="text-xs text-gray-500">Topics with clicked+highlighted numbers (From 5th date onward)</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {Object.keys(allDaysData)
+                  .sort((a, b) => new Date(a) - new Date(b))
+                  .filter((dateKey, dateIndex) => dateIndex >= 4) // Only show dates from 5th onward
+                  .map(dateKey => {
+                    const count = highlightedTopicCountPerDate[dateKey] || 0;
+                    const dateObj = new Date(dateKey);
+                    const formattedDate = `${dateObj.getDate()}-${dateObj.getMonth() + 1}-${dateObj.getFullYear().toString().slice(-2)}`;
+                    
+                    return (
+                      <div
+                        key={dateKey}
+                        className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium ${
+                          count > 0 
+                            ? 'bg-green-100 text-green-800 border border-green-300 shadow-md' 
+                            : 'bg-gray-100 text-gray-600 border border-gray-200'
+                        } ${dateKey === date ? 'ring-2 ring-blue-500 ring-opacity-75 shadow-lg' : ''}`}
+                      >
+                        <span className="font-semibold">{formattedDate}</span>
+                        <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${
+                          count > 0 
+                            ? 'bg-green-200 text-green-900 border border-green-300' 
+                            : 'bg-gray-200 text-gray-700'
+                        }`}>
+                          {count}
+                        </span>
+                        {dateKey === date && (
+                          <span className="text-blue-600 font-bold text-lg">●</span>
+                        )}
+                        {count > 0 && (
+                          <span className="text-green-600 font-bold">✓</span>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* HR Selection - positioned after header */}
         {activeHR && (
@@ -1209,45 +1516,75 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
 
         {/* Topic Selection */}
         {showTopicSelector && (
-          <div className="bg-white rounded-lg shadow-md mb-6 p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800">📊 Topic Selection</h3>
-              <div className="flex gap-2">
+          <div className="bg-white rounded-lg shadow-md mb-4 p-2">
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-xs font-semibold text-gray-800">📊 Topic Selection</h3>
+              <div className="flex gap-1">
                 <button
                   onClick={handleSelectAll}
-                  className="bg-green-300 hover:bg-green-400 text-green-800 px-3 py-1 rounded text-sm"
+                  className="bg-green-300 hover:bg-green-400 text-green-800 px-1.5 py-0.5 rounded text-xs"
                 >
-                  Select All
+                  All
                 </button>
                 <button
                   onClick={handleClearAll}
-                  className="bg-red-300 hover:bg-red-400 text-red-800 px-3 py-1 rounded text-sm"
+                  className="bg-red-300 hover:bg-red-400 text-red-800 px-1.5 py-0.5 rounded text-xs"
                 >
-                  Clear All
+                  Clear
                 </button>
                 <button
                   onClick={() => setShowTopicSelector(false)}
-                  className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm"
+                  className="bg-gray-500 hover:bg-gray-600 text-white px-1.5 py-0.5 rounded text-xs"
                 >
                   Hide
                 </button>
               </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
-              {availableTopics.map(topic => (
-                <label key={topic} className="flex items-center space-x-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={selectedTopics.has(topic)}
-                    onChange={() => handleTopicToggle(topic)}
-                    className="rounded border-gray-300"
-                  />
-                  <span className="truncate">{formatSetName(topic)}</span>
-                </label>
-              ))}
-            </div>
-            <div className="mt-2 text-xs text-gray-600">
-              Selected: {selectedTopics.size} / {availableTopics.length} topics
+            {/* Combined Topics in 2 rows */}
+            <div className="space-y-0.5">
+              {/* Set-1 Topics Row */}
+              <div className="flex flex-wrap gap-0.5 items-center">
+                <button 
+                  onClick={() => handleBulkSetToggle(1)}
+                  className="text-xs font-medium text-blue-600 mr-1 hover:text-blue-800 hover:bg-blue-50 px-1 py-0.5 rounded cursor-pointer transition-colors"
+                  title="Click to select/deselect all Set-1 topics"
+                >
+                  Set-1:
+                </button>
+                {availableTopics.filter(topic => topic.includes('Set-1')).map(topic => (
+                  <label key={topic} className="flex items-center space-x-0.5 text-xs bg-blue-50 px-1 py-0.5 rounded border">
+                    <input
+                      type="checkbox"
+                      checked={selectedTopics.has(topic)}
+                      onChange={() => handleTopicToggle(topic)}
+                      className="rounded border-gray-300 w-2.5 h-2.5"
+                    />
+                    <span className="whitespace-nowrap text-xs">{formatSetName(topic)}</span>
+                  </label>
+                ))}
+              </div>
+              
+              {/* Set-2 Topics Row */}
+              <div className="flex flex-wrap gap-0.5 items-center">
+                <button 
+                  onClick={() => handleBulkSetToggle(2)}
+                  className="text-xs font-medium text-green-600 mr-1 hover:text-green-800 hover:bg-green-50 px-1 py-0.5 rounded cursor-pointer transition-colors"
+                  title="Click to select/deselect all Set-2 topics"
+                >
+                  Set-2:
+                </button>
+                {availableTopics.filter(topic => topic.includes('Set-2')).map(topic => (
+                  <label key={topic} className="flex items-center space-x-0.5 text-xs bg-green-50 px-1 py-0.5 rounded border">
+                    <input
+                      type="checkbox"
+                      checked={selectedTopics.has(topic)}
+                      onChange={() => handleTopicToggle(topic)}
+                      className="rounded border-gray-300 w-2.5 h-2.5"
+                    />
+                    <span className="whitespace-nowrap text-xs">{formatSetName(topic)}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -1265,21 +1602,13 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
 
         {/* Matrix Display */}
         <div className="bg-white rounded-lg shadow-lg w-full">
-          <div className="p-4 bg-gray-50 border-b sticky top-0 z-10">
-            <h2 className="text-xl font-bold text-gray-800">
-              📋 Rule-1 Matrix Analysis
-              {activeHR && ` - HR ${activeHR}`}
-            </h2>
-            <p className="text-sm text-gray-600 mt-1">
-              Showing {topicsToDisplay.length} topics across {availableDates.length} dates
-            </p>
-          </div>
+
           
           <div className="p-4 space-y-6">
             {topicsToDisplay.length > 0 ? (
               topicsToDisplay.map(setName => (
                 <div key={setName} className="bg-white border border-gray-200 rounded-lg shadow-sm">
-                  <div className="bg-blue-100 p-3 font-bold text-lg rounded-t-lg border-b border-gray-200 sticky top-[88px] z-[5]">
+                  <div className="bg-blue-100 p-3 font-bold text-lg rounded-t-lg border-b border-gray-200">
                     📊 {formatSetName(setName)}
                   </div>
                   <div className="overflow-x-auto">

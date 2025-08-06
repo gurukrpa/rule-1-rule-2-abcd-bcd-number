@@ -125,34 +125,10 @@ function testNumberBoxClick() {
 function checkTailwindCSS() {
   console.log('\n🎨 Tailwind CSS Check:');
   
-  // Create a test element with gradient classes
-  const testDiv = document.createElement('div');
-  testDiv.className = 'bg-gradient-to-r from-green-400 to-emerald-500';
-  testDiv.style.width = '50px';
-  testDiv.style.height = '20px';
-  testDiv.style.position = 'fixed';
-  testDiv.style.top = '10px';
-  testDiv.style.right = '10px';
-  testDiv.style.zIndex = '9999';
-  testDiv.textContent = 'TEST';
-  
-  document.body.appendChild(testDiv);
-  
-  setTimeout(() => {
-    const computedStyle = window.getComputedStyle(testDiv);
-    const background = computedStyle.background || computedStyle.backgroundImage;
-    
-    console.log(`Test gradient background: ${background}`);
-    
-    if (background.includes('gradient') || background.includes('linear')) {
-      console.log('✅ Gradient classes work in CSS');
-    } else {
-      console.log('❌ Gradient classes not working - Tailwind CSS issue?');
-    }
-    
-    // Remove test element
-    document.body.removeChild(testDiv);
-  }, 500);
+  // Visual test element disabled - use browser dev tools instead
+  console.log('📝 Visual test element disabled');
+  console.log('💡 Use browser dev tools to inspect gradient elements manually');
+  console.log('✅ CSS check function available (visual element disabled)');
 }
 
 // Check for date visibility (number boxes only show from 5th date)
