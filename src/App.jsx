@@ -93,9 +93,9 @@ function App() {
             <Route path="/auth" element={<SimpleAuth />} />
             <Route path="/legacy-auth" element={<Auth onEnableHouseCounting={enableHouseCounting} />} />
             
-            {/* Default route - redirect to auth if not authenticated, otherwise to users */}
+            {/* Default route - show login page if not authenticated, otherwise to users */}
             <Route path="/" element={
-              isAuthenticated ? <Navigate to="/users" replace /> : <Navigate to="/auth" replace />
+              isAuthenticated ? <Navigate to="/users" replace /> : <SimpleAuth />
             } />
             
             {/* Protected Routes */}
