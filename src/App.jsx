@@ -26,27 +26,11 @@ import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   const [session, setSession] = useState(null);
-  // TEMPORARY: Disable authentication for development
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
-  const [isHouseCountEnabled, setIsHouseCountEnabled] = useState(true);
+  // Authentication enabled - users must login to access the application
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isHouseCountEnabled, setIsHouseCountEnabled] = useState(false);
 
   useEffect(() => {
-    // TEMPORARY: Auto-enable house counting for development
-    localStorage.setItem('house_count_enabled', 'true');
-    localStorage.setItem('auth_type', 'simple');
-    
-    // Create a temporary session for development
-    const tempSession = {
-      user: {
-        authenticated: true,
-        email: 'dev@temporary.com',
-        id: 'temp-dev-user'
-      }
-    };
-    localStorage.setItem('house_count_session', JSON.stringify(tempSession));
-    setSession(tempSession);
-
-    /* COMMENTED OUT FOR DEVELOPMENT - Authentication logic
     // Check if house counting is enabled in localStorage
     const houseCountEnabled = localStorage.getItem('house_count_enabled');
     if (houseCountEnabled === 'true') {
@@ -72,7 +56,6 @@ function App() {
         localStorage.removeItem('auth_type');
       }
     }
-    */
   }, []);
 
   const enableHouseCounting = () => {
@@ -90,64 +73,91 @@ function App() {
       <ErrorBoundary>
         <div className="min-h-screen bg-gray-100">
           <Routes>
-            {/* TEMPORARY: Authentication routes commented out for development */}
-            {/* <Route path="/auth" element={<SimpleAuth />} /> */}
-            {/* <Route path="/legacy-auth" element={<Auth onEnableHouseCounting={enableHouseCounting} />} /> */}
+            {/* Authentication routes */}
+            <Route path="/auth" element={<SimpleAuth />} />
+            <Route path="/legacy-auth" element={<Auth onEnableHouseCounting={enableHouseCounting} />} />
             
-            {/* Default route - redirect directly to users for development */}
-            <Route path="/" element={<Navigate to="/users" replace />} />
-            <Route path="/auth" element={<Navigate to="/users" replace />} />
+            {/* Default route - redirect to auth if not authenticated, otherwise to users */}
+            <Route path="/" element={
+              isAuthenticated ? <Navigate to="/users" replace /> : <Navigate to="/auth" replace />
+            } />
             
-            {/* User List - main landing page (no auth required during development) */}
-            <Route path="/users" element={<UserList />} />
+            {/* Protected Routes */}
+            <Route path="/users" element={
+              <SimpleProtectedRoute isAuthenticated={isAuthenticated}>
+                <UserList />
+              </SimpleProtectedRoute>
+            } />
             
-            {/* Dashboard route */}
-            <Route path="/dashboard" element={<Navigate to="/abcd-number/1" replace />} />
+            <Route path="/dashboard" element={
+              <SimpleProtectedRoute isAuthenticated={isAuthenticated}>
+                <Navigate to="/abcd-number/1" replace />
+              </SimpleProtectedRoute>
+            } />
             
-            {/* All routes accessible without authentication during development */}
-            <Route path="/user/:userId" element={<UserData />} />
+            <Route path="/user/:userId" element={
+              <SimpleProtectedRoute isAuthenticated={isAuthenticated}>
+                <UserData />
+              </SimpleProtectedRoute>
+            } />
             
-            <Route path="/user-data/:userId" element={<UserData />} />
+            <Route path="/user-data/:userId" element={
+              <SimpleProtectedRoute isAuthenticated={isAuthenticated}>
+                <UserData />
+              </SimpleProtectedRoute>
+            } />
             
             <Route path="/day-details/:userId" element={
-              <ErrorBoundary>
-                <DayDetails />
-              </ErrorBoundary>
+              <SimpleProtectedRoute isAuthenticated={isAuthenticated}>
+                <ErrorBoundary>
+                  <DayDetails />
+                </ErrorBoundary>
+              </SimpleProtectedRoute>
             } />
             
             <Route path="/number-gen" element={
-              <ErrorBoundary>
-                <NumberGen />
-              </ErrorBoundary>
+              <SimpleProtectedRoute isAuthenticated={isAuthenticated}>
+                <ErrorBoundary>
+                  <NumberGen />
+                </ErrorBoundary>
+              </SimpleProtectedRoute>
             } />
             
             <Route path="/abcd-number/:userId" element={
-              <ErrorBoundary>
-                <ABCDBCDNumber />
-              </ErrorBoundary>
+              <SimpleProtectedRoute isAuthenticated={isAuthenticated}>
+                <ErrorBoundary>
+                  <ABCDBCDNumber />
+                </ErrorBoundary>
+              </SimpleProtectedRoute>
             } />
             
             <Route path="/planets-analysis" element={
-              <ErrorBoundary>
-                <PlanetsAnalysisPage />
-              </ErrorBoundary>
+              <SimpleProtectedRoute isAuthenticated={isAuthenticated}>
+                <ErrorBoundary>
+                  <PlanetsAnalysisPage />
+                </ErrorBoundary>
+              </SimpleProtectedRoute>
             } />
             
             <Route path="/planets-analysis/:userId" element={
-              <ErrorBoundary>
-                <PlanetsAnalysisPage />
-              </ErrorBoundary>
+              <SimpleProtectedRoute isAuthenticated={isAuthenticated}>
+                <ErrorBoundary>
+                  <PlanetsAnalysisPage />
+                </ErrorBoundary>
+              </SimpleProtectedRoute>
             } />
 
             {/* Dual-Service Demo */}
             <Route path="/dual-service-demo" element={
-              <ErrorBoundary>
-                <DualServiceDemo />
-              </ErrorBoundary>
+              <SimpleProtectedRoute isAuthenticated={isAuthenticated}>
+                <ErrorBoundary>
+                  <DualServiceDemo />
+                </ErrorBoundary>
+              </SimpleProtectedRoute>
             } />
             
-            {/* Catch all route - redirect to users */}
-            <Route path="*" element={<Navigate to="/users" replace />} />
+            {/* Catch all route - redirect to auth */}
+            <Route path="*" element={<Navigate to="/auth" replace />} />
           </Routes>
         </div>
       </ErrorBoundary>
