@@ -198,16 +198,6 @@ export default function SimpleAuth() {
               </div>
             )}
 
-            {/* Application Info */}
-            <div className="mt-6 p-4 bg-blue-50 rounded-md">
-              <h3 className="text-sm font-medium text-blue-800 mb-2">Application Info</h3>
-              <ul className="text-xs text-blue-700 space-y-1">
-                <li>• Secure username/password authentication</li>
-                <li>• Access to ABCD/BCD Number Analysis System</li>
-                <li>• Full feature access after login</li>
-                <li>• Data synchronized with Supabase cloud</li>
-              </ul>
-            </div>
           </form>
         </div>
       </div>
