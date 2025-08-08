@@ -23,6 +23,7 @@ import ABCDBCDNumber from './components/ABCDBCDNumber';
 import PlanetsAnalysisPage from './components/PlanetsAnalysisPage';
 import DualServiceDemo from './components/DualServiceDemo';
 import ErrorBoundary from './components/ErrorBoundary';
+import EnvironmentBanner from './components/EnvironmentBanner';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -87,6 +88,7 @@ function App() {
       }}
     >
       <ErrorBoundary>
+        <EnvironmentBanner />
         <div className="min-h-screen bg-gray-100">
           <Routes>
             {/* Authentication routes */}

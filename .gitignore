@@ -28,6 +28,9 @@ supabase/
 .env.test.local
 .env.production.local
 
+# Automation environment files (NEVER commit these)
+.env.automation
+
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
