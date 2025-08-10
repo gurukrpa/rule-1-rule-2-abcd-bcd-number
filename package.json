@@ -24,6 +24,8 @@
     "validate": "./validate-setup.sh",
     "enable:firebase": "./enable-firebase.sh",
     "test:dual-service": "npm run build && npm run preview",
+    "smoke:automation": "node scripts/smoke-test.cjs",
+    "verify:supabase": "node scripts/verify-supabase.cjs",
     "security-fix": "node apply-security-fixes.mjs",
     "security-dashboard": "open instant-security-fix.html",
     "new-logic": "git checkout -b",

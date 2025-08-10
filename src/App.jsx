@@ -22,8 +22,9 @@ import NumberGen from './components/NumberGen';
 import ABCDBCDNumber from './components/ABCDBCDNumber';
 import PlanetsAnalysisPage from './components/PlanetsAnalysisPage';
 import DualServiceDemo from './components/DualServiceDemo';
+import DatabaseDebug from './components/DatabaseDebug';
 import ErrorBoundary from './components/ErrorBoundary';
-import EnvironmentBanner from './components/EnvironmentBanner';
+
 
 function App() {
   const [session, setSession] = useState(null);
@@ -88,7 +89,6 @@ function App() {
       }}
     >
       <ErrorBoundary>
-        <EnvironmentBanner />
         <div className="min-h-screen bg-gray-100">
           <Routes>
             {/* Authentication routes */}
@@ -170,6 +170,15 @@ function App() {
               <SimpleProtectedRoute isAuthenticated={isAuthenticated}>
                 <ErrorBoundary>
                   <DualServiceDemo />
+                </ErrorBoundary>
+              </SimpleProtectedRoute>
+            } />
+            
+            {/* Database Debug Tool */}
+            <Route path="/debug" element={
+              <SimpleProtectedRoute isAuthenticated={isAuthenticated}>
+                <ErrorBoundary>
+                  <DatabaseDebug />
                 </ErrorBoundary>
               </SimpleProtectedRoute>
             } />

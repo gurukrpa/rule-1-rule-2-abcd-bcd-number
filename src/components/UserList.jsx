@@ -92,49 +92,62 @@ function UserList() {
     if (!confirm('Are you sure you want to delete this user and all associated data? This cannot be undone.')) return;
 
     try {
-      // 1. Delete related records from 'house' table first (if it exists and has user_id)
-      //    Assuming 'house' table has a 'user_id' column. Adjust if schema is different.
-      const { error: houseDeleteError } = await supabase
-        .from('house') // Replace 'house' with your actual table name if different
-        .delete()
-        .eq('user_id', userId);
+      const deletionResults = [];
 
-      if (houseDeleteError) {
-        console.error('Error deleting related house data:', houseDeleteError);
-        // Optionally, show a more specific error to the user
-        alert(`Failed to delete related house data: ${houseDeleteError.message}`);
-        return; // Stop if we can't delete related data
-      }
+      // Helper function to safely attempt table deletion
+      const safeDeleteFromTable = async (tableName, userIdColumn = 'user_id') => {
+        try {
+          const { error } = await supabase
+            .from(tableName)
+            .delete()
+            .eq(userIdColumn, userId);
 
-      // 2. Delete related records from 'hr_data' table
-      const { error: hrDataDeleteError } = await supabase
-        .from('hr_data')
-        .delete()
-        .eq('user_id', userId);
+          if (error) {
+            // Check if error is about table not existing
+            if (error.code === 'PGRST106' || error.message.includes('schema cache') || error.message.includes('not found')) {
+              console.log(`Table '${tableName}' does not exist - skipping`);
+              deletionResults.push(`${tableName}: skipped (table not found)`);
+              return true; // Not an error - table doesn't exist
+            } else {
+              console.error(`Error deleting from ${tableName}:`, error);
+              deletionResults.push(`${tableName}: error - ${error.message}`);
+              return false;
+            }
+          } else {
+            console.log(`Successfully deleted related data from ${tableName}`);
+            deletionResults.push(`${tableName}: success`);
+            return true;
+          }
+        } catch (err) {
+          console.error(`Exception deleting from ${tableName}:`, err);
+          deletionResults.push(`${tableName}: exception - ${err.message}`);
+          return true; // Continue anyway
+        }
+      };
 
-      if (hrDataDeleteError) {
-        console.error('Error deleting related hr_data:', hrDataDeleteError);
-        // Optionally, show a more specific error to the user
-        alert(`Failed to delete related HR data: ${hrDataDeleteError.message}`);
-        return; // Stop if we can't delete related data
-      }
+      // 1. Try to delete from related tables (gracefully handle missing tables)
+      await safeDeleteFromTable('house');
+      await safeDeleteFromTable('hr_data');
+      await safeDeleteFromTable('user_dates');
+      await safeDeleteFromTable('excel_data');
+      await safeDeleteFromTable('hour_entries');
 
-      // 3. Now delete the user from the 'users' table
+      // 2. Delete the user from the 'users' table (this must succeed)
       const { error: userDeleteError } = await supabase
         .from('users')
         .delete()
         .eq('id', userId);
 
       if (userDeleteError) {
-        // This is the original error location (approx line 62)
         console.error('Error deleting user:', userDeleteError);
         alert(`Failed to delete user: ${userDeleteError.message}`);
         return;
       }
 
-      // 4. Refresh the user list if everything was successful
+      // 3. Refresh the user list and show success
       fetchUsers();
-      alert('User and all associated data deleted successfully.'); // Optional success message
+      console.log('Deletion results:', deletionResults);
+      alert('User deleted successfully!');
 
     } catch (error) {
       // Catch any unexpected errors during the process
@@ -164,6 +177,9 @@ function UserList() {
                 <Link to="/test" className="text-gray-700 hover:text-gray-900">
                   Test
                 </Link>
+                <Link to="/debug" className="text-red-600 hover:text-red-900 font-medium">
+                  Debug DB
+                </Link>
               </nav>
             </div>
             <div className="flex items-center space-x-4">
@@ -181,7 +197,7 @@ function UserList() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+        <div className="px-4 py-6 sm:px-0">          
           <h2 className="text-2xl font-bold mb-6">User Management</h2>
 
           <div className="bg-white p-6 rounded-lg shadow-md mb-8">
