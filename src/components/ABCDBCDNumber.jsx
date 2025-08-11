@@ -161,11 +161,13 @@ function ABCDBCDNumber() {
   const [cacheStats, setCacheStats] = useState(null);
 
   // ✅ DataService with ABCD page context for TRUE INDEPENDENCE from UserData page
+  // Using Supabase-only service - no localStorage fallback
+
   const dataService = {
     saveDates: (uid, dates) => cleanSupabaseService.saveUserDates(uid, dates, PAGE_CONTEXTS.ABCD),
     getDates: (uid) => cleanSupabaseService.getUserDates(uid, PAGE_CONTEXTS.ABCD),
     
-    // Use CleanSupabaseService for proper data persistence
+    // 🔧 UPDATED: Use CleanSupabaseService directly for Supabase-only approach
     hasExcelData: (userId, date) => cleanSupabaseService.hasExcelData(userId, date),
     getExcelData: (userId, date) => cleanSupabaseService.getExcelData(userId, date),
     saveExcelData: (userId, date, data) => cleanSupabaseService.saveExcelData(userId, date, data),
@@ -174,24 +176,18 @@ function ABCDBCDNumber() {
     getHourEntry: (userId, date) => cleanSupabaseService.getHourEntry(userId, date),
     saveHourEntry: (userId, date, data) => cleanSupabaseService.saveHourEntry(userId, date, data.planetSelections),
     
-    // ✅ COMPREHENSIVE DELETION - Connect to actual deletion functions
+    // ✅ COMPREHENSIVE DELETION - Use CleanSupabaseService for Supabase-only approach
     deleteDataForDate: async (userId, date) => {
-      console.log('🗑️ [DATASERVICE] Calling comprehensive deletion for:', { userId, date });
+      console.log('🗑️ [DATASERVICE] Calling Supabase-only deletion for:', { userId, date });
       
-      // Delete from CleanSupabaseService first
       try {
         await cleanSupabaseService.deleteExcelData(userId, date);
         await cleanSupabaseService.deleteHourEntry(userId, date);
-        console.log('✅ [DATASERVICE] CleanSupabaseService deletion completed');
+        console.log('✅ [DATASERVICE] Supabase-only deletion completed');
       } catch (error) {
-        console.warn('⚠️ [DATASERVICE] CleanSupabaseService deletion had issues:', error.message);
+        console.error('❌ [DATASERVICE] Deletion failed:', error.message);
+        throw error;
       }
-      
-      // Import and use the comprehensive DataService deletion
-      const { DataService } = await import('../services/dataService');
-      const comprehensiveDataService = new DataService();
-      await comprehensiveDataService.deleteDataForDate(userId, date);
-      console.log('✅ [DATASERVICE] Comprehensive deletion completed');
     },
     
     // Cache management methods (can be no-ops for now)

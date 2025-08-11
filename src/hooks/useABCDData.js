@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { dataService } from '../services/dataService';
 
 /**
- * Hook to manage ABCD-BCD data with automatic localStorage fallback
- * This provides a gradual migration path from localStorage to Supabase
+ * Hook to manage ABCD-BCD data with Supabase-only storage
+ * No localStorage fallback - clean database-only approach
  */
 export const useABCDData = (userId) => {
   const [dates, setDates] = useState([]);

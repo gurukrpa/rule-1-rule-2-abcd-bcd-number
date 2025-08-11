@@ -6,7 +6,7 @@ import { supabase } from '../supabaseClient';
  */
 class DataService {
   constructor() {
-    this.useLocalStorageFallback = true; // Enable fallback during migration
+    this.useLocalStorageFallback = false; // Disabled - Supabase only
     this.enableDebugLogging = true;
   }
 
@@ -88,43 +88,21 @@ class DataService {
 
       if (!error) {
         this.log('✅ Dates saved to Supabase successfully', dates);
-        // Also save to localStorage for fallback
-        this.saveLocalStorageDates(userId, dates);
         return data;
       } else {
-        this.log('❌ Error saving to Supabase, falling back to localStorage', error.message);
-        this.saveLocalStorageDates(userId, dates);
-        return null;
+        this.log('❌ Error saving to Supabase', error.message);
+        throw error;
       }
     } catch (error) {
-      this.log('❌ Exception saving dates, using localStorage fallback', error.message);
-      this.saveLocalStorageDates(userId, dates);
+      this.log('❌ Exception saving dates', error.message);
+      throw error;
       return null;
     }
   }
 
-  getLocalStorageDates(userId) {
-    try {
-      const cached = localStorage.getItem(`abcd_dates_${userId}`);
-      if (cached) {
-        const arr = JSON.parse(cached);
-        if (Array.isArray(arr)) {
-          return arr.sort((a, b) => new Date(b) - new Date(a));
-        }
-      }
-    } catch (e) {
-      this.log('❌ Error reading localStorage dates', e.message);
-    }
-    return [];
-  }
-
-  saveLocalStorageDates(userId, dates) {
-    try {
-      localStorage.setItem(`abcd_dates_${userId}`, JSON.stringify(dates));
-    } catch (e) {
-      this.log('❌ Error saving localStorage dates', e.message);
-    }
-  }
+  // =============================================================================
+  // MIGRATION UTILITIES
+  // =============================================================================
 
   // =============================================================================
   // EXCEL DATA MANAGEMENT
@@ -138,7 +116,7 @@ class DataService {
    */
   async getExcelData(userId, date) {
     try {
-      // Try Supabase first
+      // Supabase only - no fallback
       const { data, error } = await supabase
         .from('excel_data')
         .select('*')
@@ -156,21 +134,9 @@ class DataService {
         };
       }
 
-      // Fallback to localStorage
-      if (this.useLocalStorageFallback) {
-        const excelData = this.getLocalStorageExcelData(userId, date);
-        if (excelData) {
-          this.log('📦 Excel data fetched from localStorage', { date, fileName: excelData.fileName });
-        }
-        return excelData;
-      }
-
       return null;
     } catch (error) {
-      this.log('❌ Error fetching Excel data, using localStorage fallback', error.message);
-      if (this.useLocalStorageFallback) {
-        return this.getLocalStorageExcelData(userId, date);
-      }
+      this.log('❌ Error fetching Excel data', error.message);
       throw error;
     }
   }
@@ -183,7 +149,7 @@ class DataService {
    */
   async saveExcelData(userId, date, excelData) {
     try {
-      // Save to Supabase
+      // Save to Supabase only
       const record = {
         user_id: userId,
         date: date,
@@ -197,47 +163,20 @@ class DataService {
 
       if (!error) {
         this.log('✅ Excel data saved to Supabase', { date, fileName: excelData.fileName });
-        // Also save to localStorage for fallback
-        this.saveLocalStorageExcelData(userId, date, excelData);
         return;
       }
 
-      // If Supabase fails, save to localStorage
-      this.saveLocalStorageExcelData(userId, date, excelData);
-      this.log('📦 Excel data saved to localStorage (Supabase failed)', { date, fileName: excelData.fileName });
+      // If Supabase fails, throw error
+      throw new Error(`Failed to save Excel data: ${error.message}`);
     } catch (error) {
-      this.log('❌ Error saving Excel data, using localStorage', error.message);
-      this.saveLocalStorageExcelData(userId, date, excelData);
+      this.log('❌ Error saving Excel data', error.message);
+      throw error;
     }
   }
 
-  getLocalStorageExcelData(userId, date) {
-    try {
-      const key = `abcd_excel_${userId}_${date}`;
-      const stored = localStorage.getItem(key);
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (e) {
-      this.log('❌ Error reading localStorage Excel data', e.message);
-    }
-    return null;
-  }
-
-  saveLocalStorageExcelData(userId, date, excelData) {
-    try {
-      const key = `abcd_excel_${userId}_${date}`;
-      const payload = {
-        date: date,
-        fileName: excelData.fileName,
-        data: excelData.data,
-        uploadedAt: excelData.uploadedAt || new Date().toISOString()
-      };
-      localStorage.setItem(key, JSON.stringify(payload));
-    } catch (e) {
-      this.log('❌ Error saving localStorage Excel data', e.message);
-    }
-  }
+  // =============================================================================
+  // DATA DELETION
+  // =============================================================================
 
   /**
    * Check if Excel data exists for a specific date
@@ -247,28 +186,23 @@ class DataService {
    */
   async hasExcelData(userId, date) {
     try {
-      // Check Supabase first - use count to avoid single() errors
+      // Check Supabase only - use count to avoid single() errors
       const { count, error } = await supabase
         .from('excel_data')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
         .eq('date', date);
 
-      if (error) {
-        this.log('⚠️ Supabase Excel check error:', error.message);
-        // For status checks, return false on Supabase errors to avoid false positives
-        // Don't fall back to localStorage for hasExcelData to prevent auto-upload bug
-        return false;
+      if (!error && count > 0) {
+        this.log(`📊 Excel data check: EXISTS in Supabase`, { userId, date, count });
+        return true;
       }
 
-      // Return true only if data actually exists in Supabase
-      const exists = count > 0;
-      this.log(`📊 Excel data check: ${exists ? 'EXISTS' : 'NOT FOUND'}`, { userId, date, count });
-      return exists;
+      this.log(`📊 Excel data check: NOT FOUND`, { userId, date });
+      return false;
 
     } catch (error) {
       this.log('❌ Excel data check failed:', error.message);
-      // For status checking, err on the side of "not uploaded" to prevent false positives
       return false;
     }
   }
@@ -285,7 +219,7 @@ class DataService {
    */
   async getHourEntry(userId, date) {
     try {
-      // Try Supabase first
+      // Supabase only - no fallback
       const { data, error } = await supabase
         .from('hour_entries')
         .select('*')
@@ -303,21 +237,9 @@ class DataService {
         };
       }
 
-      // Fallback to localStorage
-      if (this.useLocalStorageFallback) {
-        const hourEntry = this.getLocalStorageHourEntry(userId, date);
-        if (hourEntry) {
-          this.log('📦 Hour entry fetched from localStorage', { date });
-        }
-        return hourEntry;
-      }
-
       return null;
     } catch (error) {
-      this.log('❌ Error fetching hour entry, using localStorage fallback', error.message);
-      if (this.useLocalStorageFallback) {
-        return this.getLocalStorageHourEntry(userId, date);
-      }
+      this.log('❌ Error fetching hour entry', error.message);
       throw error;
     }
   }
@@ -330,7 +252,7 @@ class DataService {
    */
   async saveHourEntry(userId, date, hourEntryData) {
     try {
-      // Save to Supabase
+      // Save to Supabase only
       const record = {
         user_id: userId,
         date_key: date,
@@ -348,47 +270,20 @@ class DataService {
 
       if (!error) {
         this.log('✅ Hour entry saved to Supabase', { date });
-        // Also save to localStorage for fallback
-        this.saveLocalStorageHourEntry(userId, date, hourEntryData);
         return;
       }
 
-      // If Supabase fails, save to localStorage
-      this.saveLocalStorageHourEntry(userId, date, hourEntryData);
-      this.log('📦 Hour entry saved to localStorage (Supabase failed)', { date });
+      // If Supabase fails, throw error
+      throw new Error(`Failed to save hour entry: ${error.message}`);
     } catch (error) {
-      this.log('❌ Error saving hour entry, using localStorage', error.message);
-      this.saveLocalStorageHourEntry(userId, date, hourEntryData);
+      this.log('❌ Error saving hour entry', error.message);
+      throw error;
     }
   }
 
-  getLocalStorageHourEntry(userId, date) {
-    try {
-      const key = `abcd_hourEntry_${userId}_${date}`;
-      const stored = localStorage.getItem(key);
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (e) {
-      this.log('❌ Error reading localStorage hour entry', e.message);
-    }
-    return null;
-  }
-
-  saveLocalStorageHourEntry(userId, date, hourEntryData) {
-    try {
-      const key = `abcd_hourEntry_${userId}_${date}`;
-      const payload = {
-        userId: userId,
-        date: date,
-        planetSelections: hourEntryData.planetSelections,
-        savedAt: hourEntryData.savedAt || new Date().toISOString()
-      };
-      localStorage.setItem(key, JSON.stringify(payload));
-    } catch (e) {
-      this.log('❌ Error saving localStorage hour entry', e.message);
-    }
-  }
+  // =============================================================================
+  // DATA DELETION
+  // =============================================================================
 
   /**
    * Check if hour entry exists for a specific date
@@ -398,28 +293,23 @@ class DataService {
    */
   async hasHourEntry(userId, date) {
     try {
-      // Check Supabase first - use count to avoid single() errors
+      // Check Supabase only - use count to avoid single() errors
       const { count, error } = await supabase
         .from('hour_entries')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
         .eq('date_key', date);
 
-      if (error) {
-        this.log('⚠️ Supabase Hour Entry check error:', error.message);
-        // For status checks, return false on Supabase errors to avoid false positives
-        // Don't fall back to localStorage for hasHourEntry to prevent auto-upload bug
-        return false;
+      if (!error && count > 0) {
+        this.log(`⏰ Hour Entry check: EXISTS in Supabase`, { userId, date, count });
+        return true;
       }
 
-      // Return true only if data actually exists in Supabase
-      const exists = count > 0;
-      this.log(`⏰ Hour Entry check: ${exists ? 'EXISTS' : 'NOT FOUND'}`, { userId, date, count });
-      return exists;
+      this.log(`⏰ Hour Entry check: NOT FOUND`, { userId, date });
+      return false;
 
     } catch (error) {
       this.log('❌ Hour Entry check failed:', error.message);
-      // For status checking, err on the side of "not uploaded" to prevent false positives
       return false;
     }
   }
@@ -496,74 +386,6 @@ class DataService {
         }
       });
 
-      // Delete from localStorage (existing function)
-      this.deleteLocalStorageDataForDate(userId, date);
-      
-      // Clear any additional localStorage keys that might exist (comprehensive cleanup)
-      const additionalLocalStorageKeys = [
-        `abcd_analysis_${userId}_${date}`,
-        `abcd_cached_${userId}_${date}`,
-        `abcd_processed_${userId}_${date}`,
-        `rule1_data_${userId}_${date}`,
-        `rule2_data_${userId}_${date}`,
-        `index_data_${userId}_${date}`,
-        `rule2_results_${userId}_${date}`,
-        `page_cache_${userId}_${date}`,
-        `matrix_data_${userId}_${date}`,
-        `abcd_sequences_${userId}_${date}`,
-        `planets_analysis_${userId}_${date}`,
-        `hr_selections_${userId}_${date}`,
-        `topic_analysis_${userId}_${date}`,
-        `comprehensive_${userId}_${date}`,
-        `validation_${userId}_${date}`
-      ];
-      
-      additionalLocalStorageKeys.forEach(key => {
-        try {
-          localStorage.removeItem(key);
-          this.log(`🧹 Cleared additional localStorage: ${key}`);
-        } catch (e) {
-          this.log(`⚠️ Could not clear localStorage key: ${key}`);
-        }
-      });
-
-      // ✅ STEP 5: UPDATE user_dates table - Remove the deleted date from JSONB array
-      this.log('🔄 Updating user_dates table to remove deleted date from JSONB array...');
-      try {
-        // First, get current dates for the user
-        const { data: currentUserDates, error: fetchError } = await supabase
-          .from('user_dates')
-          .select('dates')
-          .eq('user_id', userId)
-          .single();
-
-        if (!fetchError && currentUserDates && currentUserDates.dates) {
-          // Remove the deleted date from the array
-          const updatedDates = currentUserDates.dates.filter(d => d !== date);
-          
-          // Update the user_dates table with the new array
-          const { error: updateError } = await supabase
-            .from('user_dates')
-            .update({ 
-              dates: updatedDates,
-              updated_at: new Date().toISOString()
-            })
-            .eq('user_id', userId);
-
-          if (!updateError) {
-            this.log('✅ Successfully removed date from user_dates JSONB array', { 
-              date, 
-              remainingDates: updatedDates.length 
-            });
-          } else {
-            this.log('⚠️ Error updating user_dates table:', updateError.message);
-          }
-        } else {
-          this.log('ℹ️ No user_dates record found or no dates array - deletion still successful');
-        }
-      } catch (userDatesError) {
-        this.log('⚠️ Error updating user_dates table (deletion from other tables still successful):', userDatesError.message);
-      }
       
       this.log('✅ [COMPREHENSIVE] Complete data deletion finished', { 
         date, 
@@ -578,85 +400,6 @@ class DataService {
     }
   }
 
-  deleteLocalStorageDataForDate(userId, date) {
-    try {
-      localStorage.removeItem(`abcd_excel_${userId}_${date}`);
-      localStorage.removeItem(`abcd_hourEntry_${userId}_${date}`);
-      localStorage.removeItem(`abcd_indexData_${userId}_${date}`);
-      this.log('✅ Local storage data deleted', { date });
-    } catch (e) {
-      this.log('❌ Error deleting localStorage data', e.message);
-    }
-  }
-
-  // =============================================================================
-  // MIGRATION UTILITIES
-  // =============================================================================
-
-  /**
-   * Migrate all localStorage data to Supabase for a user
-   * @param {string} userId - User ID
-   */
-  async migrateUserData(userId) {
-    this.log('🔄 Starting migration for user', userId);
-    
-    try {
-      // 1. Migrate dates
-      const dates = this.getLocalStorageDates(userId);
-      if (dates.length > 0) {
-        await this.saveDates(userId, dates);
-        this.log('✅ Migrated dates', dates);
-      }
-
-      // 2. Migrate Excel data for each date
-      for (const date of dates) {
-        const excelData = this.getLocalStorageExcelData(userId, date);
-        if (excelData) {
-          await this.saveExcelData(userId, date, excelData);
-          this.log('✅ Migrated Excel data', { date });
-        }
-
-        const hourEntry = this.getLocalStorageHourEntry(userId, date);
-        if (hourEntry) {
-          await this.saveHourEntry(userId, date, hourEntry);
-          this.log('✅ Migrated hour entry', { date });
-        }
-      }
-
-      this.log('🎉 Migration completed for user', userId);
-      return { success: true, migratedDates: dates.length };
-    } catch (error) {
-      this.log('❌ Migration failed', error.message);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * Export all user data to JSON for backup
-   * @param {string} userId - User ID
-   * @returns {Promise<Object>} Complete user data
-   */
-  async exportUserData(userId) {
-    const dates = await this.getDates(userId);
-    const exportData = {
-      userId,
-      exportedAt: new Date().toISOString(),
-      dates,
-      excelData: {},
-      hourEntries: {}
-    };
-
-    for (const date of dates) {
-      const excel = await this.getExcelData(userId, date);
-      const hourEntry = await this.getHourEntry(userId, date);
-      
-      if (excel) exportData.excelData[date] = excel;
-      if (hourEntry) exportData.hourEntries[date] = hourEntry;
-    }
-
-    return exportData;
-  }
-
   // =============================================================================
   // SAMPLE DATA CREATION
   // =============================================================================
@@ -667,15 +410,6 @@ class DataService {
    */
   async createSampleData(userId) {
     this.log('🎲 Creating sample data for user', userId);
-    
-    // Double-check deletion flag before creating sample data
-    const deletionFlag = localStorage.getItem(`abcd_user_deleted_all_${userId}`);
-    this.log('⚠️ CREATING SAMPLE DATA - deletion flag check:', { userId, flag: deletionFlag });
-    
-    if (deletionFlag === 'true') {
-      this.log('❌ CRITICAL: Trying to create sample data but deletion flag is set! Aborting.');
-      return;
-    }
     
     // Create sample dates (last 4 days)
     const today = new Date();
