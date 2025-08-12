@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .debug-box {
+            background: white;
+            border: 2px solid #007acc;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-box">
+        <h1 style="color: green;">✅ HTML is Loading!</h1>
+        <p>If you can see this, the server is working.</p>
+        <p id="timestamp"></p>
+    </div>
+
+    <div class="debug-box">
+        <h2>JavaScript Test</h2>
+        <p id="js-status">JavaScript not loaded yet...</p>
+    </div>
+
+    <div class="debug-box">
+        <h2>React Root Element</h2>
+        <div id="root-check"></div>
+    </div>
+
+    <script>
+        console.log('🔍 Debug script starting...');
+        
+        // Update timestamp
+        document.getElementById('timestamp').textContent = 'Current time: ' + new Date().toLocaleString();
+        
+        // JavaScript status
+        document.getElementById('js-status').innerHTML = '<span style="color: green;">✅ JavaScript is working!</span>';
+        
+        // Check for root element
+        const rootElement = document.getElementById('root');
+        const rootCheck = document.getElementById('root-check');
+        
+        if (rootElement) {
+            rootCheck.innerHTML = '<span style="color: green;">✅ Root element found</span>';
+            console.log('Root element:', rootElement);
+        } else {
+            rootCheck.innerHTML = '<span style="color: red;">❌ Root element NOT found</span>';
+            console.error('Root element not found!');
+        }
+        
+        // Log all elements
+        console.log('All elements with id:', document.querySelectorAll('[id]'));
+        
+        // Check for React
+        setTimeout(() => {
+            if (window.React) {
+                console.log('React is available:', window.React);
+            } else {
+                console.log('React is not available on window object');
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Fixes Test Bookmarklet</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .bookmarklet {
+            background: rgba(255,255,255,0.1);
+            border: 2px dashed rgba(255,255,255,0.3);
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .bookmarklet a {
+            display: inline-block;
+            background: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            margin: 10px;
+            transition: background 0.3s;
+        }
+        .bookmarklet a:hover {
+            background: #45a049;
+        }
+        .instructions {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        code {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Enhanced Number Box Persistence Fixes - Test Tools</h1>
+    
+    <div class="instructions">
+        <h2>📋 Quick Testing Instructions</h2>
+        <ol>
+            <li><strong>Navigate to Rule1Page</strong> in your application</li>
+            <li><strong>Click the bookmarklet below</strong> to run comprehensive tests</li>
+            <li><strong>Open browser console</strong> to see detailed test results</li>
+            <li><strong>Look for specific log patterns</strong> mentioned in the results</li>
+        </ol>
+    </div>
+
+    <div class="bookmarklet">
+        <h3>🚀 Enhanced Fixes Test Bookmarklet</h3>
+        <p>Drag this link to your bookmarks bar, then click it on any Rule1Page:</p>
+        <a href="javascript:(function(){console.log('🧪 ENHANCED FIXES TEST - Starting...');var script=document.createElement('script');script.src='http://localhost:5173/test-enhanced-fixes.js';document.head.appendChild(script);setTimeout(function(){if(window.enhancedFixesTest){console.log('✅ Enhanced fixes test loaded successfully');window.enhancedFixesTest.runAll();}else{console.log('❌ Test script not loaded, running inline tests...');console.log('Testing button state verification...');var buttons=document.querySelectorAll('button');var numberBoxes=Array.from(buttons).filter(btn=>/^[1-9]|1[0-2]$/.test(btn.textContent.trim()));console.log('Found '+numberBoxes.length+' number boxes');console.log('Testing manual restoration...');if(window.rule1PageDebug&&window.rule1PageDebug.forceReloadNumberBoxes){console.log('🔄 Triggering manual restoration...');window.rule1PageDebug.forceReloadNumberBoxes();}else{console.log('⚠️ rule1PageDebug not available');}console.log('✅ Basic tests completed - check console for detailed logs');}},2000);})();">🧪 Test Enhanced Fixes</a>
+    </div>
+
+    <div class="instructions">
+        <h2>🔍 What the Test Checks</h2>
+        <ul>
+            <li><strong>Button State Verification</strong>: Looks for <code>[RENDER-VERIFY]</code> logs during rendering</li>
+            <li><strong>String Formatting</strong>: Monitors for <code>[STRING-FORMAT]</code> logs during HR comparisons</li>
+            <li><strong>Enhanced Auto-Trigger</strong>: Verifies comprehensive readiness checking</li>
+            <li><strong>Loading Spinner</strong>: Tests loading state management during restoration</li>
+            <li><strong>State Verification</strong>: Checks for <code>[VERIFY]</code> logs during database restoration</li>
+        </ul>
+    </div>
+
+    <div class="instructions">
+        <h2>🎯 Expected Results</h2>
+        <p>After clicking the bookmarklet, you should see these logs in the browser console:</p>
+        <ul>
+            <li><code>[RENDER-VERIFY] Button X rendering state: {...}</code> - During button rendering</li>
+            <li><code>[STRING-FORMAT] HR mismatch: ...</code> - If HR type mismatches occur</li>
+            <li><code>[VERIFY] Setting clicked state: {...}</code> - During database restoration</li>
+            <li><code>🔄 [DEBUG] Force reloading number box clicks...</code> - During manual restoration</li>
+        </ul>
+    </div>
+
+    <div class="instructions">
+        <h2>🛠️ Manual Testing Commands</h2>
+        <p>You can also run these commands directly in the browser console:</p>
+        <pre><code>// Test manual restoration
+window.rule1PageDebug.forceReloadNumberBoxes()
+
+// Check current state
+console.log('Clicked numbers:', window.rule1PageDebug.clickedNumbers)
+console.log('Presence status:', window.rule1PageDebug.numberPresenceStatus)
+
+// Run specific tests
+window.enhancedFixesTest.testButtonLogging()
+window.enhancedFixesTest.testStringFormat()
+window.enhancedFixesTest.testAutoTrigger()</code></pre>
+    </div>
+
+    <div class="instructions">
+        <h2>✅ Success Indicators</h2>
+        <ul>
+            <li>Button state verification logs appear during rendering</li>
+            <li>Loading spinner shows during restoration</li>
+            <li>Number box states persist after page refresh</li>
+            <li>Manual restoration works via debug functions</li>
+            <li>No HR comparison mismatches in console</li>
+        </ul>
+    </div>
+
+    <script>
+        // Add some interactive feedback
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🧪 Enhanced Fixes Test Bookmarklet Page Loaded');
+            console.log('📝 Instructions: Drag the bookmarklet to your bookmarks bar');
+            console.log('🎯 Use it on Rule1Page to test the enhanced fixes');
+        });
+    </script>
+</body>
+</html>

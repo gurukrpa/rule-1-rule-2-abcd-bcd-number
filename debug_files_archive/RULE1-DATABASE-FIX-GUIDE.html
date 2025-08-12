@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rule1 Database Fix - Step by Step</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .status-box {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .success { border-color: #28a745; background: #d4edda; }
+        .warning { border-color: #ffc107; background: #fff3cd; }
+        .danger { border-color: #dc3545; background: #f8d7da; }
+        .sql-box {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        .step {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .btn:hover { background: #0056b3; }
+        .btn-success { background: #28a745; }
+        .btn-success:hover { background: #1e7e34; }
+        .emoji { font-size: 1.2em; }
+        h1, h2 { color: #2c3e50; }
+        .highlight { background: #fff3cd; padding: 2px 6px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><span class="emoji">🔧</span> Rule1 Number Box Persistence - Database Fix</h1>
+        
+        <div class="status-box danger">
+            <h2><span class="emoji">🚨</span> Current Issue</h2>
+            <p><strong>Problem:</strong> Number box clicks (like 1 and 7 you clicked) disappear after page refresh.</p>
+            <p><strong>Root Cause:</strong> The <code>number_box_clicks</code> table is missing from your Supabase database.</p>
+            <p><strong>Status:</strong> <span class="highlight">NEEDS IMMEDIATE FIX</span></p>
+        </div>
+
+        <div class="status-box warning">
+            <h2><span class="emoji">📋</span> What You Need To Do</h2>
+            <p>You need to create the database table in Supabase. Follow these exact steps:</p>
+        </div>
+
+        <div class="step">
+            <h3><span class="emoji">1️⃣</span> Open Supabase Dashboard</h3>
+            <p>Go to: <a href="https://app.supabase.com" target="_blank">https://app.supabase.com</a></p>
+            <p>Log in and select your project</p>
+        </div>
+
+        <div class="step">
+            <h3><span class="emoji">2️⃣</span> Open SQL Editor</h3>
+            <p>In the left sidebar, click on <strong>"SQL Editor"</strong></p>
+        </div>
+
+        <div class="step">
+            <h3><span class="emoji">3️⃣</span> Copy and Run This SQL</h3>
+            <p>Copy the SQL below and paste it into the SQL Editor, then click <strong>"Run"</strong>:</p>
+            
+            <div class="sql-box">-- Create Number Box Clicks Table
+DROP TABLE IF EXISTS number_box_clicks;
+
+CREATE TABLE number_box_clicks (
+    id TEXT PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    set_name VARCHAR(255) NOT NULL,
+    date_key DATE NOT NULL,
+    number_value INTEGER NOT NULL CHECK (number_value >= 1 AND number_value <= 12),
+    hr_number INTEGER NOT NULL CHECK (hr_number >= 1 AND hr_number <= 12),
+    is_clicked BOOLEAN NOT NULL DEFAULT false,
+    is_present BOOLEAN NOT NULL DEFAULT false,
+    clicked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, set_name, date_key, number_value, hr_number)
+);
+
+CREATE INDEX idx_number_box_clicks_user_date ON number_box_clicks(user_id, date_key);
+CREATE INDEX idx_number_box_clicks_user_hr ON number_box_clicks(user_id, hr_number);
+CREATE INDEX idx_number_box_clicks_set_name ON number_box_clicks(set_name);
+CREATE INDEX idx_number_box_clicks_clicked ON number_box_clicks(is_clicked) WHERE is_clicked = true;
+
+ALTER TABLE number_box_clicks ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage their own number box clicks" ON number_box_clicks
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE OR REPLACE FUNCTION update_number_box_clicks_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+DROP TRIGGER IF EXISTS update_number_box_clicks_updated_at ON number_box_clicks;
+CREATE TRIGGER update_number_box_clicks_updated_at
+    BEFORE UPDATE ON number_box_clicks
+    FOR EACH ROW
+    EXECUTE FUNCTION update_number_box_clicks_updated_at();</div>
+            
+            <button class="btn" onclick="copySQL()">📋 Copy SQL</button>
+        </div>
+
+        <div class="step">
+            <h3><span class="emoji">4️⃣</span> Verify Success</h3>
+            <p>After running the SQL, you should see a success message in Supabase.</p>
+            <p>The table <code>number_box_clicks</code> should now appear in your database.</p>
+        </div>
+
+        <div class="step">
+            <h3><span class="emoji">5️⃣</span> Test Your Application</h3>
+            <p>1. Go back to your Rule1 page</p>
+            <p>2. Click some number boxes (1, 7, etc.)</p>
+            <p>3. Refresh the page</p>
+            <p>4. <strong>The clicked numbers should persist!</strong></p>
+        </div>
+
+        <div class="status-box success" style="display: none;" id="success-message">
+            <h2><span class="emoji">🎉</span> Success!</h2>
+            <p>Once you complete these steps, your number box clicks will persist across page refreshes!</p>
+            <p>The application already has all the necessary code - it was just waiting for the database table.</p>
+        </div>
+
+        <div class="status-box">
+            <h2><span class="emoji">💡</span> Technical Details</h2>
+            <p><strong>Why this fixes it:</strong></p>
+            <ul>
+                <li>Your application code is already correct and complete</li>
+                <li>The <code>DualServiceManager</code> handles saving/loading clicks</li>
+                <li>The only missing piece was the database table itself</li>
+                <li>Once created, the persistence will work automatically</li>
+            </ul>
+        </div>
+
+        <div class="status-box">
+            <h2><span class="emoji">🔧</span> Alternative: Step-by-Step SQL</h2>
+            <p>If the full SQL fails, you can run these smaller parts separately:</p>
+            <button class="btn" onclick="showStepByStep()">Show Step-by-Step SQL</button>
+            <div id="step-by-step" style="display: none;">
+                <h4>Step 1: Create Table</h4>
+                <div class="sql-box">DROP TABLE IF EXISTS number_box_clicks;
+
+CREATE TABLE number_box_clicks (
+    id TEXT PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    set_name VARCHAR(255) NOT NULL,
+    date_key DATE NOT NULL,
+    number_value INTEGER NOT NULL CHECK (number_value >= 1 AND number_value <= 12),
+    hr_number INTEGER NOT NULL CHECK (hr_number >= 1 AND hr_number <= 12),
+    is_clicked BOOLEAN NOT NULL DEFAULT false,
+    is_present BOOLEAN NOT NULL DEFAULT false,
+    clicked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, set_name, date_key, number_value, hr_number)
+);</div>
+                
+                <h4>Step 2: Add Indexes</h4>
+                <div class="sql-box">CREATE INDEX idx_number_box_clicks_user_date ON number_box_clicks(user_id, date_key);
+CREATE INDEX idx_number_box_clicks_user_hr ON number_box_clicks(user_id, hr_number);
+CREATE INDEX idx_number_box_clicks_set_name ON number_box_clicks(set_name);
+CREATE INDEX idx_number_box_clicks_clicked ON number_box_clicks(is_clicked) WHERE is_clicked = true;</div>
+                
+                <h4>Step 3: Add Security</h4>
+                <div class="sql-box">ALTER TABLE number_box_clicks ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage their own number box clicks" ON number_box_clicks
+    FOR ALL USING (true) WITH CHECK (true);</div>
+            </div>
+        </div>
+
+        <button class="btn btn-success" onclick="markComplete()" style="font-size: 18px; padding: 15px 30px;">
+            ✅ I've Created the Table - Test My App!
+        </button>
+    </div>
+
+    <script>
+        function copySQL() {
+            const sql = `-- Create Number Box Clicks Table
+DROP TABLE IF EXISTS number_box_clicks;
+
+CREATE TABLE number_box_clicks (
+    id TEXT PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    set_name VARCHAR(255) NOT NULL,
+    date_key DATE NOT NULL,
+    number_value INTEGER NOT NULL CHECK (number_value >= 1 AND number_value <= 12),
+    hr_number INTEGER NOT NULL CHECK (hr_number >= 1 AND hr_number <= 12),
+    is_clicked BOOLEAN NOT NULL DEFAULT false,
+    is_present BOOLEAN NOT NULL DEFAULT false,
+    clicked_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, set_name, date_key, number_value, hr_number)
+);
+
+CREATE INDEX idx_number_box_clicks_user_date ON number_box_clicks(user_id, date_key);
+CREATE INDEX idx_number_box_clicks_user_hr ON number_box_clicks(user_id, hr_number);
+CREATE INDEX idx_number_box_clicks_set_name ON number_box_clicks(set_name);
+CREATE INDEX idx_number_box_clicks_clicked ON number_box_clicks(is_clicked) WHERE is_clicked = true;
+
+ALTER TABLE number_box_clicks ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage their own number box clicks" ON number_box_clicks
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE OR REPLACE FUNCTION update_number_box_clicks_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+DROP TRIGGER IF EXISTS update_number_box_clicks_updated_at ON number_box_clicks;
+CREATE TRIGGER update_number_box_clicks_updated_at
+    BEFORE UPDATE ON number_box_clicks
+    FOR EACH ROW
+    EXECUTE FUNCTION update_number_box_clicks_updated_at();`;
+            
+            navigator.clipboard.writeText(sql).then(() => {
+                alert('✅ SQL copied to clipboard! Go paste it in Supabase SQL Editor.');
+            }).catch(() => {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = sql;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                alert('✅ SQL copied to clipboard! Go paste it in Supabase SQL Editor.');
+            });
+        }
+        
+        function showStepByStep() {
+            document.getElementById('step-by-step').style.display = 'block';
+        }
+        
+        function markComplete() {
+            document.getElementById('success-message').style.display = 'block';
+            alert('🎉 Great! Now go test your Rule1 page - the number box clicks should persist after refresh!');
+        }
+    </script>
+</body>
+</html>

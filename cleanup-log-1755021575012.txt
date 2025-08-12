@@ -1,0 +1,12 @@
+[2025-08-12T17:59:35.012Z] [INFO] Starting comprehensive backup file cleanup
+[2025-08-12T17:59:35.024Z] [INFO] Mode: DRY RUN
+[2025-08-12T17:59:35.025Z] [INFO] Log file: /Volumes/t7 sharma/vs coad/rule-1-rule-2-abcd-bcd-number-main/cleanup-log-1755021575012.txt
+[2025-08-12T17:59:35.030Z] [INFO] [DRY RUN] Would remove: /Volumes/t7 sharma/vs coad/rule-1-rule-2-abcd-bcd-number-main/._.agent
+[2025-08-12T17:59:35.032Z] [INFO] [DRY RUN] Would remove: /Volumes/t7 sharma/vs coad/rule-1-rule-2-abcd-bcd-number-main/._.env
+[2025-08-12T17:59:35.033Z] [INFO] [DRY RUN] Would remove: /Volumes/t7 sharma/vs coad/rule-1-rule-2-abcd-bcd-number-main/._.env.automation
+[2025-08-12T17:59:35.035Z] [INFO] [DRY RUN] Would remove: /Volumes/t7 sharma/vs coad/rule-1-rule-2-abcd-bcd-number-main/._.env.example
+[2025-08-12T17:59:35.037Z] [INFO] [DRY RUN] Would remove: /Volumes/t7 sharma/vs coad/rule-1-rule-2-abcd-bcd-number-main/._.env.local
+[2025-08-12T17:59:35.039Z] [INFO] [DRY RUN] Would remove: /Volumes/t7 sharma/vs coad/rule-1-rule-2-abcd-bcd-number-main/._.gitignore
+[2025-08-12T17:59:35.041Z] [INFO] [DRY RUN] Would remove: /Volumes/t7 sharma/vs coad/rule-1-rule-2-abcd-bcd-number-main/._.venv
+[2025-08-12T17:59:35.043Z] [INFO] [DRY RUN] Would remove: /Volumes/t7 sharma/vs coad/rule-1-rule-2-abcd-bcd-number-main/._.vscode
+[2025-08-12T17:59:35.046Z] [INFO] [DRY RUN] Would remove: /Volumes/t7 sharma/vs coad/rule-1-rule-2-abcd-bcd-number-main/._.vscode-autopilot-ext

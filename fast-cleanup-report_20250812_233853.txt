@@ -1,0 +1,4 @@
+# Fast Cleanup Report - Tue Aug 12 23:38:53 IST 2025
+Working Directory: /Volumes/t7 sharma/vs coad/rule-1-rule-2-abcd-bcd-number-main
+Mode: DRY RUN
+

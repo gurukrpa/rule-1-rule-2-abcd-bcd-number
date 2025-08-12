@@ -1,0 +1,353 @@
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '../supabaseClient';
+import DataSyncStatus from './DataSyncStatus'; // Import the sync status component
+
+function UserList() {
+  const navigate = useNavigate();
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [formData, setFormData] = useState({
+    username: '',
+    hr: '',
+    days: ''
+  });
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const handleLogout = () => {
+    // Clear authentication session
+    localStorage.removeItem('house_count_session');
+    localStorage.removeItem('house_count_enabled');
+    localStorage.removeItem('user_email');
+    localStorage.removeItem('auth_type');
+    
+    // Redirect to login
+    navigate('/auth');
+  };
+
+  useEffect(() => {
+    // Add timeout to prevent infinite loading
+    const loadingTimeout = setTimeout(() => {
+      if (loading) {
+        console.warn('Loading timeout reached, setting loading to false');
+        setLoading(false);
+        setUsers([]);
+      }
+    }, 15000); // 15 second timeout
+
+    return () => clearTimeout(loadingTimeout);
+  }, [loading]);
+
+  useEffect(() => {
+    // Simplified connection test - only run if users array is empty and not loading
+    if (users.length === 0 && !loading) {
+      const testConnection = async () => {
+        try {
+          // Just test if Supabase client is configured properly
+          const { data, error } = await supabase.from('users').select('count');
+          
+          if (error) {
+            console.error('Supabase connection test failed:', error);
+            // Don't show alert in development for better UX
+            if (import.meta.env.VITE_ENVIRONMENT !== 'development') {
+              alert(`Database connection error: ${error.message}`);
+            }
+          } else {
+            console.log('Supabase connection successful');
+          }
+        } catch (err) {
+          console.error('Failed to test Supabase connection:', err);
+          // Don't show alert in development for better UX
+          if (import.meta.env.VITE_ENVIRONMENT !== 'development') {
+            alert('Failed to connect to the database');
+          }
+        }
+      };
+      
+      testConnection();
+    }
+  }, [users.length, loading]);
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      console.log('Starting to fetch users...');
+      
+      // Check if Supabase is properly configured
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      if (!supabaseUrl || !supabaseKey || supabaseUrl === 'undefined' || supabaseKey === 'undefined') {
+        console.warn('Supabase not configured, using mock data');
+        // Use mock data for development
+        const mockUsers = [
+          { id: 1, username: 'Demo User 1', hr: 8, days: 5, created_at: new Date().toISOString() },
+          { id: 2, username: 'Demo User 2', hr: 6, days: 3, created_at: new Date().toISOString() },
+          { id: 3, username: 'Demo User 3', hr: 10, days: 7, created_at: new Date().toISOString() }
+        ];
+        setTimeout(() => {
+          setUsers(mockUsers);
+          setLoading(false);
+        }, 1000); // Simulate loading time
+        return;
+      }
+      
+      // Add timeout for better UX - reduced from 10s to 5s
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout after 5 seconds')), 5000)
+      );
+      
+      const fetchPromise = supabase
+        .from('users')
+        .select('*');
+      
+      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
+      
+      if (error) {
+        console.error('Error fetching users:', error);
+        console.warn('Falling back to mock data due to Supabase error');
+        // Use mock data as fallback
+        const mockUsers = [
+          { id: 1, username: 'Demo User 1', hr: 8, days: 5, created_at: new Date().toISOString() },
+          { id: 2, username: 'Demo User 2', hr: 6, days: 3, created_at: new Date().toISOString() }
+        ];
+        setUsers(mockUsers);
+        return;
+      }
+      
+      console.log('Successfully fetched users:', data?.length || 0, 'users');
+      setUsers(data || []);
+    } catch (error) {
+      console.error('Unexpected error in fetchUsers:', error);
+      console.warn('Using mock data due to error');
+      
+      // Always provide mock data as fallback
+      const mockUsers = [
+        { id: 1, username: 'Demo User 1', hr: 8, days: 5, created_at: new Date().toISOString() },
+        { id: 2, username: 'Demo User 2', hr: 6, days: 3, created_at: new Date().toISOString() }
+      ];
+      setUsers(mockUsers);
+    } finally {
+      console.log('Fetch users completed, setting loading to false');
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    const { data, error } = await supabase
+      .from('users')
+      .insert([{
+        username: formData.username,
+        hr: parseInt(formData.hr),
+        days: parseInt(formData.days)
+      }])
+      .select();
+
+    if (error) {
+      console.error('Error adding user:', error);
+      return;
+    }
+
+    setFormData({ username: '', hr: '', days: '' });
+    fetchUsers();
+  };
+
+  const handleDelete = async (userId) => {
+    if (!confirm('Are you sure you want to delete this user and all associated data? This cannot be undone.')) return;
+
+    try {
+      // 1. Delete related records from 'house' table first (if it exists and has user_id)
+      //    Assuming 'house' table has a 'user_id' column. Adjust if schema is different.
+      const { error: houseDeleteError } = await supabase
+        .from('house') // Replace 'house' with your actual table name if different
+        .delete()
+        .eq('user_id', userId);
+
+      if (houseDeleteError) {
+        console.error('Error deleting related house data:', houseDeleteError);
+        // Optionally, show a more specific error to the user
+        alert(`Failed to delete related house data: ${houseDeleteError.message}`);
+        return; // Stop if we can't delete related data
+      }
+
+      // 2. Delete related records from 'hr_data' table
+      const { error: hrDataDeleteError } = await supabase
+        .from('hr_data')
+        .delete()
+        .eq('user_id', userId);
+
+      if (hrDataDeleteError) {
+        console.error('Error deleting related hr_data:', hrDataDeleteError);
+        // Optionally, show a more specific error to the user
+        alert(`Failed to delete related HR data: ${hrDataDeleteError.message}`);
+        return; // Stop if we can't delete related data
+      }
+
+      // 3. Now delete the user from the 'users' table
+      const { error: userDeleteError } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', userId);
+
+      if (userDeleteError) {
+        // This is the original error location (approx line 62)
+        console.error('Error deleting user:', userDeleteError);
+        alert(`Failed to delete user: ${userDeleteError.message}`);
+        return;
+      }
+
+      // 4. Refresh the user list if everything was successful
+      fetchUsers();
+      alert('User and all associated data deleted successfully.'); // Optional success message
+
+    } catch (error) {
+      // Catch any unexpected errors during the process
+      console.error('An unexpected error occurred during deletion:', error);
+      alert('An unexpected error occurred. Please check the console.');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header with Navigation */}
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-8">
+              <h1 className="text-xl font-semibold text-gray-900">viboothi.in</h1>
+              <nav className="flex space-x-6">
+                <Link to="/users" className="text-indigo-600 hover:text-indigo-900 font-medium">
+                  Users
+                </Link>
+                <Link to="/number-gen" className="text-gray-700 hover:text-gray-900">
+                  Number Generator
+                </Link>
+                <Link to="/dual-service-demo" className="text-gray-700 hover:text-gray-900">
+                  Firebase Sync Demo
+                </Link>
+              </nav>
+            </div>
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-500">Welcome, gurukrpasharma</span>
+              <button
+                onClick={handleLogout}
+                className="bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          <h2 className="text-2xl font-bold mb-6">User Management</h2>
+
+          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Add New User</h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Username:</label>
+                <input
+                  type="text"
+                  value={formData.username}
+                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                  required
+                />
+              </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Total HR:</label>
+            <input
+              type="number"
+              value={formData.hr}
+              onChange={(e) => setFormData({ ...formData, hr: e.target.value })}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Total Days:</label>
+            <input
+              type="number"
+              value={formData.days}
+              onChange={(e) => setFormData({ ...formData, days: e.target.value })}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Add User
+          </button>
+        </form>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total HR</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Days</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {users.map(user => (
+              <tr key={user.id}>
+                <td className="px-6 py-4 whitespace-nowrap">{user.username}</td>
+                <td className="px-6 py-4 whitespace-nowrap">{user.hr}</td>
+                <td className="px-6 py-4 whitespace-nowrap">{user.days}</td>
+                <td className="px-6 py-4 whitespace-nowrap space-x-2">
+                  <Link
+                    to={`/user-data/${user.id}`}
+                    className="text-blue-600 hover:text-blue-900"
+                  >
+                    House Count
+                  </Link>
+                  <Link
+                    to={`/abcd-number/${user.id}`}
+                    className="text-orange-600 hover:text-orange-900 ml-4"
+                  >
+                    ABCD Number
+                  </Link>
+                  <Link
+                    to="/number-gen"
+                    className="text-purple-600 hover:text-purple-900 ml-4"
+                  >
+                    Number Gen
+                  </Link>
+                  <button
+                    onClick={() => handleDelete(user.id)}
+                    className="text-red-600 hover:text-red-900 ml-4"
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Data Sync Status Component */}
+      <div className="mt-8">
+        <DataSyncStatus />
+      </div>
+      </div>
+      </main>
+    </div>
+  );
+}
+
+export default UserList;

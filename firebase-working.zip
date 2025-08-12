@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>House Count App</title>
+    <script>
+      // Handle redirected paths from 404.html for GitHub Pages SPA routing
+      (function() {
+        const redirectPath = sessionStorage.getItem('redirectPath');
+        if (redirectPath) {
+          sessionStorage.removeItem('redirectPath');
+          // Replace the current URL with the intended path for client-side routing
+          history.replaceState(null, null, redirectPath);
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/main-DO7eBfoh.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/main-BSx5ZAP0.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

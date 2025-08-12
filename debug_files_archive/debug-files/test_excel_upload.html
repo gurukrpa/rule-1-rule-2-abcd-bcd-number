@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Excel Upload for Planets Analysis</title>
+</head>
+<body>
+    <h1>Test Excel Upload Fix</h1>
+    <p>Fixed the "Cannot access 'processedData' before initialization" error by:</p>
+    <ol>
+        <li>Moving the <code>const processedData = processSingleDayExcel(jsonData);</code> declaration before its first usage</li>
+        <li>Ensuring the variable is available when referenced in the success message</li>
+    </ol>
+    
+    <h2>Testing Steps:</h2>
+    <ol>
+        <li>Navigate to: <a href="http://localhost:5174/planets-analysis/5ec4ff30-bbdf-47a5-9c2e-ad33a68a0a39" target="_blank">Planets Analysis Page</a></li>
+        <li>Click on Excel upload area</li>
+        <li>Upload an Excel file</li>
+        <li>Verify no "Cannot access 'processedData' before initialization" error appears</li>
+        <li>Check that D-3 Set-1 Matrix shows data instead of "🔍 No Data in Excel"</li>
+    </ol>
+    
+    <h2>Expected Result:</h2>
+    <ul>
+        <li>✅ Excel file uploads successfully without JavaScript errors</li>
+        <li>✅ Success message shows with quality metrics and topic count</li>
+        <li>✅ All 9 planets are displayed in the matrix</li>
+        <li>✅ D-3 Set-1 Matrix shows extracted Excel data immediately</li>
+    </ul>
+</body>
+</html>
