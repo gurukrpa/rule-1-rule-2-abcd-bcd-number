@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>D-4 Set-1 Test Injector</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #f0f0f0; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
+        .test-btn { background: #007bff; color: white; border: none; padding: 15px 30px; border-radius: 5px; cursor: pointer; font-size: 16px; margin: 10px; }
+        .test-btn:hover { background: #0056b3; }
+        .result { background: #f8f9fa; border: 1px solid #dee2e6; padding: 15px; margin: 15px 0; border-radius: 5px; }
+        .success { background: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+        .warning { background: #fff3cd; border-color: #ffeaa7; color: #856404; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 D-4 Set-1 Persistence Test</h1>
+        <p>This page can inject test code into your Rule-1 page. Open this page alongside your Rule-1 page.</p>
+        
+        <button class="test-btn" onclick="injectTest()">🚀 Inject Test Code</button>
+        <button class="test-btn" onclick="runVisualTest()">👁️ Visual Test Guide</button>
+        <button class="test-btn" onclick="showInstructions()">📋 Instructions</button>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function showResults(message, type = 'result') {
+            const results = document.getElementById('results');
+            results.innerHTML = `<div class="${type}">${message}</div>`;
+        }
+
+        function injectTest() {
+            // Try to access the Rule-1 page if it's in another tab
+            const testCode = `
+(function() {
+    if (!window.rule1PageDebug) {
+        alert('❌ Please navigate to the Rule-1 Enhanced page first');
+        return;
+    }
+    
+    console.clear();
+    console.log('🧪 D-4 SET-1 PERSISTENCE TEST INJECTED');
+    console.log('=====================================');
+    
+    const state = window.rule1PageDebug.getStateInfo();
+    console.log('📊 Current state:', {
+        user: state.selectedUser,
+        date: state.date,
+        activeHR: state.activeHR
+    });
+    
+    // Find D-4 Set-1
+    const d4Topic = state.availableTopics?.find(topic => 
+        topic.includes('D-4') && topic.includes('Set-1')
+    );
+    
+    if (!d4Topic) {
+        console.error('❌ D-4 Set-1 not found in available topics');
+        alert('❌ D-4 Set-1 not found. Make sure you are viewing the correct page.');
+        return;
+    }
+    
+    console.log('✅ Found D-4 Set-1 as:', d4Topic);
+    
+    // Key generation functions
+    const topicKey = (name) => { 
+        const m = String(name).match(/D-(\\d+).*?Set-(\\d+)/i); 
+        return m ? \`D-\${m[1]}#\${m[2]}\` : String(name).trim(); 
+    };
+    const normHR = (hr) => { 
+        const h = String(hr).replace(/^HR/i,'').trim(); 
+        return \`HR\${parseInt(h,10)}\`; 
+    };
+    
+    const tKey = topicKey(d4Topic);
+    const hrKey = normHR(state.activeHR);
+    
+    console.log('🔑 Generated keys:', { tKey, hrKey });
+    
+    // Check current clicked numbers
+    const currentNumbers = state.clickedNumbers[tKey]?.[state.date]?.[hrKey] || [];
+    const has8 = currentNumbers.includes(8);
+    const has10 = currentNumbers.includes(10);
+    
+    console.log('🔍 Current clicked numbers:', currentNumbers);
+    console.log('Number 8 present:', has8 ? '✅ YES' : '❌ NO');
+    console.log('Number 10 present:', has10 ? '✅ YES' : '❌ NO');
+    
+    // Visual check
+    const numberBoxes = document.querySelectorAll('button');
+    let visual8Highlighted = false;
+    let visual10Highlighted = false;
+    
+    for (const box of numberBoxes) {
+        const text = box.textContent?.trim();
+        if (text === '8' && (box.className.includes('bg-orange') || box.className.includes('bg-green'))) {
+            visual8Highlighted = true;
+        }
+        if (text === '10' && (box.className.includes('bg-orange') || box.className.includes('bg-green'))) {
+            visual10Highlighted = true;
+        }
+    }
+    
+    console.log('👁️ Visual state:');
+    console.log('Number 8 highlighted:', visual8Highlighted ? '✅ YES' : '❌ NO');
+    console.log('Number 10 highlighted:', visual10Highlighted ? '✅ YES' : '❌ NO');
+    
+    // Summary
+    let summary = 'D-4 Set-1 Test Results:\\n';
+    summary += \`Numbers in state: [\${currentNumbers.join(', ')}]\\n\`;
+    summary += \`Number 8: \${has8 ? 'FOUND' : 'MISSING'} (Visual: \${visual8Highlighted ? 'HIGHLIGHTED' : 'NOT HIGHLIGHTED'})\\n\`;
+    summary += \`Number 10: \${has10 ? 'FOUND' : 'MISSING'} (Visual: \${visual10Highlighted ? 'HIGHLIGHTED' : 'NOT HIGHLIGHTED'})\\n\\n\`;
+    
+    if (has8 && has10) {
+        summary += '✅ SUCCESS: Both numbers are persisting correctly';
+        console.log('✅ SUCCESS: Both numbers are persisting correctly');
+    } else if (!has8 && has10) {
+        summary += '❌ ISSUE CONFIRMED: Number 8 not persisting (matches reported bug)';
+        console.error('❌ ISSUE CONFIRMED: Number 8 not persisting (matches reported bug)');
+    } else if (!has8 && !has10) {
+        summary += 'ℹ️ No numbers clicked yet. Try clicking numbers 8 and 10, then refresh to test persistence.';
+        console.log('ℹ️ No numbers clicked yet. Try clicking numbers 8 and 10, then refresh to test persistence.');
+    }
+    
+    alert(summary);
+    
+    // Make test function available for re-running
+    window.testD4Set1 = arguments.callee;
+    console.log('💡 Test function saved as window.testD4Set1() for re-running');
+})();
+            `;
+            
+            // Copy to clipboard if possible
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(testCode).then(() => {
+                    showResults(`
+                        ✅ Test code copied to clipboard!<br><br>
+                        <strong>Next steps:</strong><br>
+                        1. Go to your Rule-1 Enhanced page<br>
+                        2. Open Chrome console (F12)<br>
+                        3. Paste the code and press Enter<br>
+                        4. The test will run automatically
+                    `, 'success');
+                }).catch(() => {
+                    showCopyInstructions(testCode);
+                });
+            } else {
+                showCopyInstructions(testCode);
+            }
+        }
+        
+        function showCopyInstructions(code) {
+            showResults(`
+                📋 Copy this code manually:<br><br>
+                <textarea style="width: 100%; height: 100px; font-family: monospace; font-size: 12px;">${code}</textarea><br><br>
+                <strong>Instructions:</strong><br>
+                1. Select all text in the box above<br>
+                2. Copy it (Ctrl+C)<br>
+                3. Go to your Rule-1 Enhanced page<br>
+                4. Open Chrome console (F12)<br>
+                5. Paste and press Enter
+            `, 'warning');
+        }
+        
+        function runVisualTest() {
+            showResults(`
+                <h3>👁️ Visual Test Instructions</h3>
+                <p>No console needed - just follow these steps:</p>
+                <ol>
+                    <li><strong>Go to Rule-1 Enhanced page</strong></li>
+                    <li><strong>Find D-4 Set-1 section</strong> in the matrix</li>
+                    <li><strong>Click number 8</strong> - should turn orange/green</li>
+                    <li><strong>Click number 10</strong> - should turn orange/green</li>
+                    <li><strong>Refresh the page</strong> (F5)</li>
+                    <li><strong>Check the results:</strong>
+                        <ul>
+                            <li>✅ <strong>Fixed:</strong> Both 8 and 10 are still highlighted</li>
+                            <li>❌ <strong>Bug present:</strong> Only 10 is highlighted, 8 disappeared</li>
+                        </ul>
+                    </li>
+                </ol>
+                <p><strong>This is the simplest way to test without any console commands!</strong></p>
+            `, 'success');
+        }
+        
+        function showInstructions() {
+            showResults(`
+                <h3>📋 Complete Testing Instructions</h3>
+                
+                <h4>Method 1: Visual Test (Easiest)</h4>
+                <p>Click "Visual Test Guide" button above for step-by-step instructions.</p>
+                
+                <h4>Method 2: Console Test (Most Detailed)</h4>
+                <p>Click "Inject Test Code" button to get the console test script.</p>
+                
+                <h4>Method 3: Simple Console Commands</h4>
+                <p>Copy these one at a time into Chrome console:</p>
+                <ul>
+                    <li><code>window.rule1PageDebug ? 'Ready' : 'Go to Rule-1 page'</code></li>
+                    <li><code>window.rule1PageDebug.showClickedNumbers()</code></li>
+                    <li><code>window.rule1PageDebug.forceReloadNumberBoxes()</code></li>
+                </ul>
+                
+                <h4>What We're Testing</h4>
+                <p>The issue is that number 8 in D-4 Set-1 doesn't persist after page refresh, while number 10 does persist. After the fix, both should persist correctly.</p>
+            `, 'result');
+        }
+        
+        // Auto-show instructions on load
+        showInstructions();
+    </script>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>D-4 Set-1 Test - Easy Access</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .method {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .bookmarklet {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            display: inline-block;
+            margin: 10px 0;
+        }
+        .code-box {
+            background: #f1f3f4;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+        }
+        .steps {
+            background: #e8f4fd;
+            border-left: 4px solid #1976d2;
+            padding: 15px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 D-4 Set-1 Persistence Test - Easy Access</h1>
+        
+        <p>Since Chrome console doesn't accept large code blocks, here are alternative methods:</p>
+        
+        <div class="method">
+            <h2>📁 Method 1: Load from URL (Recommended)</h2>
+            <div class="steps">
+                <strong>Steps:</strong>
+                <ol>
+                    <li>Go to your Rule-1 Enhanced page</li>
+                    <li>Open Chrome console (F12)</li>
+                    <li>Type this ONE line:</li>
+                </ol>
+            </div>
+            <div class="code-box">
+fetch('/test-d4-persistence.js').then(r=>r.text()).then(eval)
+            </div>
+            <p><strong>Alternative if above fails:</strong></p>
+            <div class="code-box">
+window.rule1PageDebug ? console.log('✅ Ready') : console.log('❌ Go to Rule-1 page first')
+            </div>
+            <p>This loads and runs the test script from your server.</p>
+        </div>
+
+        <div class="method">
+            <h2>🔗 Method 2: Bookmarklet (Drag & Drop)</h2>
+            <div class="steps">
+                <strong>Steps:</strong>
+                <ol>
+                    <li>Drag the blue button below to your bookmarks bar</li>
+                    <li>Go to your Rule-1 Enhanced page</li>
+                    <li>Click the bookmark to run the test</li>
+                </ol>
+            </div>
+            <a href="javascript:(function(){if(!window.rule1PageDebug){alert('Go to Rule-1 page first');return}const s=window.rule1PageDebug.getStateInfo();const d4=s.availableTopics?.find(t=>t.includes('D-4')&&t.includes('Set-1'));if(!d4){alert('D-4 Set-1 not found');return}const tk=n=>{const m=String(n).match(/D-(\d+).*?Set-(\d+)/i);return m?`D-${m[1]}#${m[2]}`:String(n).trim()};const hr=h=>`HR${parseInt(String(h).replace(/^HR/i,'').trim(),10)}`;const tKey=tk(d4);const hrKey=hr(s.activeHR);const nums=s.clickedNumbers[tKey]?.[s.date]?.[hrKey]||[];console.clear();console.log('🧪 D-4 Test:',d4);console.log('Numbers:',nums);console.log('Has 8:',nums.includes(8)?'✅':'❌');console.log('Has 10:',nums.includes(10)?'✅':'❌');alert(`D-4 Set-1 Test:\nNumbers: [${nums.join(', ')}]\nHas 8: ${nums.includes(8)?'YES':'NO'}\nHas 10: ${nums.includes(10)?'YES':'NO'}`)})();" class="bookmarklet">📊 Test D-4 Set-1</a>
+        </div>
+
+        <div class="method">
+            <h2>⌨️ Method 3: Simple Console Commands</h2>
+            <div class="steps">
+                <strong>Copy these ONE AT A TIME into console:</strong>
+            </div>
+            
+            <p><strong>Step 1:</strong> Check if you're on the right page</p>
+            <div class="code-box">window.rule1PageDebug ? 'Ready' : 'Go to Rule-1 page'</div>
+            
+            <p><strong>Step 2:</strong> Get current state</p>
+            <div class="code-box">const s = window.rule1PageDebug.getStateInfo(); console.log('User:', s.selectedUser, 'Date:', s.date, 'HR:', s.activeHR)</div>
+            
+            <p><strong>Step 3:</strong> Find D-4 Set-1</p>
+            <div class="code-box">const d4 = s.availableTopics?.find(t => t.includes('D-4') && t.includes('Set-1')); console.log('D-4 Topic:', d4)</div>
+            
+            <p><strong>Step 4:</strong> Check clicked numbers</p>
+            <div class="code-box">const tk = n => {const m = String(n).match(/D-(\d+).*?Set-(\d+)/i); return m ? `D-${m[1]}#${m[2]}` : String(n).trim()}; const tKey = tk(d4); const hrKey = `HR${s.activeHR}`; const nums = s.clickedNumbers[tKey]?.[s.date]?.[hrKey] || []; console.log('Numbers:', nums, 'Has 8:', nums.includes(8), 'Has 10:', nums.includes(10))</div>
+        </div>
+
+        <div class="method">
+            <h2>🎯 Method 4: Manual Visual Check</h2>
+            <div class="steps">
+                <strong>No console needed:</strong>
+                <ol>
+                    <li>Go to Rule-1 Enhanced page</li>
+                    <li>Find D-4 Set-1 section in the matrix</li>
+                    <li>Look for numbers 8 and 10</li>
+                    <li>Click both numbers (should turn orange/green)</li>
+                    <li>Refresh page (F5)</li>
+                    <li>Check if both are still highlighted</li>
+                    <li><strong>Issue:</strong> If 8 disappears but 10 stays, bug confirmed</li>
+                    <li><strong>Fixed:</strong> If both stay highlighted, bug is resolved</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="method">
+            <h2>🔧 Quick Debug Commands</h2>
+            <p>If you can copy short commands, try these:</p>
+            
+            <p><strong>Show clicked numbers:</strong></p>
+            <div class="code-box">window.rule1PageDebug.showClickedNumbers()</div>
+            
+            <p><strong>Force reload state:</strong></p>
+            <div class="code-box">window.rule1PageDebug.forceReloadNumberBoxes()</div>
+            
+            <p><strong>Check state keys:</strong></p>
+            <div class="code-box">Object.keys(window.rule1PageDebug.getStateInfo().clickedNumbers)</div>
+        </div>
+
+        <div style="background: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; padding: 15px; margin: 20px 0;">
+            <strong>✅ Expected After Fix:</strong>
+            <ul>
+                <li>Both numbers 8 and 10 should persist after refresh</li>
+                <li>No console errors during clicking</li>
+                <li>Consistent behavior across all D-X Set-X topics</li>
+            </ul>
+        </div>
+
+        <div style="background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; padding: 15px; margin: 20px 0;">
+            <strong>❌ Original Issue:</strong>
+            <ul>
+                <li>Number 8 disappears after refresh</li>
+                <li>Number 10 persists correctly</li>
+                <li>Inconsistent save/load behavior</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
