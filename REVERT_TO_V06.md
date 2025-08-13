@@ -45,5 +45,23 @@ git show v0.6
 - ✅ Git repository healthy
 - ✅ Ready for continued development
 
+## Current Branch: rule-1-pages-fix
+- **Purpose:** Working on Rule 1 page fixes and improvements
+- **Based on:** v0.6 tag (clean working state)
+- **Created:** August 13, 2025
+
+### Switch Between Branches
+```bash
+# Switch back to main branch
+git checkout main
+
+# Switch to rule-1-pages-fix branch
+git checkout rule-1-pages-fix
+
+# List all branches
+git branch
+```
+
 Created: August 13, 2025
-Commit: a9c6b1e
+Commit: a9c6b1e (v0.6)
+Current Branch: rule-1-pages-fix

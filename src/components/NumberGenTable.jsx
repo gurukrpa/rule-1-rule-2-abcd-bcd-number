@@ -25,16 +25,19 @@ const NumberGenTable = ({ combinations, onDeleteCombination, onClearAll }) => {
   };
 
   // Handle export with custom date
-  const handleExportWithDate = (exportFunction, filename) => {
-    if (customDate.trim() === '') {
-      alert('Please select a date before exporting');
-      return;
+    const handleExportWithDate = (type) => {
+    try {
+      const customDate = exportDate.trim() === '' ? getCurrentDate() : exportDate;
+      
+      if (type === 'excel') {
+        exportToExcel(combinations, 'planet-combinations', customDate);
+      } else if (type === 'pdf') {
+        exportToPDF(combinations, 'planet-combinations', customDate);
+      }
+    } catch (error) {
+      console.error(`Error exporting to ${type}:`, error);
+      alert(`Error exporting to ${type}. Please try again.`);
     }
-    if (!combinations || combinations.length === 0) {
-      alert('No combinations to export. Please generate combinations first.');
-      return;
-    }
-    exportFunction(combinations, filename, customDate);
   };
 
   return (

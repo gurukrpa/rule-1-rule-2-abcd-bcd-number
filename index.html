@@ -18,24 +18,7 @@
     </script>
   </head>
   <body>
-    <div id="root">
-      <div style="padding: 20px; font-family: Arial;">
-        <h2>Loading React App...</h2>
-        <p>If you still see this message after a few seconds, there's a JavaScript error.</p>
-        <div id="loading-indicator">🔄 Loading...</div>
-      </div>
-    </div>
+    <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
-    <script>
-      // Debug script
-      console.log('HTML loaded, starting React...');
-      setTimeout(() => {
-        const root = document.getElementById('root');
-        if (root && root.innerHTML.includes('Loading React App')) {
-          console.error('React app failed to load after 3 seconds');
-          root.innerHTML = '<div style="padding:20px;color:red;"><h2>❌ React App Failed to Load</h2><p>Check browser console for errors.</p></div>';
-        }
-      }, 3000);
-    </script>
   </body>
 </html>

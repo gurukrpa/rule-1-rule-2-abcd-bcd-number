@@ -47,17 +47,44 @@ const formatCustomDateForFilename = (customDate) => {
 };
 
 /**
- * Generate alphanumeric label (A1-A50, B1-B50, C1-C50, etc.)
+ * Generate alphanumeric label following the pattern:
+ * A1-A50, B1-B50, ..., Z1-Z50 (1,300 labels)
+ * Then AA1-AA50, AB1-AB50, ..., ZZ1-ZZ50 (33,800 more labels)
+ * Then AAA1-AAA50, AAB1-AAB50, etc.
  */
 const generateAlphanumericLabel = (index) => {
-  const letterIndex = Math.floor(index / 50);
-  const numberIndex = (index % 50) + 1;
-  const letter = String.fromCharCode(65 + letterIndex); // A, B, C, etc.
-  return `${letter}${numberIndex}`;
+  const numberPart = (index % 50) + 1; // 1-50 for each letter group
+  const letterGroupIndex = Math.floor(index / 50); // Which letter group we're in
+  
+  // Generate letter part based on letterGroupIndex
+  let letterPart = '';
+  let remaining = letterGroupIndex;
+  
+  if (remaining < 26) {
+    // Single letter: A-Z (0-25)
+    letterPart = String.fromCharCode(65 + remaining);
+  } else if (remaining < 26 + (26 * 26)) {
+    // Double letter: AA-ZZ (26-701)
+    remaining -= 26;
+    const firstLetter = Math.floor(remaining / 26);
+    const secondLetter = remaining % 26;
+    letterPart = String.fromCharCode(65 + firstLetter) + String.fromCharCode(65 + secondLetter);
+  } else {
+    // Triple letter: AAA-ZZZ (702+)
+    remaining -= 26 + (26 * 26);
+    const firstLetter = Math.floor(remaining / (26 * 26));
+    const secondLetter = Math.floor((remaining % (26 * 26)) / 26);
+    const thirdLetter = remaining % 26;
+    letterPart = String.fromCharCode(65 + firstLetter) + 
+                 String.fromCharCode(65 + secondLetter) + 
+                 String.fromCharCode(65 + thirdLetter);
+  }
+  
+  return `${letterPart}${numberPart}`;
 };
 
 /**
- * Prepare data for export (Label + Planet columns only)
+ * Prepare data for export (Planet columns only, no Label)
  */
 const prepareExportData = (combinations) => {
   if (!combinations || combinations.length === 0) return [];
@@ -65,13 +92,12 @@ const prepareExportData = (combinations) => {
   const planetHeaders = combinations[0].planets || [];
   
   return combinations.map((combination, index) => {
-    const row = {
-      Label: generateAlphanumericLabel(index)
-    };
+    const row = {};
     
-    // Add planet columns with their values
+    // Add planet columns with their values, using A1, A2, A3... format as headers
     planetHeaders.forEach((planet, planetIndex) => {
-      row[planet] = combination.numbers[planetIndex];
+      const planetLabel = generateAlphanumericLabel(planetIndex);
+      row[planetLabel] = combination.numbers[planetIndex];
     });
     
     return row;
@@ -117,10 +143,20 @@ export const exportToExcel = (combinations, filename = 'planet-combinations', cu
       };
     });
     
-    // Add data rows with alternating colors
+    // Light alternating colors for rows
+    const lightColors = [
+      'F8F9FA', // Very light gray
+      'E3F2FD', // Very light blue  
+      'E8F5E8', // Very light green
+      'FFF3E0', // Very light orange
+      'F3E5F5', // Very light purple
+      'E0F2F1'  // Very light teal
+    ];
+    
+    // Add data rows with alternating light colors
     data.forEach((row, index) => {
       const dataRow = worksheet.addRow(Object.values(row));
-      const isEvenRow = index % 2 === 0;
+      const colorIndex = index % lightColors.length;
       
       dataRow.eachCell((cell) => {
         cell.alignment = { horizontal: 'center' };
@@ -131,14 +167,12 @@ export const exportToExcel = (combinations, filename = 'planet-combinations', cu
           right: { style: 'thin' }
         };
         
-        // Add alternating row colors (zebra striping)
-        if (!isEvenRow) {
-          cell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'E3F2FD' } // Light blue for odd rows
-          };
-        }
+        // Apply light alternating colors
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: lightColors[colorIndex] }
+        };
       });
     });
     
@@ -154,18 +188,23 @@ export const exportToExcel = (combinations, filename = 'planet-combinations', cu
       column.width = Math.max(maxLength + 2, 10);
     });
     
-    // Generate buffer and download
-    workbook.xlsx.writeBuffer().then(buffer => {
-      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${filename}-${dateForFile}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    });
+    // Generate buffer and download using .then() for better compatibility
+    workbook.xlsx.writeBuffer()
+      .then(buffer => {
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${filename}-${dateForFile}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      })
+      .catch(error => {
+        console.error('Error generating Excel file:', error);
+        alert('Error generating Excel file. Please try again.');
+      });
     
   } catch (error) {
     console.error('Error exporting to Excel:', error);
@@ -206,36 +245,40 @@ const exportToPDFSimple = (combinations, filename = 'planet-combinations', custo
     const headers = Object.keys(data[0]);
     let yPosition = 25; // Start higher
     
-    // Add headers (bigger and bold)
-    doc.setFontSize(12);
+    // Calculate column width dynamically
+    const numColumns = headers.length;
+    const availableWidth = 180; // A4 width minus margins
+    const columnWidth = Math.max(12, availableWidth / numColumns);
+    
+    // Add headers (optimized font size)
+    doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    let xPosition = 10;
-    const columnWidth = Math.min(20, 180 / headers.length); // Tighter column width
+    let xPosition = 15;
     headers.forEach(header => {
       doc.text(header, xPosition, yPosition);
       xPosition += columnWidth;
     });
     
-    yPosition += 8; // Adequate spacing for bigger font
+    yPosition += 8; // Adequate spacing
     
-    // Add data rows with alternating background colors (bigger and bold)
-    doc.setFontSize(10); // Bigger data font
-    doc.setFont('helvetica', 'bold'); // Make data bold
+    // Add data rows with alternating background colors
+    doc.setFontSize(8); // Smaller font for more columns
+    doc.setFont('helvetica', 'bold');
     data.forEach((row, index) => {
       const isEvenRow = index % 2 === 0;
       
       // Add light blue background for odd rows
       if (!isEvenRow) {
         doc.setFillColor(227, 242, 253); // Light blue (RGB: 227, 242, 253)
-        doc.rect(5, yPosition - 5, 190, 7, 'F'); // Larger background rectangle for bigger text
+        doc.rect(10, yPosition - 5, 190, 6, 'F'); // Background rectangle
       }
       
-      xPosition = 10;
+      xPosition = 15;
       Object.values(row).forEach((value, colIndex) => {
         doc.text(String(value), xPosition, yPosition);
         xPosition += columnWidth;
       });
-      yPosition += 7; // Adequate row spacing for bigger font
+      yPosition += 6; // Tighter row spacing for more data
       
       // Add new page if needed (use most of the page)
       if (yPosition > 280) {
@@ -290,6 +333,16 @@ export const exportToPDF = (combinations, filename = 'planet-combinations', cust
     const headers = Object.keys(data[0]);
     const rows = data.map(row => Object.values(row));
     
+    // Light colors for alternating rows (RGB values)
+    const lightColors = [
+      [248, 249, 250], // Very light gray
+      [227, 242, 253], // Very light blue  
+      [232, 245, 232], // Very light green
+      [255, 243, 224], // Very light orange
+      [243, 229, 245], // Very light purple
+      [224, 242, 241]  // Very light teal
+    ];
+    
     console.log('Table data prepared:', { headers, rowCount: rows.length });
     
     // Try autoTable first, fallback to simple if it fails
@@ -297,52 +350,59 @@ export const exportToPDF = (combinations, filename = 'planet-combinations', cust
       console.log('Checking for autoTable function...');
       if (typeof doc.autoTable === 'function') {
         console.log('Using autoTable for PDF generation...');
+        
+        // Calculate optimal column width based on number of columns
+        const numColumns = headers.length;
+        const availableWidth = 180; // A4 width minus margins (210 - 30)
+        const columnWidth = Math.max(12, availableWidth / numColumns); // Minimum 12mm per column
+        
         doc.autoTable({
           head: [headers],
           body: rows,
-          startY: 25, // Reduced from 30 to start higher
+          startY: 25,
           theme: 'grid',
           headStyles: {
             fillColor: [68, 114, 196],
             textColor: [255, 255, 255],
             fontStyle: 'bold',
             halign: 'center',
-            fontSize: 12, // Bigger header font
-            cellPadding: 3 // Slightly more padding for bigger text
+            fontSize: 10, // Smaller font for more columns
+            cellPadding: 2
           },
           bodyStyles: {
             halign: 'center',
             valign: 'middle',
-            fontSize: 10, // Bigger body font
-            fontStyle: 'bold', // Make body text bold
-            cellPadding: 2 // Adequate padding for bigger text
+            fontSize: 8, // Smaller font for data to fit more
+            fontStyle: 'bold',
+            cellPadding: 1.5
           },
-          alternateRowStyles: {
-            fillColor: [227, 242, 253] // Light blue RGB values
+          // Custom row styling with alternating light colors
+          didParseCell: (data) => {
+            if (data.section === 'body') {
+              const colorIndex = data.row.index % lightColors.length;
+              data.cell.styles.fillColor = lightColors[colorIndex];
+            }
           },
           tableLineColor: [0, 0, 0],
           tableLineWidth: 0.1,
-          margin: { top: 25, right: 10, bottom: 10, left: 10 }, // Balanced margins
-          columnStyles: {
-            // Make columns narrower and closer together
-            0: { cellWidth: 'auto', minCellWidth: 15 }, // Label column
-            1: { cellWidth: 'auto', minCellWidth: 20 }, // Planet columns
-            2: { cellWidth: 'auto', minCellWidth: 20 },
-            3: { cellWidth: 'auto', minCellWidth: 20 },
-            4: { cellWidth: 'auto', minCellWidth: 20 },
-            5: { cellWidth: 'auto', minCellWidth: 20 },
-            6: { cellWidth: 'auto', minCellWidth: 20 },
-            7: { cellWidth: 'auto', minCellWidth: 20 },
-            8: { cellWidth: 'auto', minCellWidth: 20 },
-            9: { cellWidth: 'auto', minCellWidth: 20 }
-          },
+          margin: { top: 25, right: 15, bottom: 10, left: 15 },
+          // Dynamic column styles based on actual number of columns
+          columnStyles: headers.reduce((styles, header, index) => {
+            styles[index] = { cellWidth: columnWidth, minCellWidth: 8 };
+            return styles;
+          }, {}),
           styles: {
             overflow: 'linebreak',
-            cellWidth: 'wrap', // Wrap content for tighter columns
-            minCellHeight: 6, // Minimum row height for bigger font
+            cellWidth: 'wrap',
+            minCellHeight: 5,
             lineColor: [0, 0, 0],
-            lineWidth: 0.1
-          }
+            lineWidth: 0.1,
+            fontSize: 8
+          },
+          // Force all content on one page by adjusting page break
+          pageBreak: 'avoid',
+          tableWidth: 'auto',
+          showHead: 'everyPage'
         });
         console.log('AutoTable PDF created successfully');
       } else {

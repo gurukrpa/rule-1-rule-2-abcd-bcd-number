@@ -19,6 +19,8 @@
     "deploy:gh-pages": "gh-pages -d dist",
     "deploy:gh-pages-force": "gh-pages -d dist -f",
     "deploy:quick": "npm run build && ./deploy-firebase.sh",
+    "performance-test": "node scripts/performance-test.js",
+    "setup-optimized": "./setup-optimized-rule1.sh",
     "push-and-deploy": "git add . && git commit -m 'Auto commit for deployment' && git push origin main && npm run deploy",
     "deploy:production": "./deploy-production.sh",
     "validate": "./validate-setup.sh",
