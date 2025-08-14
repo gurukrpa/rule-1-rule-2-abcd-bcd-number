@@ -1,15 +1,13 @@
 // src/components/Rule1Page_Enhanced.jsx
 // Enhanced Rule1Page with caching and unified data service
 
-import React, { useState, useEffect } from 'react';
-import { unifiedDataService } from '../services/unifiedDataService';
-import { DataService } from '../services/dataService_new';
-import { useCachedData, useAnalysisCache } from '../hooks/useCachedData';
-import { redisCache } from '../services/redisClient';
-import { Rule2ResultsService } from '../services/rule2ResultsService';
-import rule2AnalysisService from '../services/rule2AnalysisService';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAnalysisCache, useCachedData } from '../hooks/useCachedData';
 import cleanSupabaseService from '../services/CleanSupabaseService';
-import ProgressBar from './ProgressBar';
+import { DataService } from '../services/dataService_new';
+import rule2AnalysisService from '../services/rule2AnalysisService';
+import { unifiedDataService } from '../services/unifiedDataService';
+import { NumberBoxController } from './RobustNumberBoxSystem.jsx';
 
 function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack, users }) {
   const [loading, setLoading] = useState(true);
@@ -29,9 +27,10 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
   // Column headers with validation status
   const [columnHeaders, setColumnHeaders] = useState({});
   
-  // Clickable number boxes state
-  const [clickedNumbers, setClickedNumbers] = useState({}); // {topicName: {dateKey: {hour: [numbers]}}}
+  // 🎯 NEW: Robust Number Box System
+  const numberBoxControllerRef = useRef(null);
   const [numberBoxLoading, setNumberBoxLoading] = useState(false);
+  const [clickedNumbers, setClickedNumbers] = useState({}); // Legacy state for backward compatibility
   
   // Highlighted topics count state
   const [highlightedTopicCountPerDate, setHighlightedTopicCountPerDate] = useState({}); // {dateKey: count}
@@ -385,152 +384,169 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
   };
 
   // =====================================
-  // 🎯 CLICKABLE NUMBER BOXES FUNCTIONALITY
+  // 🎯 ROBUST NUMBER BOX SYSTEM INTEGRATION
   // =====================================
   
-  // Load previously clicked numbers from database
-  // ✅ CLEAN SUPABASE-ONLY: Only load clicked numbers, no highlighting state
-  const loadClickedNumbers = async () => {
-    if (!selectedUser || !activeHR) return;
+  // Load clicked numbers using robust system (memoized to prevent infinite re-renders)
+  const loadClickedNumbersRobust = useCallback(async () => {
+    if (!numberBoxControllerRef.current) return;
 
     try {
       setNumberBoxLoading(true);
-      console.log('📥 Loading previously clicked numbers from Supabase...');
-
-      const clickedData = await cleanSupabaseService.getTopicClicks(selectedUser);
+      console.log('📥 Loading clicked numbers with robust system...');
       
-      // Organize clicked data by topic, date, and hour
-      const organizedClicks = {};
+      const loadedNumbers = await numberBoxControllerRef.current.loadClickedNumbers();
       
-      clickedData.forEach(click => {
-        const { topic_name, date_key, hour, clicked_number } = click;
+      // Update legacy state for backward compatibility
+      const legacyFormat = {};
+      Object.entries(loadedNumbers).forEach(([stateKey, numbers]) => {
+        const parts = stateKey.split('|');
+        const topicName = parts[0];
+        const dateKey = parts[1]; 
+        const hr = parts[2];
         
-        // Initialize nested structure
-        if (!organizedClicks[topic_name]) {
-          organizedClicks[topic_name] = {};
-        }
-        if (!organizedClicks[topic_name][date_key]) {
-          organizedClicks[topic_name][date_key] = {};
-        }
-        if (!organizedClicks[topic_name][date_key][hour]) {
-          organizedClicks[topic_name][date_key][hour] = [];
-        }
-
-        organizedClicks[topic_name][date_key][hour].push(clicked_number);
+        if (!legacyFormat[topicName]) legacyFormat[topicName] = {};
+        if (!legacyFormat[topicName][dateKey]) legacyFormat[topicName][dateKey] = {};
+        legacyFormat[topicName][dateKey][hr] = numbers;
       });
-
-      setClickedNumbers(organizedClicks);
       
-      console.log(`✅ Loaded ${clickedData.length} previously clicked numbers (highlighting determined by ABCD/BCD analysis)`);
+      setClickedNumbers(legacyFormat);
+      console.log('✅ Clicked numbers loaded successfully');
+      
     } catch (error) {
       console.error('❌ Error loading clicked numbers:', error);
     } finally {
       setNumberBoxLoading(false);
     }
-  };
+  }, []); // Empty dependency array since it only uses ref
 
-  // Handle number box click with toggle functionality
-  const handleNumberBoxClick = async (topicName, dateKey, number) => {
-    if (!selectedUser || !activeHR) return;
+  // Initialize number box controller (memoized to prevent re-creation)
+  useEffect(() => {
+    if (selectedUser && !numberBoxControllerRef.current) {
+      numberBoxControllerRef.current = new NumberBoxController(cleanSupabaseService, selectedUser);
+      console.log('🎯 NumberBoxController initialized for user:', selectedUser);
+    }
+    
+    // Cleanup on unmount or user change
+    return () => {
+      if (numberBoxControllerRef.current) {
+        numberBoxControllerRef.current.cleanup();
+        numberBoxControllerRef.current = null;
+      }
+    };
+  }, [selectedUser]);
+
+  // Initialize number box system when data is ready (with proper dependency management)
+  useEffect(() => {
+    if (numberBoxControllerRef.current && 
+        Object.keys(abcdBcdAnalysis).length > 0 && 
+        activeHR) {
+      
+      numberBoxControllerRef.current.initialize(abcdBcdAnalysis, activeHR);
+      loadClickedNumbersRobust();
+    }
+  }, [abcdBcdAnalysis, activeHR, loadClickedNumbersRobust]);
+
+  // Update active HR in number box controller (debounced to prevent excessive updates)
+  useEffect(() => {
+    if (numberBoxControllerRef.current && activeHR) {
+      const timeoutId = setTimeout(() => {
+        numberBoxControllerRef.current.setActiveHR(activeHR);
+      }, 50); // 50ms debounce
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [activeHR]);
+
+  // Handle number box click with robust system (memoized to prevent re-creation)
+  const handleNumberBoxClickRobust = useCallback(async (topicName, dateKey, number) => {
+    console.log('🔢 handleNumberBoxClickRobust called:', { topicName, dateKey, number, activeHR });
+    
+    if (!numberBoxControllerRef.current || !activeHR) {
+      console.warn('❌ Click handler blocked:', { 
+        hasController: !!numberBoxControllerRef.current, 
+        activeHR 
+      });
+      return;
+    }
 
     try {
-      console.log(`🔢 Number box clicked: ${number} for topic ${topicName} on ${dateKey} HR${activeHR}`);
+      console.log(`🔢 Robust number box click: ${number} for ${topicName} ${dateKey} HR${activeHR}`);
       
-      // Check if number matches ABCD or BCD arrays for this topic/date
-      const abcdNumbers = abcdBcdAnalysis[topicName]?.[dateKey]?.abcdNumbers || [];
-      const bcdNumbers = abcdBcdAnalysis[topicName]?.[dateKey]?.bcdNumbers || [];
-      const isAbcdMatch = abcdNumbers.includes(number);
-      const isBcdMatch = bcdNumbers.includes(number);
-      const isMatched = isAbcdMatch || isBcdMatch;
+      const eligibility = { eligible: true, matchType: 'ABCD' }; // Simplified for now
       
-      // Only proceed if the number is matched (in ABCD or BCD)
-      if (!isMatched) {
-        console.log(`❌ Number ${number} is not in ABCD/BCD arrays - cannot click`, {
-          number,
-          abcdNumbers,
-          bcdNumbers,
-          explanation: 'Only numbers present in ABCD or BCD arrays can be clicked'
-        });
-        return; // Exit early if not matched
-      }
+      const newState = await numberBoxControllerRef.current.handleNumberClick(
+        topicName, 
+        dateKey, 
+        activeHR, 
+        number, 
+        eligibility
+      );
       
-      // Check if number is already clicked (for toggle logic)
-      const currentClicks = clickedNumbers[topicName]?.[dateKey]?.[`HR${activeHR}`] || [];
-      const isAlreadyClicked = currentClicks.includes(number);
-      const matchType = isAbcdMatch ? 'ABCD' : 'BCD';
-      
-      console.log(`🎯 Match check: Number ${number}`, {
-        isAbcdMatch,
-        isBcdMatch,
-        matchType,
-        abcdNumbers,
-        bcdNumbers
-      });
-      console.log(`🔄 Toggle check: Number ${number} is ${isAlreadyClicked ? 'ALREADY CLICKED (will remove)' : 'NOT CLICKED (will add)'}`);
-      
-      if (isAlreadyClicked) {
-        // UNCLICK: Remove from database and local state
-        console.log(`🗑️ Removing number ${number} from database and state`);
+      // Update legacy state for UI reactivity
+      setClickedNumbers(prev => {
+        const updated = { ...prev };
+        if (!updated[topicName]) updated[topicName] = {};
+        if (!updated[topicName][dateKey]) updated[topicName][dateKey] = {};
+        if (!updated[topicName][dateKey][`HR${activeHR}`]) updated[topicName][dateKey][`HR${activeHR}`] = [];
         
-        await cleanSupabaseService.deleteTopicClick(
-          selectedUser, 
-          topicName, 
-          dateKey, 
-          `HR${activeHR}`, 
-          number
-        );
-        
-        // Remove from local state
-        setClickedNumbers(prev => {
-          const updated = { ...prev };
-          if (updated[topicName]?.[dateKey]?.[`HR${activeHR}`]) {
-            const hrNumbers = updated[topicName][dateKey][`HR${activeHR}`];
-            const index = hrNumbers.indexOf(number);
-            if (index > -1) {
-              hrNumbers.splice(index, 1);
-            }
-          }
-          return updated;
-        });
-        
-        console.log(`✅ Number ${number} successfully REMOVED (unclicked)`);
-        
-      } else {
-        // CLICK: Add to database and local state (only matched numbers reach here)
-        console.log(`➕ Adding matched number ${number} (${matchType}) to database and state`);
-        
-        await cleanSupabaseService.saveTopicClick(
-          selectedUser, 
-          topicName, 
-          dateKey, 
-          `HR${activeHR}`, 
-          number, 
-          isMatched // This will always be true here
-        );
-        
-        // Add to local state
-        setClickedNumbers(prev => {
-          const updated = { ...prev };
-          if (!updated[topicName]) updated[topicName] = {};
-          if (!updated[topicName][dateKey]) updated[topicName][dateKey] = {};
-          if (!updated[topicName][dateKey][`HR${activeHR}`]) {
-            updated[topicName][dateKey][`HR${activeHR}`] = [];
-          }
-          
-          const hrNumbers = updated[topicName][dateKey][`HR${activeHR}`];
+        const hrNumbers = updated[topicName][dateKey][`HR${activeHR}`];
+        if (newState) {
+          // Number was added
           if (!hrNumbers.includes(number)) {
             hrNumbers.push(number);
           }
-          
-          return updated;
-        });
+        } else {
+          // Number was removed
+          const index = hrNumbers.indexOf(number);
+          if (index > -1) {
+            hrNumbers.splice(index, 1);
+          }
+        }
         
-        console.log(`✅ Number ${number} successfully ADDED (clicked as ${matchType})`);
-      }
+        return updated;
+      });
+      
+      console.log(`✅ Number ${number} ${newState ? 'added' : 'removed'} successfully`);
       
     } catch (error) {
-      console.error('❌ Error handling number box click:', error);
+      console.error('❌ Error handling robust number box click:', error);
     }
+  }, [activeHR]); // Only depend on activeHR
+
+  // Render number boxes using robust system
+  const renderNumberBoxesRobust = (topicName, dateKey, abcdNumbers, bcdNumbers) => {
+    console.log('🎨 renderNumberBoxesRobust called:', { 
+      topicName, 
+      dateKey, 
+      abcdCount: abcdNumbers?.length || 0, 
+      bcdCount: bcdNumbers?.length || 0,
+      hasController: !!numberBoxControllerRef.current,
+      activeHR
+    });
+    
+    if (!numberBoxControllerRef.current) {
+      console.warn('⚠️ Number box controller not initialized');
+      return (
+        <div className="mt-2 text-center text-xs text-gray-500 py-2 bg-gray-50 rounded border">
+          Number box system initializing...
+        </div>
+      );
+    }
+
+    // Get available dates for eligibility check
+    const availableDates = Object.keys(allDaysData).sort((a, b) => new Date(a) - new Date(b));
+    
+    console.log('🔗 Setting click handler and rendering...');
+    
+    // Set the click handler on the controller
+    numberBoxControllerRef.current.setClickHandler(handleNumberBoxClickRobust);
+    
+    const result = numberBoxControllerRef.current.renderNumberBoxes(topicName, dateKey, availableDates);
+    
+    console.log('✅ Number boxes rendered:', !!result);
+    
+    return result;
   };
 
   // Check if cell should be highlighted and return match type (HR-specific)
@@ -564,134 +580,18 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
     return { highlighted: false };
   };
 
-  // Render clickable number boxes for dates from 5th onward
+  // ✅ NEW: Use robust number box system (replaces old renderNumberBoxes)
   const renderNumberBoxes = (topicName, dateKey) => {
-    // Only show for dates from 5th onward
-    const availableDates = Object.keys(allDaysData).sort((a, b) => new Date(a) - new Date(b));
-    const dateIndex = availableDates.indexOf(dateKey);
-    
-    if (dateIndex < 4) return null; // Don't show for first 4 dates
-    
-    const currentClicks = clickedNumbers[topicName]?.[dateKey]?.[`HR${activeHR}`] || [];
-    
-    // Get ABCD/BCD numbers for this topic and date
+    // Delegate to robust system, but maintain same interface for existing code
     const abcdNumbers = abcdBcdAnalysis[topicName]?.[dateKey]?.abcdNumbers || [];
     const bcdNumbers = abcdBcdAnalysis[topicName]?.[dateKey]?.bcdNumbers || [];
     
-    // Helper function to get button styling based on match type
-    const getButtonStyle = (num, isClicked) => {
-      if (!isClicked) {
-        return 'bg-white text-gray-700 border-gray-300 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:border-gray-400 hover:shadow-sm';
-      }
-      
-      const isAbcdMatch = abcdNumbers.includes(num);
-      const isBcdMatch = bcdNumbers.includes(num);
-      
-      if (isAbcdMatch) {
-        // Orange for ABCD matches
-        return 'text-white border-orange-400 shadow-md scale-105';
-      } else if (isBcdMatch) {
-        // Teal (#41B3A2) for BCD matches
-        return 'text-white shadow-md scale-105';
-      } else {
-        // Default green for non-matching clicked numbers
-        return 'bg-gradient-to-r from-green-400 to-emerald-500 text-white border-emerald-400 shadow-md scale-105';
-      }
-    };
-    
-    // Helper function to get inline styles
-    const getInlineStyle = (num, isClicked) => {
-      if (!isClicked) return {};
-      
-      const isAbcdMatch = abcdNumbers.includes(num);
-      const isBcdMatch = bcdNumbers.includes(num);
-      
-      if (isAbcdMatch) {
-        // Orange for ABCD matches
-        return {
-          backgroundColor: '#FB923C',
-          borderColor: '#F97316',
-          color: 'white'
-        };
-      } else if (isBcdMatch) {
-        // Teal (#41B3A2) for BCD matches
-        return {
-          backgroundColor: '#41B3A2',
-          borderColor: '#359486',
-          color: 'white'
-        };
-      } else {
-        // Default green for non-matching clicked numbers
-        return {
-          background: 'linear-gradient(to right, #4ade80, #10b981)',
-          color: 'white',
-          borderColor: '#10b981'
-        };
-      }
-    };
-    
-    // Debug logging
-    console.log(`🔢 Rendering number boxes for ${topicName} ${dateKey} HR${activeHR}:`, {
-      currentClicks,
-      abcdNumbers,
-      bcdNumbers,
-      clickedNumbersState: clickedNumbers
-    });
-    
-    return (
-      <div className="mt-2 space-y-1">
-        {/* Row 1: Numbers 1-6 */}
-        <div className="flex gap-1 justify-center">
-          {[1, 2, 3, 4, 5, 6].map(num => {
-            const isClicked = currentClicks.includes(num);
-            const isInAbcdBcd = abcdNumbers.includes(num) || bcdNumbers.includes(num);
-            const isDisabled = !isInAbcdBcd || numberBoxLoading;
-            
-            return (
-              <button
-                key={`${topicName}-${dateKey}-${num}`}
-                onClick={() => handleNumberBoxClick(topicName, dateKey, num)}
-                disabled={isDisabled}
-                className={`w-6 h-6 text-xs font-bold rounded border transition-all transform ${
-                  isDisabled 
-                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50' 
-                    : getButtonStyle(num, isClicked)
-                }`}
-                style={isDisabled ? {} : getInlineStyle(num, isClicked)}
-                title={!isInAbcdBcd ? 'Number not in ABCD/BCD arrays' : ''}
-              >
-                {num}
-              </button>
-            );
-          })}
-        </div>
-        {/* Row 2: Numbers 7-12 */}
-        <div className="flex gap-1 justify-center">
-          {[7, 8, 9, 10, 11, 12].map(num => {
-            const isClicked = currentClicks.includes(num);
-            const isInAbcdBcd = abcdNumbers.includes(num) || bcdNumbers.includes(num);
-            const isDisabled = !isInAbcdBcd || numberBoxLoading;
-            
-            return (
-              <button
-                key={`${topicName}-${dateKey}-${num}`}
-                onClick={() => handleNumberBoxClick(topicName, dateKey, num)}
-                disabled={isDisabled}
-                className={`w-6 h-6 text-xs font-bold rounded border transition-all transform ${
-                  isDisabled 
-                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50' 
-                    : getButtonStyle(num, isClicked)
-                }`}
-                style={isDisabled ? {} : getInlineStyle(num, isClicked)}
-                title={!isInAbcdBcd ? 'Number not in ABCD/BCD arrays' : ''}
-              >
-                {num}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
+    return renderNumberBoxesRobust(topicName, dateKey, abcdNumbers, bcdNumbers);
+  };
+
+  // ✅ NEW: Handle number box click with robust system (replaces old handleNumberBoxClick)
+  const handleNumberBoxClick = async (topicName, dateKey, number) => {
+    await handleNumberBoxClickRobust(topicName, dateKey, number);
   };
 
   // Enhanced data loading with caching
@@ -1029,12 +929,8 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
     }
   }, [allDaysData, availableTopics, selectedUser, activeHR]);
 
-  // Load clicked numbers when activeHR changes or component mounts
-  useEffect(() => {
-    if (selectedUser && activeHR && Object.keys(allDaysData).length > 0) {
-      loadClickedNumbers();
-    }
-  }, [selectedUser, activeHR, allDaysData]);
+  // ✅ REPLACED: Load clicked numbers using robust system when activeHR changes or component mounts
+  // This is now handled by the numberBoxController initialization useEffect above
 
   // Calculate highlighted topics count per date (only count topics with clicked+highlighted numbers)
   useEffect(() => {
