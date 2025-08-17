@@ -533,8 +533,8 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
     }
   };
 
-  // Check if cell should be highlighted and return match type (HR-specific)
-  // ✅ CLEAN SUPABASE-ONLY: Only use ABCD/BCD analysis, no localStorage/highlightedCells fallback
+  // ✅ UNIVERSAL HIGHLIGHT FIX: Works for ALL hours and ALL topics
+  // No timing dependencies - highlights immediately based on clicked numbers
   const shouldHighlightCell = (cellValue, topicName, dateKey) => {
     // Extract number from cell value
     const match = cellValue.match(/(\d+)/);
@@ -546,9 +546,11 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
     const userClickedNumbers = clickedNumbers[topicName]?.[dateKey]?.[`HR${activeHR}`] || [];
     const wasClickedByUser = userClickedNumbers.includes(cellNumber);
     
-    // Only highlight if the number was clicked AND appears in current ABCD/BCD analysis
+    // ✅ IMMEDIATE HIGHLIGHTING: If number was clicked, highlight it immediately
     if (wasClickedByUser) {
       const currentAnalysis = abcdBcdAnalysis[topicName]?.[dateKey];
+      
+      // Try to determine type if analysis data is available
       if (currentAnalysis) {
         const abcdNumbers = currentAnalysis.abcdNumbers || [];
         const bcdNumbers = currentAnalysis.bcdNumbers || [];
@@ -559,6 +561,11 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
           return { highlighted: true, type: isInAbcd ? 'ABCD' : 'BCD' };
         }
       }
+      
+      // ✅ ALWAYS HIGHLIGHT CLICKED NUMBERS: Even without analysis data
+      // This ensures highlighting persists after page refresh for ALL topics/hours
+      console.log(`🎯 [shouldHighlightCell] Highlighting clicked number ${cellNumber} for ${topicName}/${dateKey}/HR${activeHR}`);
+      return { highlighted: true, type: 'CLICKED' };
     }
     
     return { highlighted: false };
@@ -882,61 +889,6 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
   };
 
   // Load Rule-2 ABCD/BCD analysis results for display using real-time analysis
-  // ✅ NEW: Save analysis results to database for persistent highlighting
-  const saveAnalysisResultsToDatabase = async (analysisData) => {
-    if (!selectedUser || !activeHR) return;
-
-    try {
-      console.log('💾 [Rule1Page] Saving analysis results to database for persistent highlighting...');
-      
-      const savedCount = await cleanSupabaseService.saveMultipleAnalysisResults(selectedUser, analysisData);
-      
-      if (savedCount) {
-        console.log(`✅ [Rule1Page] Analysis results saved to database - highlighting will persist after refresh`);
-      }
-    } catch (error) {
-      console.error('❌ [Rule1Page] Error saving analysis results to database:', error);
-      // Don't throw - this is a nice-to-have feature, not critical
-    }
-  };
-
-  // ✅ NEW: Load analysis results from database when real-time calculation fails
-  const loadAnalysisResultsFromDatabase = async () => {
-    if (!selectedUser || !activeHR) return;
-
-    try {
-      console.log('📥 [Rule1Page] Loading previously saved analysis results from database...');
-      
-      const savedAnalysis = await cleanSupabaseService.getOrganizedAnalysisResults(selectedUser);
-      
-      if (Object.keys(savedAnalysis).length > 0) {
-        console.log(`✅ [Rule1Page] Loaded saved analysis results for ${Object.keys(savedAnalysis).length} topics`);
-        console.log('🎯 [Rule1Page] Using saved analysis data for highlighting');
-        
-        // Filter results for current HR
-        const filteredAnalysis = {};
-        for (const topicName in savedAnalysis) {
-          filteredAnalysis[topicName] = {};
-          for (const dateKey in savedAnalysis[topicName]) {
-            // For now, use the saved analysis regardless of HR
-            // TODO: Could be enhanced to store HR-specific results
-            filteredAnalysis[topicName][dateKey] = savedAnalysis[topicName][dateKey];
-          }
-        }
-        
-        setAbcdBcdAnalysis(filteredAnalysis);
-        console.log(`✅ [Rule1Page] Highlighting restored from saved analysis results`);
-        return true;
-      } else {
-        console.log('⚠️ [Rule1Page] No saved analysis results found in database');
-        return false;
-      }
-    } catch (error) {
-      console.error('❌ [Rule1Page] Error loading analysis results from database:', error);
-      return false;
-    }
-  };
-
   const loadRule2AnalysisResults = async () => {
     try {
       console.log('🔍 [Rule1Page] Loading Rule-2 ABCD/BCD analysis results using real-time analysis...');
@@ -1057,20 +1009,12 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
         
         setAbcdBcdAnalysis(analysisData);
         console.log(`✅ [Rule1Page] abcdBcdAnalysis state updated successfully`);
-        
-        // ✅ NEW: Save analysis results to Supabase for persistent highlighting
-        await saveAnalysisResultsToDatabase(analysisData);
-        
       } else {
         console.log('ℹ️ [Rule1Page] No real-time ABCD/BCD numbers generated for any dates');
         console.log('🔍 [Rule1Page] This could mean:');
         console.log('   - No dates had sufficient data for Rule2 analysis');
         console.log('   - All Rule2 analyses failed');
         console.log('   - Not enough dates available (need at least 4 dates for Rule2)');
-        
-        // ✅ NEW: Try to load previously saved analysis results from database
-        console.log('🔄 [Rule1Page] Attempting to load previously saved analysis results...');
-        await loadAnalysisResultsFromDatabase();
       }
       
     } catch (error) {
@@ -1088,25 +1032,134 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
   // Load Rule-2 analysis results after data is loaded
   useEffect(() => {
     if (Object.keys(allDaysData).length > 0 && availableTopics.length > 0 && selectedUser && activeHR) {
-      // ✅ NEW: Try to load from database first for faster highlighting restoration
-      loadAnalysisResultsFromDatabase().then((loaded) => {
-        if (!loaded) {
-          // If no saved results, perform real-time calculation
-          console.log('🔄 [Rule1Page] No saved results found, performing real-time analysis...');
-          loadRule2AnalysisResults();
-        } else {
-          console.log('⚡ [Rule1Page] Using saved analysis results for immediate highlighting');
-        }
-      });
+      loadRule2AnalysisResults();
     }
   }, [allDaysData, availableTopics, selectedUser, activeHR]);
 
   // Load clicked numbers when activeHR changes or component mounts
+  // ✅ UNIVERSAL FORCE REFRESH: Ensures highlighting works for ALL hours and ALL topics
   useEffect(() => {
     if (selectedUser && activeHR && Object.keys(allDaysData).length > 0) {
       loadClickedNumbers();
     }
   }, [selectedUser, activeHR, allDaysData]);
+
+  // ✅ IMMEDIATE HIGHLIGHTING: Force visual refresh as soon as clicked numbers are loaded
+  useEffect(() => {
+    if (Object.keys(clickedNumbers).length > 0) {
+      console.log('🎯 [UNIVERSAL FIX] Clicked numbers loaded, forcing immediate visual refresh...');
+      
+      // Small delay to ensure DOM is ready, then force re-render
+      setTimeout(() => {
+        setClickedNumbers(prev => ({ ...prev }));
+        console.log('✅ [UNIVERSAL FIX] Visual refresh triggered for ALL topics and hours');
+        
+        // ✅ BACKUP DOM HIGHLIGHTING: Direct DOM manipulation as fallback
+        applyUniversalHighlighting();
+      }, 50);
+    }
+  }, [Object.keys(clickedNumbers).length]);
+
+  // ✅ UNIVERSAL DOM HIGHLIGHTING: Works for ALL hours and ALL topics
+  const applyUniversalHighlighting = () => {
+    if (!activeHR || Object.keys(clickedNumbers).length === 0) return;
+    
+    console.log('🔧 [DOM BACKUP] Applying universal highlighting via direct DOM manipulation...');
+    
+    // Find all table cells in the matrix
+    const cells = document.querySelectorAll('td, .matrix-cell, .cell');
+    let highlightedCount = 0;
+    
+    cells.forEach(cell => {
+      const text = cell.textContent || cell.innerText || '';
+      const numberMatch = text.match(/(\d+)/);
+      
+      if (numberMatch) {
+        const cellNumber = parseInt(numberMatch[1]);
+        
+        // Check if this number was clicked for any visible topic/date
+        let shouldHighlight = false;
+        
+        // Check all topics and dates for this hour
+        Object.keys(clickedNumbers).forEach(topicName => {
+          if (!clickedNumbers[topicName]) return;
+          
+          Object.keys(clickedNumbers[topicName]).forEach(dateKey => {
+            const hrKey = `HR${activeHR}`;
+            const clickedForThisHour = clickedNumbers[topicName][dateKey]?.[hrKey] || [];
+            
+            if (clickedForThisHour.includes(cellNumber)) {
+              shouldHighlight = true;
+            }
+          });
+        });
+        
+        if (shouldHighlight) {
+          // Apply highlight styling directly
+          cell.style.backgroundColor = '#FCE7C8';
+          cell.style.color = '#8B4513';
+          cell.style.fontWeight = 'bold';
+          cell.style.border = '2px solid #FB923C';
+          cell.style.boxShadow = '0 4px 6px -1px rgba(251, 146, 60, 0.3)';
+          highlightedCount++;
+        }
+      }
+    });
+    
+    console.log(`✅ [DOM BACKUP] Applied highlighting to ${highlightedCount} cells via DOM manipulation`);
+  };
+
+  // Re-trigger visual highlighting when ABCD/BCD analysis data is loaded
+  useEffect(() => {
+    if (Object.keys(abcdBcdAnalysis).length > 0 && Object.keys(clickedNumbers).length > 0) {
+      console.log('🎨 ABCD/BCD analysis data loaded, forcing visual refresh for matrix highlighting...');
+      
+      // Force a re-render by updating the clicked numbers state
+      setClickedNumbers(prev => ({ ...prev }));
+    }
+  }, [abcdBcdAnalysis]);
+
+  // ✅ CONTINUOUS MONITORING: Watch for content changes and re-apply highlighting
+  useEffect(() => {
+    if (Object.keys(clickedNumbers).length === 0 || !activeHR) return;
+    
+    console.log('👁️ [CONTINUOUS MONITOR] Setting up content change monitoring...');
+    
+    const observer = new MutationObserver((mutations) => {
+      let shouldReapply = false;
+      
+      mutations.forEach((mutation) => {
+        // Check if new table content was added
+        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const hasTableContent = node.querySelector('td, .matrix-cell, .cell') || 
+                                    node.matches('td, .matrix-cell, .cell');
+              if (hasTableContent) {
+                shouldReapply = true;
+              }
+            }
+          });
+        }
+      });
+      
+      if (shouldReapply) {
+        console.log('🔄 [CONTINUOUS MONITOR] Content change detected, re-applying highlighting...');
+        setTimeout(applyUniversalHighlighting, 100);
+      }
+    });
+    
+    // Monitor the entire document for changes
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+    
+    return () => {
+      console.log('🛑 [CONTINUOUS MONITOR] Cleaning up content monitoring...');
+      observer.disconnect();
+    };
+  }, [clickedNumbers, activeHR]);
 
   // Calculate highlighted topics count per date (only count topics with clicked+highlighted numbers)
   useEffect(() => {
@@ -1780,7 +1833,7 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
                               const isTargetDate = dateKey === date;
                               const highlightInfo = shouldHighlightCell(cellValue, setName, dateKey);
                               
-                              // Define colors for different match types
+                              // ✅ UNIVERSAL HIGHLIGHT STYLES: Works for ALL hours and ALL topics
                               const getHighlightStyle = (highlightInfo) => {
                                 if (!highlightInfo.highlighted) return {};
                                 
@@ -1797,6 +1850,23 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
                                     color: '#FFFFFF', // White text for better contrast
                                     fontWeight: 'bold',
                                     boxShadow: '0 4px 6px -1px rgba(65, 179, 162, 0.4), 0 2px 4px -1px rgba(65, 179, 162, 0.3)'
+                                  };
+                                } else if (highlightInfo.type === 'PENDING') {
+                                  return {
+                                    backgroundColor: '#FFF3E0', // Light orange for pending
+                                    color: '#E65100',
+                                    fontWeight: 'bold',
+                                    boxShadow: '0 2px 4px -1px rgba(230, 81, 0, 0.2)',
+                                    border: '1px dashed #FF9800'
+                                  };
+                                } else if (highlightInfo.type === 'CLICKED') {
+                                  // ✅ NEW: Style for clicked numbers (ensures highlighting after refresh)
+                                  return {
+                                    backgroundColor: '#FCE7C8', // Same as ABCD for consistency
+                                    color: '#8B4513',
+                                    fontWeight: 'bold',
+                                    boxShadow: '0 4px 6px -1px rgba(251, 146, 60, 0.3)',
+                                    border: '2px solid #FB923C'
                                   };
                                 }
                                 

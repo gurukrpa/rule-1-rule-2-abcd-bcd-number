@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rule-1 Highlighting Issue Diagnostic</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .button:hover {
+            background: #005a8b;
+        }
+        .button.danger {
+            background: #dc3545;
+        }
+        .button.danger:hover {
+            background: #c82333;
+        }
+        .button.success {
+            background: #28a745;
+        }
+        .button.success:hover {
+            background: #218838;
+        }
+        .diagnostic-output {
+            background: #1e1e1e;
+            color: #ffffff;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 500px;
+            overflow-y: auto;
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .warning {
+            background: #fff3cd;
+            border-color: #ffeaa7;
+            color: #856404;
+        }
+        .success {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            border-color: #bee5eb;
+            color: #0c5460;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        .test-topic {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #e9ecef;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-ok { background: #28a745; }
+        .status-warning { background: #ffc107; }
+        .status-error { background: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Rule-1 Page Highlighting Issue Diagnostic</h1>
+        <p><strong>Purpose:</strong> Diagnose why clicked numbers are showing after refresh but not highlighting for some topics.</p>
+        
+        <div class="section warning">
+            <h3>⚠️ Instructions</h3>
+            <ol>
+                <li><strong>First:</strong> Open the main application at <a href="http://localhost:5173/" target="_blank">http://localhost:5173/</a></li>
+                <li><strong>Navigate to Rule-1 page</strong> and select a user and date</li>
+                <li><strong>Click some numbers</strong> in number boxes for different topics</li>
+                <li><strong>Refresh the page</strong> to reproduce the issue</li>
+                <li><strong>Come back here</strong> and run the diagnostics below</li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h3>🔧 Quick Diagnostics</h3>
+            <div class="grid">
+                <div>
+                    <button class="button" onclick="loadDiagnosticScript()">Load Diagnostic Script</button>
+                    <button class="button success" onclick="runFullDiagnostic()">Run Full Diagnostic</button>
+                </div>
+                <div>
+                    <button class="button" onclick="checkComponentState()">Check Component State</button>
+                    <button class="button" onclick="checkDatabaseClicks()">Check Database Clicks</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>🎯 Topic-Specific Tests</h3>
+            <div id="topicTests">
+                <p>Load diagnostic script first to enable topic-specific tests</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>🔍 Manual Inspection Tools</h3>
+            <button class="button" onclick="inspectClickedNumbers()">Inspect Clicked Numbers State</button>
+            <button class="button" onclick="inspectAbcdBcdAnalysis()">Inspect ABCD/BCD Analysis</button>
+            <button class="button" onclick="inspectHighlightingLogic()">Test Highlighting Logic</button>
+            <button class="button danger" onclick="clearOutput()">Clear Output</button>
+        </div>
+
+        <div class="section">
+            <h3>📊 Diagnostic Output</h3>
+            <div id="output" class="diagnostic-output">
+                🚀 Ready to run diagnostics...\n
+                First, make sure you have navigated to Rule-1 page and experienced the highlighting issue.
+            </div>
+        </div>
+
+        <div class="section info">
+            <h3>🔍 Common Issues & Solutions</h3>
+            <ul>
+                <li><strong>Missing ABCD/BCD Analysis:</strong> Numbers won't highlight if analysis data is missing</li>
+                <li><strong>HR Mismatch:</strong> Clicks stored for different HR than currently active</li>
+                <li><strong>Topic Name Mismatch:</strong> Database topic names might not match UI topic names</li>
+                <li><strong>Date Format Issues:</strong> Date keys might be in different formats</li>
+                <li><strong>Component State Issues:</strong> React state might not be properly updating</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let diagnosticScriptLoaded = false;
+        
+        function log(message) {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toLocaleTimeString();
+            output.textContent += `[${timestamp}] ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearOutput() {
+            document.getElementById('output').textContent = '';
+            log('Output cleared');
+        }
+
+        function getMainWindow() {
+            // Try to get the main application window
+            const mainWindow = window.open('', 'main');
+            if (mainWindow && mainWindow.location.href.includes('localhost:5173')) {
+                return mainWindow;
+            }
+            
+            // If not found, try to open it
+            const newWindow = window.open('http://localhost:5173/', 'main');
+            if (newWindow) {
+                log('⚠️ Opened new window - please navigate to Rule-1 page');
+                return newWindow;
+            }
+            
+            return null;
+        }
+
+        async function loadDiagnosticScript() {
+            try {
+                log('📥 Loading diagnostic script...');
+                
+                const response = await fetch('/rule1-highlighting-diagnostic.js');
+                const scriptContent = await response.text();
+                
+                const mainWindow = getMainWindow();
+                if (!mainWindow) {
+                    log('❌ Cannot access main application window');
+                    log('Please open http://localhost:5173/ first');
+                    return;
+                }
+
+                // Inject the script into the main window
+                const script = mainWindow.document.createElement('script');
+                script.textContent = scriptContent;
+                mainWindow.document.head.appendChild(script);
+                
+                diagnosticScriptLoaded = true;
+                log('✅ Diagnostic script loaded successfully');
+                
+                // Create topic-specific test buttons
+                createTopicTestButtons(mainWindow);
+                
+            } catch (error) {
+                log(`❌ Error loading diagnostic script: ${error.message}`);
+            }
+        }
+
+        function createTopicTestButtons(mainWindow) {
+            const topicTestsDiv = document.getElementById('topicTests');
+            
+            try {
+                // Get available topics from the main window
+                const state = getReactState(mainWindow);
+                if (state && state.availableTopics) {
+                    const topics = state.availableTopics.slice(0, 6); // Show first 6 topics
+                    
+                    topicTestsDiv.innerHTML = '';
+                    topics.forEach(topicName => {
+                        const button = document.createElement('button');
+                        button.className = 'button';
+                        button.textContent = `Test ${topicName}`;
+                        button.onclick = () => testSpecificTopic(topicName);
+                        topicTestsDiv.appendChild(button);
+                    });
+                } else {
+                    topicTestsDiv.innerHTML = '<p class="error">Could not load available topics. Make sure you\'re on Rule-1 page.</p>';
+                }
+            } catch (error) {
+                topicTestsDiv.innerHTML = '<p class="error">Error creating topic buttons: ' + error.message + '</p>';
+            }
+        }
+
+        function getReactState(targetWindow = null) {
+            const win = targetWindow || getMainWindow();
+            if (!win) return null;
+
+            try {
+                // Try different methods to get React state
+                const root = win.document.querySelector('#root');
+                if (!root) return null;
+
+                // Try fiber node approach
+                const fiberNode = root._reactInternalFiber || root._reactInternalInstance;
+                if (fiberNode) {
+                    return fiberNode.child?.stateNode?.state || fiberNode.return?.stateNode?.state;
+                }
+
+                // Try newer React versions
+                const reactFiber = Object.keys(root).find(key => key.startsWith('__reactInternalInstance'));
+                if (reactFiber) {
+                    return root[reactFiber]?.child?.stateNode?.state;
+                }
+
+                return null;
+            } catch (error) {
+                log(`Error getting React state: ${error.message}`);
+                return null;
+            }
+        }
+
+        async function runFullDiagnostic() {
+            if (!diagnosticScriptLoaded) {
+                await loadDiagnosticScript();
+                if (!diagnosticScriptLoaded) return;
+            }
+
+            const mainWindow = getMainWindow();
+            if (!mainWindow) {
+                log('❌ Cannot access main application window');
+                return;
+            }
+
+            try {
+                log('🚀 Running full diagnostic...');
+                
+                if (mainWindow.rule1HighlightingDiagnostic) {
+                    const result = mainWindow.rule1HighlightingDiagnostic.runFullDiagnostic();
+                    log('✅ Full diagnostic completed - check main window console for details');
+                    
+                    // Copy some key results to our output
+                    if (result) {
+                        log(`📊 Summary:`);
+                        log(`  • Total clicked numbers: ${result.loadingStatus?.totalClicks || 0}`);
+                        log(`  • Missing analysis combinations: ${result.missingAnalysis?.length || 0}`);
+                        log(`  • Topics with issues: ${result.currentDateResults?.filter(r => r.issue).length || 0}`);
+                    }
+                } else {
+                    log('❌ Diagnostic script not found in main window');
+                }
+            } catch (error) {
+                log(`❌ Error running diagnostic: ${error.message}`);
+            }
+        }
+
+        function checkComponentState() {
+            const mainWindow = getMainWindow();
+            if (!mainWindow) {
+                log('❌ Cannot access main application window');
+                return;
+            }
+
+            try {
+                const state = getReactState(mainWindow);
+                if (state) {
+                    log('✅ Component state found:');
+                    log(`  • Selected User: ${state.selectedUser || 'None'}`);
+                    log(`  • Active HR: ${state.activeHR || 'None'}`);
+                    log(`  • Current Date: ${state.date || 'None'}`);
+                    log(`  • Available Topics: ${state.availableTopics?.length || 0}`);
+                    log(`  • Clicked Numbers Keys: ${Object.keys(state.clickedNumbers || {}).length}`);
+                    log(`  • ABCD/BCD Analysis Keys: ${Object.keys(state.abcdBcdAnalysis || {}).length}`);
+                } else {
+                    log('❌ Could not access component state');
+                    log('Make sure you\'re on the Rule-1 page');
+                }
+            } catch (error) {
+                log(`❌ Error checking component state: ${error.message}`);
+            }
+        }
+
+        function checkDatabaseClicks() {
+            log('🔍 Checking database clicks...');
+            log('This will check if clicks are properly stored in the database');
+            
+            const mainWindow = getMainWindow();
+            if (!mainWindow) {
+                log('❌ Cannot access main application window');
+                return;
+            }
+
+            // Check if cleanSupabaseService is available
+            if (mainWindow.cleanSupabaseService) {
+                log('✅ Found cleanSupabaseService - manual database query needed');
+                log('Run this in main window console:');
+                log('cleanSupabaseService.getTopicClicks("your-user-id")');
+            } else {
+                log('⚠️ cleanSupabaseService not found in global scope');
+                log('Check browser console in main window for database-related logs');
+            }
+        }
+
+        function testSpecificTopic(topicName) {
+            if (!diagnosticScriptLoaded) {
+                log('❌ Load diagnostic script first');
+                return;
+            }
+
+            const mainWindow = getMainWindow();
+            if (!mainWindow || !mainWindow.rule1HighlightingDiagnostic) {
+                log('❌ Cannot access diagnostic functions');
+                return;
+            }
+
+            try {
+                log(`🧪 Testing topic: ${topicName}`);
+                const result = mainWindow.rule1HighlightingDiagnostic.testTopic(topicName);
+                log('✅ Topic test completed - check main window console for details');
+            } catch (error) {
+                log(`❌ Error testing topic: ${error.message}`);
+            }
+        }
+
+        function inspectClickedNumbers() {
+            const mainWindow = getMainWindow();
+            if (!mainWindow) {
+                log('❌ Cannot access main application window');
+                return;
+            }
+
+            try {
+                const state = getReactState(mainWindow);
+                if (state && state.clickedNumbers) {
+                    log('📊 Clicked Numbers State:');
+                    log(JSON.stringify(state.clickedNumbers, null, 2));
+                } else {
+                    log('❌ No clicked numbers state found');
+                }
+            } catch (error) {
+                log(`❌ Error inspecting clicked numbers: ${error.message}`);
+            }
+        }
+
+        function inspectAbcdBcdAnalysis() {
+            const mainWindow = getMainWindow();
+            if (!mainWindow) {
+                log('❌ Cannot access main application window');
+                return;
+            }
+
+            try {
+                const state = getReactState(mainWindow);
+                if (state && state.abcdBcdAnalysis) {
+                    log('📊 ABCD/BCD Analysis State:');
+                    log(JSON.stringify(state.abcdBcdAnalysis, null, 2));
+                } else {
+                    log('❌ No ABCD/BCD analysis state found');
+                }
+            } catch (error) {
+                log(`❌ Error inspecting ABCD/BCD analysis: ${error.message}`);
+            }
+        }
+
+        function inspectHighlightingLogic() {
+            const mainWindow = getMainWindow();
+            if (!mainWindow) {
+                log('❌ Cannot access main application window');
+                return;
+            }
+
+            try {
+                log('🔍 Testing highlighting logic...');
+                log('Check main window console for shouldHighlightCell function details');
+                
+                // Test the shouldHighlightCell function
+                if (mainWindow.console) {
+                    mainWindow.console.log('%c🔍 Highlighting Logic Test', 'color: blue; font-weight: bold;');
+                    mainWindow.console.log('Run this to test a specific cell:');
+                    mainWindow.console.log('shouldHighlightCell("test-123", "D-1 Set-1 Matrix", "2025-07-21")');
+                }
+            } catch (error) {
+                log(`❌ Error inspecting highlighting logic: ${error.message}`);
+            }
+        }
+
+        // Auto-load diagnostic script after page loads
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                log('🔧 Page loaded - ready for diagnostics');
+                log('Tip: Load the diagnostic script first, then run full diagnostic');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Set-1 Hour 1 Data Extractor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        .button:hover {
+            background: #005a8b;
+        }
+        .button.success {
+            background: #28a745;
+        }
+        .button.success:hover {
+            background: #218838;
+        }
+        .button.warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        .button.warning:hover {
+            background: #e0a800;
+        }
+        .output {
+            background: #1e1e1e;
+            color: #ffffff;
+            padding: 20px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 600px;
+            overflow-y: auto;
+            margin: 15px 0;
+            white-space: pre-wrap;
+            border: 2px solid #333;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: #fafafa;
+        }
+        .section h3 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #007cba;
+            padding-bottom: 10px;
+        }
+        .info {
+            background: #d1ecf1;
+            border-color: #bee5eb;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .data-card {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .data-card h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 16px;
+        }
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .data-row:last-child {
+            border-bottom: none;
+        }
+        .status-good { color: #28a745; font-weight: bold; }
+        .status-bad { color: #dc3545; font-weight: bold; }
+        .status-neutral { color: #6c757d; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Set-1 Hour 1 Data Extractor</h1>
+        <p><strong>Purpose:</strong> Extract and analyze data for all Set-1 topics in Hour 1 from the Rule-1 page.</p>
+        
+        <div class="info">
+            <h4>📋 Instructions:</h4>
+            <ol>
+                <li><strong>Navigate to Rule-1 page:</strong> <a href="http://localhost:5173/" target="_blank" rel="noopener">http://localhost:5173/</a></li>
+                <li><strong>Select a user and date</strong></li>
+                <li><strong>Make sure you're on Hour 1 (HR1)</strong></li>
+                <li><strong>Come back here and click "Load Extractor"</strong></li>
+                <li><strong>Use the extraction buttons below</strong></li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h3>🔧 Data Extraction Tools</h3>
+            <div class="grid">
+                <div>
+                    <button class="button" onclick="loadExtractor()">Load Extractor Script</button>
+                    <button class="button" onclick="checkStatus()">Check Window Status</button>
+                </div>
+                <div>
+                    <button class="button success" onclick="quickSummary()">Quick Summary</button>
+                    <button class="button" onclick="extractAllData()">Extract All Set-1 Data</button>
+                </div>
+                <div>
+                    <button class="button" onclick="extractMatrixData()">Extract Matrix Data</button>
+                    <button class="button warning" onclick="exportData()">Export JSON Data</button>
+                </div>
+                <div>
+                    <button class="button" onclick="clearOutput()">Clear Output</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>📊 Data Summary</h3>
+            <div id="summaryCards" class="grid">
+                <div class="data-card">
+                    <h4>📈 Quick Stats</h4>
+                    <div id="quickStats">Load extractor first...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>📋 Extraction Output</h3>
+            <div id="output" class="output">
+                🚀 Ready to extract Set-1 Hour 1 data...\n
+                First, navigate to Rule-1 page and load the extractor script.
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>💡 What This Extracts</h3>
+            <ul>
+                <li><strong>Set-1 Topics:</strong> All topics containing "Set-1" (D-1 Set-1, D-3 Set-1, etc.)</li>
+                <li><strong>Hour 1 Data:</strong> Specifically HR1 data for each topic</li>
+                <li><strong>ABCD/BCD Numbers:</strong> Analysis results for highlighting</li>
+                <li><strong>User Clicks:</strong> Numbers clicked by the current user</li>
+                <li><strong>Raw Matrix Data:</strong> Original data from Excel/database</li>
+                <li><strong>Compact Format:</strong> Processed number sequences</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let extractorLoaded = false;
+        
+        function log(message) {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toLocaleTimeString();
+            output.textContent += `[${timestamp}] ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearOutput() {
+            document.getElementById('output').textContent = '';
+            log('Output cleared');
+        }
+
+        function getMainWindow() {
+            // Method 1: Try to find existing main window
+            try {
+                // Check if we can access a window that was opened earlier
+                if (window.mainAppWindow && !window.mainAppWindow.closed) {
+                    return window.mainAppWindow;
+                }
+            } catch (e) {
+                // Window might be closed or inaccessible
+            }
+
+            // Method 2: Try to find a window with the right URL
+            try {
+                // This is a hack but sometimes works
+                const opener = window.opener;
+                if (opener && opener.location.href.includes('localhost:5173')) {
+                    return opener;
+                }
+            } catch (e) {
+                // Cross-origin or no opener
+            }
+
+            // Method 3: Open new window and store reference
+            log('🔄 Opening new main application window...');
+            const newWindow = window.open('http://localhost:5173/', 'mainApp', 'width=1200,height=800');
+            if (newWindow) {
+                window.mainAppWindow = newWindow;
+                log('✅ New window opened - please navigate to Rule-1 page');
+                log('📋 Steps: Select user → Go to Rule-1 → Choose date → Set to HR1');
+                return newWindow;
+            }
+
+            return null;
+        }
+
+        function checkMainWindowStatus() {
+            const mainWindow = getMainWindow();
+            if (!mainWindow) {
+                log('❌ Cannot access main application window');
+                return { accessible: false };
+            }
+
+            if (mainWindow.closed) {
+                log('❌ Main window is closed');
+                return { accessible: false };
+            }
+
+            try {
+                const url = mainWindow.location.href;
+                const hasReact = !!mainWindow.document.querySelector('#root');
+                const hasExtractor = !!mainWindow.set1Hour1DataExtractor;
+                
+                return {
+                    accessible: true,
+                    url: url,
+                    hasReact: hasReact,
+                    hasExtractor: hasExtractor,
+                    isOnCorrectPage: url.includes('localhost:5173')
+                };
+            } catch (e) {
+                log('⚠️ Cannot access main window details (might be loading...)');
+                return { accessible: true, checking: true };
+            }
+        }
+
+        async function loadExtractor() {
+            try {
+                log('📥 Loading Set-1 Hour 1 data extractor...');
+                
+                const response = await fetch('/set1-hour1-data-extractor.js');
+                const scriptContent = await response.text();
+                
+                const mainWindow = getMainWindow();
+                if (!mainWindow) {
+                    log('❌ Cannot access main application window');
+                    log('Please manually open http://localhost:5173/ and navigate to Rule-1 page');
+                    return;
+                }
+
+                // Wait a bit if window is still loading
+                log('⏳ Waiting for main window to load...');
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                // Check window status
+                const status = checkMainWindowStatus();
+                if (!status.accessible) {
+                    log('❌ Main window not accessible');
+                    return;
+                }
+
+                if (!status.hasReact) {
+                    log('⚠️ React app not detected in main window');
+                    log('📋 Make sure you navigate to the Rule-1 page first');
+                }
+
+                // Inject the script into the main window
+                try {
+                    const script = mainWindow.document.createElement('script');
+                    script.textContent = scriptContent;
+                    mainWindow.document.head.appendChild(script);
+                    
+                    extractorLoaded = true;
+                    log('✅ Set-1 Hour 1 data extractor loaded successfully');
+                    log('🎯 Ready to extract data from Rule-1 page');
+                    
+                    // Wait a moment for script to initialize
+                    setTimeout(() => {
+                        const hasExtractor = !!mainWindow.set1Hour1DataExtractor;
+                        if (hasExtractor) {
+                            log('✅ Extractor functions are available');
+                            // Auto-run quick summary
+                            quickSummary();
+                        } else {
+                            log('⚠️ Extractor functions not available yet - try again in a moment');
+                        }
+                    }, 1000);
+                    
+                } catch (scriptError) {
+                    log(`❌ Error injecting script: ${scriptError.message}`);
+                    log('💡 Make sure you\'re on the Rule-1 page in the main window');
+                }
+                
+            } catch (error) {
+                log(`❌ Error loading extractor: ${error.message}`);
+            }
+        }
+
+        function quickSummary() {
+            if (!extractorLoaded) {
+                log('❌ Load extractor script first');
+                return;
+            }
+
+            const status = checkMainWindowStatus();
+            if (!status.accessible) {
+                log('❌ Cannot access main window');
+                return;
+            }
+
+            const mainWindow = window.mainAppWindow || getMainWindow();
+            if (!mainWindow || !mainWindow.set1Hour1DataExtractor) {
+                log('❌ Extractor functions not available');
+                log('💡 Make sure you are on the Rule-1 page with data loaded');
+                log('🔄 Try refreshing the Rule-1 page and loading the extractor again');
+                return;
+            }
+
+            try {
+                log('📊 Running quick summary...');
+                const summary = mainWindow.set1Hour1DataExtractor.quickSummary();
+                
+                if (summary) {
+                    // Update summary cards
+                    updateSummaryCards(summary);
+                    log('✅ Quick summary completed');
+                } else {
+                    log('⚠️ No summary data available - make sure you\'re on Rule-1 page with data loaded');
+                }
+            } catch (error) {
+                log(`❌ Error running quick summary: ${error.message}`);
+                log('💡 Try navigating to Rule-1 page and loading data first');
+            }
+        }
+
+        function extractAllData() {
+            if (!extractorLoaded) {
+                log('❌ Load extractor script first');
+                return;
+            }
+
+            const mainWindow = getMainWindow();
+            if (!mainWindow || !mainWindow.set1Hour1DataExtractor) {
+                log('❌ Cannot access extractor functions');
+                return;
+            }
+
+            try {
+                log('🔍 Extracting all Set-1 Hour 1 data...');
+                const data = mainWindow.set1Hour1DataExtractor.extractAllSet1Hour1Data();
+                log('✅ Data extraction completed - check main window console for details');
+                
+                if (data) {
+                    const topicCount = Object.keys(data).length;
+                    log(`📊 Extracted data for ${topicCount} Set-1 topics`);
+                }
+            } catch (error) {
+                log(`❌ Error extracting data: ${error.message}`);
+            }
+        }
+
+        function extractMatrixData() {
+            if (!extractorLoaded) {
+                log('❌ Load extractor script first');
+                return;
+            }
+
+            const mainWindow = getMainWindow();
+            if (!mainWindow || !mainWindow.set1Hour1DataExtractor) {
+                log('❌ Cannot access extractor functions');
+                return;
+            }
+
+            try {
+                log('🗂️ Extracting Set-1 matrix data...');
+                const matrixData = mainWindow.set1Hour1DataExtractor.extractSet1MatrixData();
+                log('✅ Matrix data extraction completed - check main window console');
+                
+                if (matrixData) {
+                    const topicCount = Object.keys(matrixData).length;
+                    log(`📋 Extracted matrix data for ${topicCount} Set-1 topics`);
+                }
+            } catch (error) {
+                log(`❌ Error extracting matrix data: ${error.message}`);
+            }
+        }
+
+        function exportData() {
+            if (!extractorLoaded) {
+                log('❌ Load extractor script first');
+                return;
+            }
+
+            const mainWindow = getMainWindow();
+            if (!mainWindow || !mainWindow.set1Hour1DataExtractor) {
+                log('❌ Cannot access extractor functions');
+                return;
+            }
+
+            try {
+                log('💾 Exporting Set-1 Hour 1 data...');
+                const exportData = mainWindow.set1Hour1DataExtractor.exportSet1Hour1Data();
+                
+                if (exportData) {
+                    log('✅ Data exported successfully');
+                    log('📂 Access via: window.set1Hour1ExportData in main window');
+                    log('📊 Summary: ' + JSON.stringify(exportData.summary, null, 2));
+                    
+                    // Also create download link
+                    const dataStr = JSON.stringify(exportData, null, 2);
+                    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                    const url = URL.createObjectURL(dataBlob);
+                    
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `set1-hour1-data-${new Date().toISOString().split('T')[0]}.json`;
+                    link.click();
+                    
+                    log('📥 JSON file downloaded automatically');
+                }
+            } catch (error) {
+                log(`❌ Error exporting data: ${error.message}`);
+            }
+        }
+
+        function checkStatus() {
+            log('🔍 Checking main window status...');
+            
+            const status = checkMainWindowStatus();
+            
+            if (!status.accessible) {
+                log('❌ Main window not accessible');
+                log('💡 Click "Load Extractor Script" to open a new window');
+                return;
+            }
+
+            if (status.checking) {
+                log('⏳ Main window is loading...');
+                return;
+            }
+
+            log(`✅ Main window accessible`);
+            log(`🌐 URL: ${status.url}`);
+            log(`⚛️ React app detected: ${status.hasReact ? '✅' : '❌'}`);
+            log(`🔧 Extractor loaded: ${status.hasExtractor ? '✅' : '❌'}`);
+            log(`📍 On correct page: ${status.isOnCorrectPage ? '✅' : '❌'}`);
+
+            if (!status.hasReact) {
+                log('💡 Navigate to the Rule-1 page in the main window');
+            }
+
+            if (!status.hasExtractor) {
+                log('💡 Click "Load Extractor Script" to inject the functions');
+            }
+
+            if (status.hasReact && status.hasExtractor) {
+                log('🎯 Ready to extract data!');
+            }
+        }
+
+        function updateSummaryCards(summary) {
+            const quickStats = document.getElementById('quickStats');
+            quickStats.innerHTML = `
+                <div class="data-row">
+                    <span>Total Set-1 Topics:</span>
+                    <span class="status-neutral">${summary.totalTopics}</span>
+                </div>
+                <div class="data-row">
+                    <span>With Analysis:</span>
+                    <span class="${summary.withAnalysis > 0 ? 'status-good' : 'status-bad'}">${summary.withAnalysis}</span>
+                </div>
+                <div class="data-row">
+                    <span>With Raw Data:</span>
+                    <span class="${summary.withRawData > 0 ? 'status-good' : 'status-bad'}">${summary.withRawData}</span>
+                </div>
+                <div class="data-row">
+                    <span>With User Clicks:</span>
+                    <span class="${summary.withClicks > 0 ? 'status-good' : 'status-neutral'}">${summary.withClicks}</span>
+                </div>
+            `;
+        }
+
+        // Auto-load extractor after page loads
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                log('🔧 Page loaded - ready to extract Set-1 Hour 1 data');
+                log('Tip: Load the extractor script first, then use the extraction tools');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

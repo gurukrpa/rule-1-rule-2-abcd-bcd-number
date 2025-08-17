@@ -596,6 +596,143 @@ class CleanSupabaseService {
     }
   }
 
+  // ✅ NEW: Save ABCD/BCD analysis results
+  async saveAnalysisResults(userId, topicName, dateKey, hour, abcdNumbers, bcdNumbers, metadata = {}) {
+    try {
+      console.log(`💾 Saving analysis results for ${topicName} on ${dateKey} HR${hour}:`, {
+        abcdNumbers,
+        bcdNumbers,
+        metadata
+      });
+
+      const { data, error } = await this.supabase
+        .from('topic_analysis_results')
+        .upsert({
+          user_id: userId,
+          topic_name: topicName,
+          date_key: dateKey,
+          hour: `HR${hour}`,
+          abcd_numbers: abcdNumbers,
+          bcd_numbers: bcdNumbers,
+          analysis_source: metadata.source || 'rule2_analysis',
+          analysis_date: metadata.analysisDate || dateKey,
+          pattern_type: metadata.pattern || 'N-1',
+          metadata: metadata,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,topic_name,date_key,hour'
+        });
+
+      if (error) throw error;
+      console.log(`✅ Analysis results saved for ${topicName} on ${dateKey} HR${hour}`);
+      return true;
+    } catch (error) {
+      console.error('❌ Error saving analysis results:', error);
+      throw error;
+    }
+  }
+
+  // ✅ NEW: Get ABCD/BCD analysis results
+  async getAnalysisResults(userId, topicName = null, dateKey = null, hour = null) {
+    try {
+      let query = this.supabase
+        .from('topic_analysis_results')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (topicName) query = query.eq('topic_name', topicName);
+      if (dateKey) query = query.eq('date_key', dateKey);
+      if (hour) query = query.eq('hour', `HR${hour}`);
+
+      const { data, error } = await query.order('updated_at', { ascending: false });
+
+      if (error) throw error;
+      console.log(`✅ Retrieved ${data.length} analysis results for user ${userId}`);
+      return data;
+    } catch (error) {
+      console.error('❌ Error getting analysis results:', error);
+      throw error;
+    }
+  }
+
+  // ✅ NEW: Get analysis results organized by topic and date
+  async getOrganizedAnalysisResults(userId) {
+    try {
+      const results = await this.getAnalysisResults(userId);
+      
+      // Organize by topic -> date -> hour
+      const organized = {};
+      
+      results.forEach(result => {
+        const { topic_name, date_key, hour, abcd_numbers, bcd_numbers } = result;
+        
+        if (!organized[topic_name]) {
+          organized[topic_name] = {};
+        }
+        if (!organized[topic_name][date_key]) {
+          organized[topic_name][date_key] = {};
+        }
+        
+        organized[topic_name][date_key] = {
+          abcdNumbers: abcd_numbers || [],
+          bcdNumbers: bcd_numbers || [],
+          source: result.analysis_source,
+          analysisDate: result.analysis_date,
+          pattern: result.pattern_type,
+          metadata: result.metadata,
+          updatedAt: result.updated_at
+        };
+      });
+
+      console.log(`✅ Organized analysis results for ${Object.keys(organized).length} topics`);
+      return organized;
+    } catch (error) {
+      console.error('❌ Error organizing analysis results:', error);
+      throw error;
+    }
+  }
+
+  // ✅ NEW: Save multiple analysis results at once (batch operation)
+  async saveMultipleAnalysisResults(userId, analysisData) {
+    try {
+      console.log(`💾 Batch saving analysis results for ${Object.keys(analysisData).length} topics`);
+      
+      const insertData = [];
+      
+      for (const topicName in analysisData) {
+        for (const dateKey in analysisData[topicName]) {
+          const analysis = analysisData[topicName][dateKey];
+          insertData.push({
+            user_id: userId,
+            topic_name: topicName,
+            date_key: dateKey,
+            hour: 'HR1', // Default to HR1, can be parameterized
+            abcd_numbers: analysis.abcdNumbers || [],
+            bcd_numbers: analysis.bcdNumbers || [],
+            analysis_source: analysis.source || 'rule2_analysis',
+            analysis_date: analysis.analysisDate || dateKey,
+            pattern_type: analysis.pattern || 'N-1',
+            metadata: analysis.metadata || {},
+            updated_at: new Date().toISOString()
+          });
+        }
+      }
+
+      const { data, error } = await this.supabase
+        .from('topic_analysis_results')
+        .upsert(insertData, {
+          onConflict: 'user_id,topic_name,date_key,hour'
+        });
+
+      if (error) throw error;
+      console.log(`✅ Batch saved ${insertData.length} analysis results`);
+      return true;
+    } catch (error) {
+      console.error('❌ Error batch saving analysis results:', error);
+      throw error;
+    }
+  }
+
   // Health check
   async checkConnection() {
     try {
