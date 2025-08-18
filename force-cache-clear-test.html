@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Force Cache Clear & Test Sync</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .step { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .code { background: #f8f9fa; padding: 10px; border-radius: 3px; font-family: monospace; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Force Cache Clear & Test Cross-Page Sync</h1>
+    
+    <div class="step info">
+        <h3>Step 1: Manual Cache Clear Instructions</h3>
+        <p>Please perform these steps manually in your browser:</p>
+        <ol>
+            <li><strong>Hard Reload:</strong> Press <code>Ctrl+Shift+R</code> (or <code>Cmd+Shift+R</code> on Mac)</li>
+            <li><strong>Clear Browser Cache:</strong>
+                <ul>
+                    <li>Press <code>F12</code> to open Developer Tools</li>
+                    <li>Right-click the refresh button and select "Empty Cache and Hard Reload"</li>
+                    <li>Or go to Developer Tools → Network tab → check "Disable cache"</li>
+                </ul>
+            </li>
+            <li><strong>Clear Application Storage:</strong>
+                <ul>
+                    <li>In Developer Tools → Application tab → Storage</li>
+                    <li>Click "Clear site data"</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+
+    <div class="step">
+        <h3>Step 2: Automated Cache Clear</h3>
+        <button onclick="clearAllCaches()">🧹 Clear All Caches</button>
+        <div id="cache-status"></div>
+    </div>
+
+    <div class="step">
+        <h3>Step 3: Fresh Import Test</h3>
+        <button onclick="testFreshImport()">🔄 Test Fresh Import</button>
+        <div id="import-test-results"></div>
+    </div>
+
+    <div class="step">
+        <h3>Step 4: Test Sync Service</h3>
+        <button onclick="testSyncService()">🧪 Test Sync Service</button>
+        <div id="sync-test-results"></div>
+    </div>
+
+    <div class="step">
+        <h3>Step 5: Debug Console Script</h3>
+        <p>Copy this script and paste it into the browser console (F12 → Console):</p>
+        <div class="code" id="console-script">Loading script...</div>
+        <button onclick="copyToClipboard()">📋 Copy Script</button>
+    </div>
+
+    <script>
+        const timestamp = Date.now();
+        
+        async function clearAllCaches() {
+            const statusDiv = document.getElementById('cache-status');
+            statusDiv.innerHTML = '<p>🔄 Clearing caches...</p>';
+            
+            try {
+                // Clear localStorage
+                localStorage.clear();
+                
+                // Clear sessionStorage
+                sessionStorage.clear();
+                
+                // Clear any specific sync data
+                const keysToRemove = [
+                    'crossPageSyncData',
+                    'rule1SyncData',
+                    'planetsAnalysisSync',
+                    'topicClicks',
+                    'analysisResults'
+                ];
+                
+                keysToRemove.forEach(key => {
+                    localStorage.removeItem(key);
+                    sessionStorage.removeItem(key);
+                });
+                
+                // Try to clear service worker cache if available
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    for (let registration of registrations) {
+                        await registration.unregister();
+                    }
+                }
+                
+                statusDiv.innerHTML = '<div class="success">✅ All caches cleared successfully!</div>';
+                
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="error">❌ Cache clear error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testFreshImport() {
+            const resultsDiv = document.getElementById('import-test-results');
+            resultsDiv.innerHTML = '<p>🔄 Testing fresh import...</p>';
+            
+            try {
+                // Import with timestamp to force fresh load
+                const syncModule = await import(`./src/services/crossPageSyncService.js?v=${timestamp}&fresh=${Math.random()}`);
+                const cleanModule = await import(`./src/services/CleanSupabaseService.js?v=${timestamp}&fresh=${Math.random()}`);
+                
+                resultsDiv.innerHTML = `
+                    <div class="success">
+                        ✅ Fresh imports successful!<br>
+                        Sync Service: ${typeof syncModule.default}<br>
+                        Clean Service: ${typeof cleanModule.default}<br>
+                        Timestamp: ${timestamp}
+                    </div>
+                `;
+                
+                // Store for next test
+                window.freshSyncService = syncModule.default;
+                window.freshCleanService = cleanModule.default;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">❌ Fresh import failed: ${error.message}</div>`;
+            }
+        }
+        
+        async function testSyncService() {
+            const resultsDiv = document.getElementById('sync-test-results');
+            resultsDiv.innerHTML = '<p>🔄 Testing sync service...</p>';
+            
+            try {
+                if (!window.freshSyncService) {
+                    throw new Error('Please run Fresh Import Test first');
+                }
+                
+                const syncService = window.freshSyncService;
+                
+                // Test method existence
+                const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(syncService));
+                
+                let results = `<div class="success">✅ Sync service loaded successfully!</div>`;
+                results += `<p><strong>Available methods:</strong> ${methods.join(', ')}</p>`;
+                
+                // Test getAllClickedNumbers
+                if (typeof syncService.getAllClickedNumbers === 'function') {
+                    results += `<p>✅ getAllClickedNumbers method exists</p>`;
+                    
+                    // Test with dummy user
+                    try {
+                        const testResult = await syncService.getAllClickedNumbers('test-user-cache-clear');
+                        results += `<p>✅ Method call successful: ${JSON.stringify(testResult).substring(0, 100)}...</p>`;
+                    } catch (methodError) {
+                        results += `<p class="error">❌ Method call failed: ${methodError.message}</p>`;
+                    }
+                } else {
+                    results += `<p class="error">❌ getAllClickedNumbers method not found</p>`;
+                }
+                
+                // Check for problematic method
+                if (typeof syncService.getAllTopicClicksByUser === 'function') {
+                    results += `<p class="error">❌ Found problematic method getAllTopicClicksByUser</p>`;
+                } else {
+                    results += `<p>✅ No problematic getAllTopicClicksByUser method found</p>`;
+                }
+                
+                resultsDiv.innerHTML = results;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">❌ Sync service test failed: ${error.message}</div>`;
+            }
+        }
+        
+        function copyToClipboard() {
+            const script = document.getElementById('console-script').textContent;
+            navigator.clipboard.writeText(script).then(() => {
+                alert('Console script copied to clipboard!');
+            });
+        }
+        
+        // Load the console script
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch(`./console-debug-crosspage-sync.js?v=${timestamp}`);
+                const script = await response.text();
+                document.getElementById('console-script').textContent = script;
+            } catch (error) {
+                document.getElementById('console-script').textContent = 'Error loading console script: ' + error.message;
+            }
+        });
+    </script>
+</body>
+</html>

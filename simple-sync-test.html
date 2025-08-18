@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Sync Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .log { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .error { background: #ffe6e6; border: 1px solid #ffcccc; }
+        .success { background: #e6ffe6; border: 1px solid #ccffcc; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Simple Sync Service Test</h1>
+    <div id="logs"></div>
+    <button onclick="runTest()">Test Sync Service</button>
+
+    <script>
+        const logs = document.getElementById('logs');
+        
+        function addLog(message, isError = false) {
+            const div = document.createElement('div');
+            div.className = `log ${isError ? 'error' : 'success'}`;
+            div.textContent = new Date().toLocaleTimeString() + ': ' + message;
+            logs.appendChild(div);
+        }
+
+        async function runTest() {
+            logs.innerHTML = '';
+            addLog('Starting sync service test...');
+            
+            try {
+                // Test 1: Import the service
+                addLog('Step 1: Importing crossPageSyncService...');
+                const module = await import('./src/services/crossPageSyncService.js');
+                const syncService = module.default;
+                addLog('✅ Service imported successfully');
+                
+                // Test 2: Check service methods
+                addLog('Step 2: Checking service methods...');
+                const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(syncService));
+                addLog('Available methods: ' + methods.join(', '));
+                
+                // Test 3: Check if getAllClickedNumbers exists
+                if (typeof syncService.getAllClickedNumbers === 'function') {
+                    addLog('✅ getAllClickedNumbers method found');
+                } else {
+                    addLog('❌ getAllClickedNumbers method not found', true);
+                }
+                
+                // Test 4: Check cleanSupabaseService
+                addLog('Step 3: Checking cleanSupabaseService...');
+                const cleanMethods = Object.getOwnPropertyNames(Object.getPrototypeOf(syncService.cleanSupabaseService));
+                addLog('CleanSupabaseService methods: ' + cleanMethods.join(', '));
+                
+                // Test 5: Check if getTopicClicks exists
+                if (typeof syncService.cleanSupabaseService.getTopicClicks === 'function') {
+                    addLog('✅ getTopicClicks method found in cleanSupabaseService');
+                } else {
+                    addLog('❌ getTopicClicks method not found in cleanSupabaseService', true);
+                }
+                
+                // Test 6: Try calling with test data
+                addLog('Step 4: Testing with dummy user ID...');
+                try {
+                    const result = await syncService.getAllClickedNumbers('test-user-123');
+                    addLog('✅ Method call successful, returned: ' + JSON.stringify(result));
+                } catch (error) {
+                    addLog('❌ Method call failed: ' + error.message, true);
+                }
+                
+            } catch (error) {
+                addLog('❌ Test failed: ' + error.message, true);
+                console.error('Full error:', error);
+            }
+        }
+
+        // Auto-run test
+        window.addEventListener('load', () => {
+            addLog('Page loaded, ready to test');
+        });
+    </script>
+</body>
+</html>

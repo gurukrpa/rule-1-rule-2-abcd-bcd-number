@@ -20,8 +20,20 @@ export const useUnifiedNumberBox = (userId, currentTopic, currentDate, currentHo
     try {
       setLoading(true);
       
+      // Ensure hour format consistency - always use "HR" prefix
+      const formattedHour = currentHour.toString().startsWith('HR') ? currentHour : `HR${currentHour}`;
+      
+      console.log(`🔢 [DEBUG] Click parameters:`, {
+        userId,
+        topic: currentTopic,
+        date: currentDate,
+        hour: formattedHour,
+        number,
+        originalHour: currentHour
+      });
+      
       const newState = await unifiedNumberBoxService.clickNumber(
-        userId, currentTopic, currentDate, currentHour, number
+        userId, currentTopic, currentDate, formattedHour, number
       );
       
       console.log(`🔢 [useUnifiedNumberBox] Number ${number} is now ${newState ? 'clicked' : 'unclicked'}`);
@@ -41,8 +53,18 @@ export const useUnifiedNumberBox = (userId, currentTopic, currentDate, currentHo
   const isNumberClicked = useCallback((number) => {
     if (!currentTopic || !currentDate || !currentHour) return false;
     
-    const key = `${currentTopic}|${currentDate}|HR${currentHour}`;
+    // Ensure hour format consistency - always use "HR" prefix
+    const formattedHour = currentHour.toString().startsWith('HR') ? currentHour : `HR${currentHour}`;
+    const key = `${currentTopic}|${currentDate}|${formattedHour}`;
     const numbers = clickedNumbers[key] || [];
+    
+    console.log(`🔍 [DEBUG] Checking click state:`, {
+      number,
+      key,
+      clickedNumbers: numbers,
+      isClicked: numbers.includes(number)
+    });
+    
     return numbers.includes(number);
   }, [clickedNumbers, currentTopic, currentDate, currentHour]);
 
@@ -50,7 +72,15 @@ export const useUnifiedNumberBox = (userId, currentTopic, currentDate, currentHo
   const getCurrentClickedNumbers = useCallback(() => {
     if (!currentTopic || !currentDate || !currentHour) return [];
     
-    const key = `${currentTopic}|${currentDate}|HR${currentHour}`;
+    // Ensure hour format consistency - always use "HR" prefix
+    const formattedHour = currentHour.toString().startsWith('HR') ? currentHour : `HR${currentHour}`;
+    const key = `${currentTopic}|${currentDate}|${formattedHour}`;
+    
+    console.log(`🔍 [DEBUG] Getting clicked numbers:`, {
+      key,
+      clickedNumbers: clickedNumbers[key] || []
+    });
+    
     return clickedNumbers[key] || [];
   }, [clickedNumbers, currentTopic, currentDate, currentHour]);
 

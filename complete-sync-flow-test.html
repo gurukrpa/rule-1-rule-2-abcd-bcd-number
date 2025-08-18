@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Sync Flow Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; }
+        .error { background-color: #f8d7da; }
+        .info { background-color: #d1ecf1; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        .results { background: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 3px; font-family: monospace; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Complete Cross-Page Sync Flow Test</h1>
+    
+    <div class="test-section info">
+        <h3>Instructions:</h3>
+        <ol>
+            <li>Make sure you're on the correct user page (check URL)</li>
+            <li>Click the test buttons below in order</li>
+            <li>Check the results to see where the sync is failing</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 1: Check Current User ID</h3>
+        <button onclick="checkUserId()">🔍 Check User ID</button>
+        <div id="user-id-results" class="results"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 2: Test Database Connection</h3>
+        <button onclick="testDatabase()">🗄️ Test Database</button>
+        <div id="database-results" class="results"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 3: Test Sync Service</h3>
+        <button onclick="testSyncService()">🔄 Test Sync Service</button>
+        <div id="sync-results" class="results"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 4: Test with Known User ID</h3>
+        <button onclick="testWithKnownUserId()">🧪 Test with Known User ID</button>
+        <div id="known-user-results" class="results"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 5: Manual Click Test</h3>
+        <p>Click these test numbers to see if they get saved:</p>
+        <button onclick="simulateClick(7, 'D-1 Set-1')">Click Number 7</button>
+        <button onclick="simulateClick(8, 'D-1 Set-1')">Click Number 8</button>
+        <div id="click-test-results" class="results"></div>
+    </div>
+
+    <script>
+        const timestamp = Date.now();
+        
+        function log(elementId, message, isError = false) {
+            const element = document.getElementById(elementId);
+            const timeStamp = new Date().toLocaleTimeString();
+            element.textContent += `[${timeStamp}] ${message}\n`;
+            if (isError) {
+                element.style.backgroundColor = '#f8d7da';
+            }
+        }
+
+        function checkUserId() {
+            const resultsEl = 'user-id-results';
+            document.getElementById(resultsEl).textContent = '';
+            
+            // Check URL
+            const urlUserId = window.location.pathname.split('/').pop();
+            log(resultsEl, `URL User ID: ${urlUserId}`);
+            
+            // Check localStorage
+            const localUserId = localStorage.getItem('userId');
+            log(resultsEl, `LocalStorage User ID: ${localUserId || 'Not found'}`);
+            
+            // Check sessionStorage
+            const sessionUserId = sessionStorage.getItem('userId');
+            log(resultsEl, `SessionStorage User ID: ${sessionUserId || 'Not found'}`);
+            
+            // Check if we're on PlanetsAnalysis page
+            const isPlanetsPage = window.location.pathname.includes('planets-analysis');
+            log(resultsEl, `On PlanetsAnalysis page: ${isPlanetsPage}`);
+            
+            if (isPlanetsPage && urlUserId) {
+                log(resultsEl, `✅ Using User ID: ${urlUserId}`);
+            } else {
+                log(resultsEl, `❌ Cannot determine user ID`, true);
+            }
+        }
+
+        async function testDatabase() {
+            const resultsEl = 'database-results';
+            document.getElementById(resultsEl).textContent = '';
+            
+            try {
+                log(resultsEl, 'Testing database connection...');
+                
+                // Import CleanSupabaseService
+                const cleanModule = await import(`./src/services/CleanSupabaseService.js?v=${timestamp}`);
+                const cleanService = cleanModule.default;
+                log(resultsEl, '✅ CleanSupabaseService imported');
+                
+                // Test with known user ID
+                const knownUserId = '5019aa9a-a653-49f5-b7da-f5bc9dcde985';
+                const topicClicks = await cleanService.getTopicClicks(knownUserId);
+                log(resultsEl, `✅ Database connection successful`);
+                log(resultsEl, `Found ${topicClicks.length} topic clicks for known user`);
+                
+                if (topicClicks.length > 0) {
+                    const recentClicks = topicClicks.slice(0, 3);
+                    log(resultsEl, `Recent clicks: ${JSON.stringify(recentClicks, null, 2)}`);
+                }
+                
+            } catch (error) {
+                log(resultsEl, `❌ Database test failed: ${error.message}`, true);
+            }
+        }
+
+        async function testSyncService() {
+            const resultsEl = 'sync-results';
+            document.getElementById(resultsEl).textContent = '';
+            
+            try {
+                log(resultsEl, 'Testing sync service...');
+                
+                // Get current user ID
+                const urlUserId = window.location.pathname.split('/').pop();
+                if (!urlUserId || urlUserId === 'planets-analysis') {
+                    log(resultsEl, '❌ No user ID found in URL', true);
+                    return;
+                }
+                
+                // Import sync service
+                const syncModule = await import(`./src/services/crossPageSyncService.js?v=${timestamp}`);
+                const syncService = syncModule.default;
+                log(resultsEl, '✅ Sync service imported');
+                
+                // Test sync
+                const syncData = await syncService.getAllClickedNumbers(urlUserId);
+                log(resultsEl, `✅ Sync data retrieved for user: ${urlUserId}`);
+                log(resultsEl, `Sync data: ${JSON.stringify(syncData, null, 2)}`);
+                
+                // Check for today's date
+                const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+                if (syncData && syncData[today]) {
+                    log(resultsEl, `✅ Found data for today (${today})`);
+                } else {
+                    log(resultsEl, `❌ No data found for today (${today})`);
+                    log(resultsEl, `Available dates: ${Object.keys(syncData || {}).join(', ')}`);
+                }
+                
+            } catch (error) {
+                log(resultsEl, `❌ Sync test failed: ${error.message}`, true);
+            }
+        }
+
+        async function testWithKnownUserId() {
+            const resultsEl = 'known-user-results';
+            document.getElementById(resultsEl).textContent = '';
+            
+            try {
+                const knownUserId = '5019aa9a-a653-49f5-b7da-f5bc9dcde985';
+                log(resultsEl, `Testing with known user ID: ${knownUserId}`);
+                
+                // Import sync service
+                const syncModule = await import(`./src/services/crossPageSyncService.js?v=${timestamp}`);
+                const syncService = syncModule.default;
+                
+                // Test sync with known user
+                const syncData = await syncService.getAllClickedNumbers(knownUserId);
+                log(resultsEl, `✅ Sync successful for known user`);
+                log(resultsEl, `Data: ${JSON.stringify(syncData, null, 2)}`);
+                
+                // Check for D-1 data
+                const datesWithD1 = Object.keys(syncData || {}).filter(date => {
+                    const dateData = syncData[date];
+                    return dateData && (dateData['D-1'] || dateData['D-1 Set-1'] || dateData['D-1 Set-1 Matrix']);
+                });
+                
+                if (datesWithD1.length > 0) {
+                    log(resultsEl, `✅ Found D-1 data on dates: ${datesWithD1.join(', ')}`);
+                } else {
+                    log(resultsEl, `❌ No D-1 data found`);
+                }
+                
+            } catch (error) {
+                log(resultsEl, `❌ Known user test failed: ${error.message}`, true);
+            }
+        }
+
+        async function simulateClick(number, topicName) {
+            const resultsEl = 'click-test-results';
+            
+            try {
+                log(resultsEl, `Simulating click on number ${number} for topic ${topicName}...`);
+                
+                // Get user ID
+                const urlUserId = window.location.pathname.split('/').pop();
+                if (!urlUserId || urlUserId === 'planets-analysis') {
+                    log(resultsEl, '❌ No user ID found', true);
+                    return;
+                }
+                
+                // Get today's date
+                const today = new Date().toISOString().split('T')[0];
+                
+                // Import CleanSupabaseService  
+                const cleanModule = await import(`./src/services/CleanSupabaseService.js?v=${timestamp}`);
+                const cleanService = cleanModule.default;
+                
+                // Save click
+                await cleanService.saveTopicClick(urlUserId, topicName, today, number);
+                log(resultsEl, `✅ Click saved: User ${urlUserId}, Topic ${topicName}, Date ${today}, Number ${number}`);
+                
+                // Verify it was saved
+                const clicks = await cleanService.getTopicClicks(urlUserId, topicName, today);
+                const savedClick = clicks.find(click => click.clicked_number === number);
+                
+                if (savedClick) {
+                    log(resultsEl, `✅ Click verified in database`);
+                } else {
+                    log(resultsEl, `❌ Click not found in database`, true);
+                }
+                
+            } catch (error) {
+                log(resultsEl, `❌ Click simulation failed: ${error.message}`, true);
+            }
+        }
+
+        // Auto-check user ID when page loads
+        window.addEventListener('load', () => {
+            setTimeout(checkUserId, 500);
+        });
+    </script>
+</body>
+</html>

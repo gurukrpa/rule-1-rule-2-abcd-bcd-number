@@ -19,11 +19,11 @@ class UnifiedNumberBoxService {
 
   // ✅ EVENT SYSTEM: Real-time updates across pages
   initializeEventSystem() {
-    // Listen for changes in the number_clicks table
+    // Listen for changes in the topic_clicks table
     this.supabaseSubscription = supabase
-      .channel('number_clicks_changes')
+      .channel('topic_clicks_changes')
       .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'number_clicks' },
+        { event: '*', schema: 'public', table: 'topic_clicks' },
         (payload) => {
           console.log('🔄 [UnifiedNumberBox] Real-time update:', payload);
           this.notifyListeners('numberClick', payload);
@@ -53,19 +53,29 @@ class UnifiedNumberBoxService {
   // ✅ CORE NUMBER BOX LOGIC: Click handling with database persistence
   async clickNumber(userId, topic, date, hour, number) {
     try {
-      console.log(`🔢 [UnifiedNumberBox] Click: ${number} for ${topic}/${date}/HR${hour}`);
+      // Ensure hour format consistency - always use "HR" prefix
+      const formattedHour = hour.toString().startsWith('HR') ? hour : `HR${hour}`;
+      
+      console.log(`🔢 [UnifiedNumberBox] Click: ${number} for ${topic}/${date}/${formattedHour}`, {
+        userId,
+        topic,
+        date,
+        hour: formattedHour,
+        number,
+        originalHour: hour
+      });
 
       // Get current state
-      const currentNumbers = await this.getClickedNumbers(userId, topic, date, hour);
+      const currentNumbers = await this.getClickedNumbers(userId, topic, date, formattedHour);
       const isCurrentlyClicked = currentNumbers.includes(number);
 
       if (isCurrentlyClicked) {
         // Remove from database
-        await cleanSupabaseService.removeTopicClick(userId, topic, date, hour, number);
+        await cleanSupabaseService.deleteTopicClick(userId, topic, date, formattedHour, number);
         console.log(`➖ [UnifiedNumberBox] Removed number ${number}`);
       } else {
         // Add to database  
-        await cleanSupabaseService.addTopicClick(userId, topic, date, hour, number);
+        await cleanSupabaseService.saveTopicClick(userId, topic, date, formattedHour, number);
         console.log(`➕ [UnifiedNumberBox] Added number ${number}`);
       }
 
@@ -74,7 +84,7 @@ class UnifiedNumberBoxService {
       
       // Notify listeners
       this.notifyListeners('numberClick', {
-        userId, topic, date, hour, number, 
+        userId, topic, date, hour: formattedHour, number, 
         action: isCurrentlyClicked ? 'removed' : 'added'
       });
 
@@ -92,10 +102,22 @@ class UnifiedNumberBoxService {
   // ✅ GET CLICKED NUMBERS: From cache or database
   async getClickedNumbers(userId, topic, date, hour) {
     try {
-      const cacheKey = `${userId}|${topic}|${date}|${hour}`;
+      // Ensure hour format consistency - always use "HR" prefix
+      const formattedHour = hour.toString().startsWith('HR') ? hour : `HR${hour}`;
+      const cacheKey = `${userId}|${topic}|${date}|${formattedHour}`;
+      
+      console.log(`🔍 [DEBUG] Getting clicked numbers:`, {
+        userId,
+        topic,
+        date,
+        hour: formattedHour,
+        cacheKey,
+        originalHour: hour
+      });
       
       // Check cache first
       if (this.cache.clickedNumbers[cacheKey]) {
+        console.log(`💾 [DEBUG] Found in cache:`, [...this.cache.clickedNumbers[cacheKey]]);
         return [...this.cache.clickedNumbers[cacheKey]];
       }
 
@@ -104,10 +126,17 @@ class UnifiedNumberBoxService {
       const filtered = data.filter(click => 
         click.topic_name === topic && 
         click.date_key === date && 
-        click.hour === `HR${hour}`
+        click.hour === formattedHour
       );
 
       const numbers = filtered.map(click => click.clicked_number);
+      
+      console.log(`🗄️ [DEBUG] Loaded from database:`, {
+        totalClicks: data.length,
+        filteredClicks: filtered.length,
+        numbers,
+        filterCriteria: { topic, date, hour: formattedHour }
+      });
       
       // Update cache
       this.cache.clickedNumbers[cacheKey] = new Set(numbers);

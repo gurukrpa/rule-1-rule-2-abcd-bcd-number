@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rule-1 HR2 Interactive Diagnostic Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .test-section {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        input, select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 5px;
+        }
+        
+        .log {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+        }
+        
+        .config-section {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Rule-1 HR2 Interactive Diagnostic Tool</h1>
+        <p>This tool helps diagnose save/fetch issues for HR2 on the Rule-1 page.</p>
+        
+        <div class="config-section">
+            <h3>⚙️ Test Configuration</h3>
+            <label>User ID: <input type="text" id="userId" value="" placeholder="Enter your user ID" /></label>
+            <label>Topic: <input type="text" id="topic" value="Su" /></label>
+            <label>Date: <input type="date" id="date" value="2025-08-14" /></label>
+            <label>Hour: <select id="hour">
+                <option value="HR1">HR1</option>
+                <option value="HR2" selected>HR2</option>
+                <option value="HR3">HR3</option>
+                <option value="HR4">HR4</option>
+                <option value="HR5">HR5</option>
+                <option value="HR6">HR6</option>
+            </select></label>
+            <label>Test Number: <input type="number" id="testNumber" value="15" /></label>
+            <button onclick="updateConfig()">Update Config</button>
+            <button onclick="findUsers()">Find Available Users</button>
+        </div>
+
+        <div class="test-section">
+            <h3>🎯 Quick Tests</h3>
+            <button onclick="runQuickTest()">Run Quick Diagnostic</button>
+            <button onclick="testSaveAndFetch()">Test Save & Fetch</button>
+            <button onclick="testCrossPageSync()">Test Cross-Page Sync</button>
+            <button onclick="clearTestData()">Clear Test Data</button>
+            <div id="quickResults" class="log"></div>
+        </div>
+
+        <div class="results-grid">
+            <div class="test-section">
+                <h3>💾 Database Direct Test</h3>
+                <button onclick="testDatabase()">Test Database</button>
+                <div id="databaseResults" class="log"></div>
+            </div>
+
+            <div class="test-section">
+                <h3>🔧 Service Layer Test</h3>
+                <button onclick="testServices()">Test Services</button>
+                <div id="serviceResults" class="log"></div>
+            </div>
+
+            <div class="test-section">
+                <h3>🔄 Cross-Page Sync Test</h3>
+                <button onclick="testSync()">Test Sync</button>
+                <div id="syncResults" class="log"></div>
+            </div>
+
+            <div class="test-section">
+                <h3>📊 Data Analysis</h3>
+                <button onclick="analyzeData()">Analyze HR2 Data</button>
+                <div id="analysisResults" class="log"></div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>📋 Console Logs</h3>
+            <button onclick="clearLogs()">Clear Logs</button>
+            <div id="consoleLogs" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        let config = {
+            userId: '',
+            topic: 'Su',
+            date: '2025-08-14',
+            hour: 'HR2',
+            testNumber: 15
+        };
+
+        // Logging function
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}\n`;
+            
+            const consoleLog = document.getElementById('consoleLogs');
+            consoleLog.textContent += logEntry;
+            consoleLog.scrollTop = consoleLog.scrollHeight;
+            
+            console.log(message);
+        }
+
+        function updateConfig() {
+            config.userId = document.getElementById('userId').value;
+            config.topic = document.getElementById('topic').value;
+            config.date = document.getElementById('date').value;
+            config.hour = document.getElementById('hour').value;
+            config.testNumber = parseInt(document.getElementById('testNumber').value);
+            
+            if (!config.userId) {
+                log('⚠️ Warning: User ID is empty. Please enter a valid user ID or click "Find Available Users"');
+                return;
+            }
+            
+            log(`✅ Config updated: ${JSON.stringify(config)}`);
+        }
+
+        async function findUsers() {
+            const resultsDiv = document.getElementById('quickResults');
+            resultsDiv.textContent = 'Finding available users...\n';
+            
+            try {
+                if (typeof window.supabase === 'undefined') {
+                    resultsDiv.textContent += '❌ Supabase not available. Run this tool from your app.\n';
+                    return;
+                }
+
+                const { data, error } = await window.supabase
+                    .from('topic_clicks')
+                    .select('user_id')
+                    .order('created_at', { ascending: false })
+                    .limit(100);
+
+                if (error) {
+                    resultsDiv.textContent += `❌ Error finding users: ${error.message}\n`;
+                    return;
+                }
+
+                // Get unique user IDs
+                const uniqueUsers = [...new Set(data.map(record => record.user_id))];
+                
+                resultsDiv.textContent += `✅ Found ${uniqueUsers.length} unique users:\n`;
+                uniqueUsers.forEach((userId, index) => {
+                    resultsDiv.textContent += `${index + 1}. ${userId}\n`;
+                });
+
+                if (uniqueUsers.length > 0) {
+                    // Auto-select the first user
+                    document.getElementById('userId').value = uniqueUsers[0];
+                    updateConfig();
+                    resultsDiv.textContent += `\n💡 Auto-selected: ${uniqueUsers[0]}\n`;
+                    resultsDiv.textContent += `   You can change this in the User ID field above.\n`;
+                }
+
+            } catch (error) {
+                resultsDiv.textContent += `❌ Failed to find users: ${error.message}\n`;
+                log(`❌ Find users error: ${error.message}`);
+            }
+        }
+
+        function clearLogs() {
+            document.getElementById('consoleLogs').textContent = '';
+            document.getElementById('quickResults').textContent = '';
+            document.getElementById('databaseResults').textContent = '';
+            document.getElementById('serviceResults').textContent = '';
+            document.getElementById('syncResults').textContent = '';
+            document.getElementById('analysisResults').textContent = '';
+        }
+
+        async function runQuickTest() {
+            const resultsDiv = document.getElementById('quickResults');
+            resultsDiv.textContent = 'Running quick diagnostic...\n';
+            
+            if (!config.userId) {
+                resultsDiv.textContent += '❌ No user ID configured. Please click "Find Available Users" first.\n';
+                return;
+            }
+            
+            try {
+                // Test if services are available
+                const hasSupabase = typeof window.supabase !== 'undefined';
+                const hasServices = typeof window.cleanSupabaseService !== 'undefined' || 
+                                  typeof window.unifiedNumberBoxService !== 'undefined';
+                
+                resultsDiv.textContent += `📊 Environment Check:\n`;
+                resultsDiv.textContent += `- Supabase: ${hasSupabase ? '✅' : '❌'}\n`;
+                resultsDiv.textContent += `- Services: ${hasServices ? '✅' : '❌'}\n`;
+                resultsDiv.textContent += `- User ID: ${config.userId}\n`;
+                
+                if (!hasSupabase) {
+                    resultsDiv.textContent += '\n❌ Supabase not available. Make sure you\'re running this on your app.\n';
+                    return;
+                }
+                
+                // Quick database check
+                const { data, error } = await window.supabase
+                    .from('topic_clicks')
+                    .select('*')
+                    .eq('user_id', config.userId)
+                    .eq('topic_name', config.topic)
+                    .eq('date_key', config.date)
+                    .eq('hour', config.hour)
+                    .limit(10);
+                
+                if (error) {
+                    resultsDiv.textContent += `❌ Database error: ${error.message}\n`;
+                } else {
+                    resultsDiv.textContent += `✅ Found ${data.length} existing records for ${config.hour}\n`;
+                    if (data.length > 0) {
+                        resultsDiv.textContent += `📋 Sample record: ${JSON.stringify(data[0], null, 2)}\n`;
+                    }
+                }
+                
+            } catch (error) {
+                resultsDiv.textContent += `❌ Quick test failed: ${error.message}\n`;
+                log(`❌ Quick test error: ${error.message}`);
+            }
+        }
+
+        async function testDatabase() {
+            const resultsDiv = document.getElementById('databaseResults');
+            resultsDiv.textContent = 'Testing database operations...\n';
+            
+            try {
+                // Test save
+                resultsDiv.textContent += '💾 Testing save operation...\n';
+                const saveResult = await window.supabase
+                    .from('topic_clicks')
+                    .upsert({
+                        user_id: config.userId,
+                        topic_name: config.topic,
+                        date_key: config.date,
+                        hour: config.hour,
+                        clicked_number: config.testNumber,
+                        is_matched: false
+                    }, {
+                        onConflict: 'user_id,topic_name,date_key,hour,clicked_number'
+                    })
+                    .select();
+                
+                if (saveResult.error) {
+                    resultsDiv.textContent += `❌ Save failed: ${saveResult.error.message}\n`;
+                } else {
+                    resultsDiv.textContent += `✅ Save successful\n`;
+                }
+                
+                // Test fetch
+                resultsDiv.textContent += '📥 Testing fetch operation...\n';
+                const fetchResult = await window.supabase
+                    .from('topic_clicks')
+                    .select('*')
+                    .eq('user_id', config.userId)
+                    .eq('topic_name', config.topic)
+                    .eq('date_key', config.date)
+                    .eq('hour', config.hour);
+                
+                if (fetchResult.error) {
+                    resultsDiv.textContent += `❌ Fetch failed: ${fetchResult.error.message}\n`;
+                } else {
+                    resultsDiv.textContent += `✅ Fetch successful: ${fetchResult.data.length} records\n`;
+                    resultsDiv.textContent += `📋 Records: ${JSON.stringify(fetchResult.data, null, 2)}\n`;
+                }
+                
+            } catch (error) {
+                resultsDiv.textContent += `❌ Database test failed: ${error.message}\n`;
+                log(`❌ Database test error: ${error.message}`);
+            }
+        }
+
+        async function testServices() {
+            const resultsDiv = document.getElementById('serviceResults');
+            resultsDiv.textContent = 'Testing service layer...\n';
+            
+            try {
+                // Check if services are available
+                if (typeof window.unifiedNumberBoxService === 'undefined') {
+                    resultsDiv.textContent += '❌ UnifiedNumberBoxService not available\n';
+                    resultsDiv.textContent += 'Trying to access through global scope...\n';
+                    
+                    // Try alternative access methods
+                    if (typeof window.cleanSupabaseService !== 'undefined') {
+                        resultsDiv.textContent += '✅ CleanSupabaseService available\n';
+                        
+                        // Test direct service call
+                        const clicks = await window.cleanSupabaseService.getTopicClicks(
+                            config.userId, config.topic, config.date
+                        );
+                        resultsDiv.textContent += `📊 CleanSupabaseService.getTopicClicks: ${clicks.length} records\n`;
+                        
+                        const hr2Clicks = clicks.filter(click => click.hour === config.hour);
+                        resultsDiv.textContent += `📊 ${config.hour} clicks: ${hr2Clicks.length}\n`;
+                        resultsDiv.textContent += `📋 ${config.hour} data: ${JSON.stringify(hr2Clicks, null, 2)}\n`;
+                    } else {
+                        resultsDiv.textContent += '❌ Services not available in global scope\n';
+                        resultsDiv.textContent += 'You may need to run this test from within your app.\n';
+                    }
+                } else {
+                    resultsDiv.textContent += '✅ UnifiedNumberBoxService available\n';
+                    
+                    // Test unified service
+                    const clickedNumbers = await window.unifiedNumberBoxService.getClickedNumbers(
+                        config.userId, config.topic, config.date, config.hour
+                    );
+                    resultsDiv.textContent += `📊 Clicked numbers: [${clickedNumbers.join(', ')}]\n`;
+                }
+                
+            } catch (error) {
+                resultsDiv.textContent += `❌ Service test failed: ${error.message}\n`;
+                log(`❌ Service test error: ${error.message}`);
+            }
+        }
+
+        async function testSync() {
+            const resultsDiv = document.getElementById('syncResults');
+            resultsDiv.textContent = 'Testing cross-page sync...\n';
+            
+            try {
+                // This would need the actual CrossPageSyncService
+                resultsDiv.textContent += '⚠️ Cross-page sync test requires service import\n';
+                resultsDiv.textContent += 'Testing sync data format instead...\n';
+                
+                // Get raw data and simulate sync processing
+                const { data, error } = await window.supabase
+                    .from('topic_clicks')
+                    .select('*')
+                    .eq('user_id', config.userId);
+                
+                if (error) {
+                    resultsDiv.textContent += `❌ Failed to get sync data: ${error.message}\n`;
+                    return;
+                }
+                
+                // Simulate organizeDataForSync logic
+                const organized = {};
+                data.forEach(click => {
+                    const dateKey = click.date_key;
+                    const topicName = click.topic_name;
+                    
+                    if (!organized[dateKey]) organized[dateKey] = {};
+                    if (!organized[dateKey][topicName]) {
+                        organized[dateKey][topicName] = {
+                            clickedNumbers: [],
+                            hour: click.hour
+                        };
+                    }
+                    
+                    // Test both field names
+                    const number = click.clicked_number || click.number;
+                    if (number && !organized[dateKey][topicName].clickedNumbers.includes(number)) {
+                        organized[dateKey][topicName].clickedNumbers.push(number);
+                    }
+                });
+                
+                resultsDiv.textContent += `📊 Organized sync data:\n`;
+                resultsDiv.textContent += JSON.stringify(organized, null, 2) + '\n';
+                
+                // Check specific date/topic/hour
+                const targetData = organized[config.date]?.[config.topic];
+                if (targetData) {
+                    resultsDiv.textContent += `📊 Target data (${config.date}/${config.topic}): ${JSON.stringify(targetData)}\n`;
+                } else {
+                    resultsDiv.textContent += `❌ No data found for ${config.date}/${config.topic}\n`;
+                }
+                
+            } catch (error) {
+                resultsDiv.textContent += `❌ Sync test failed: ${error.message}\n`;
+                log(`❌ Sync test error: ${error.message}`);
+            }
+        }
+
+        async function analyzeData() {
+            const resultsDiv = document.getElementById('analysisResults');
+            resultsDiv.textContent = 'Analyzing HR2 data patterns...\n';
+            
+            try {
+                // Get all data for analysis
+                const { data, error } = await window.supabase
+                    .from('topic_clicks')
+                    .select('*')
+                    .eq('user_id', config.userId)
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    resultsDiv.textContent += `❌ Analysis failed: ${error.message}\n`;
+                    return;
+                }
+                
+                // Analyze hour distribution
+                const hourCounts = {};
+                const dateCounts = {};
+                const topicCounts = {};
+                
+                data.forEach(record => {
+                    // Hour analysis
+                    hourCounts[record.hour] = (hourCounts[record.hour] || 0) + 1;
+                    
+                    // Date analysis
+                    dateCounts[record.date_key] = (dateCounts[record.date_key] || 0) + 1;
+                    
+                    // Topic analysis
+                    topicCounts[record.topic_name] = (topicCounts[record.topic_name] || 0) + 1;
+                });
+                
+                resultsDiv.textContent += `📊 Total records: ${data.length}\n\n`;
+                
+                resultsDiv.textContent += `📊 Hour distribution:\n`;
+                Object.entries(hourCounts).sort().forEach(([hour, count]) => {
+                    resultsDiv.textContent += `  ${hour}: ${count} records\n`;
+                });
+                
+                resultsDiv.textContent += `\n📊 Recent dates (top 10):\n`;
+                Object.entries(dateCounts)
+                    .sort(([a], [b]) => b.localeCompare(a))
+                    .slice(0, 10)
+                    .forEach(([date, count]) => {
+                        resultsDiv.textContent += `  ${date}: ${count} records\n`;
+                    });
+                
+                resultsDiv.textContent += `\n📊 Topics:\n`;
+                Object.entries(topicCounts)
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .forEach(([topic, count]) => {
+                        resultsDiv.textContent += `  ${topic}: ${count} records\n`;
+                    });
+                
+                // HR2 specific analysis
+                const hr2Records = data.filter(r => r.hour === 'HR2');
+                resultsDiv.textContent += `\n🎯 HR2 Analysis:\n`;
+                resultsDiv.textContent += `  Total HR2 records: ${hr2Records.length}\n`;
+                
+                if (hr2Records.length > 0) {
+                    const hr2Dates = [...new Set(hr2Records.map(r => r.date_key))].sort().reverse();
+                    resultsDiv.textContent += `  HR2 dates: ${hr2Dates.slice(0, 5).join(', ')}${hr2Dates.length > 5 ? '...' : ''}\n`;
+                    
+                    const hr2Topics = [...new Set(hr2Records.map(r => r.topic_name))].sort();
+                    resultsDiv.textContent += `  HR2 topics: ${hr2Topics.join(', ')}\n`;
+                    
+                    // Check for the specific problematic combination
+                    const targetRecords = hr2Records.filter(r => 
+                        r.date_key === config.date && r.topic_name === config.topic
+                    );
+                    
+                    if (targetRecords.length > 0) {
+                        resultsDiv.textContent += `\n✅ Found ${targetRecords.length} records for ${config.date}/${config.topic}/HR2:\n`;
+                        targetRecords.forEach(record => {
+                            resultsDiv.textContent += `  - Number: ${record.clicked_number}, Created: ${record.created_at}\n`;
+                        });
+                    } else {
+                        resultsDiv.textContent += `\n❌ No records found for ${config.date}/${config.topic}/HR2\n`;
+                    }
+                }
+                
+            } catch (error) {
+                resultsDiv.textContent += `❌ Analysis failed: ${error.message}\n`;
+                log(`❌ Analysis error: ${error.message}`);
+            }
+        }
+
+        async function testSaveAndFetch() {
+            const resultsDiv = document.getElementById('quickResults');
+            resultsDiv.textContent += '\n🔄 Testing save and fetch cycle...\n';
+            
+            try {
+                // Save test number
+                const testNum = config.testNumber + Math.floor(Math.random() * 100);
+                
+                resultsDiv.textContent += `💾 Saving test number ${testNum}...\n`;
+                const saveResult = await window.supabase
+                    .from('topic_clicks')
+                    .upsert({
+                        user_id: config.userId,
+                        topic_name: config.topic,
+                        date_key: config.date,
+                        hour: config.hour,
+                        clicked_number: testNum,
+                        is_matched: false
+                    }, {
+                        onConflict: 'user_id,topic_name,date_key,hour,clicked_number'
+                    })
+                    .select();
+                
+                if (saveResult.error) {
+                    resultsDiv.textContent += `❌ Save failed: ${saveResult.error.message}\n`;
+                    return;
+                }
+                
+                resultsDiv.textContent += `✅ Save successful\n`;
+                
+                // Wait a moment then fetch
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                resultsDiv.textContent += `📥 Fetching data for verification...\n`;
+                const fetchResult = await window.supabase
+                    .from('topic_clicks')
+                    .select('*')
+                    .eq('user_id', config.userId)
+                    .eq('topic_name', config.topic)
+                    .eq('date_key', config.date)
+                    .eq('hour', config.hour)
+                    .order('created_at', { ascending: false });
+                
+                if (fetchResult.error) {
+                    resultsDiv.textContent += `❌ Fetch failed: ${fetchResult.error.message}\n`;
+                    return;
+                }
+                
+                const foundTestNumber = fetchResult.data.some(r => r.clicked_number === testNum);
+                if (foundTestNumber) {
+                    resultsDiv.textContent += `✅ Test number ${testNum} found after save/fetch cycle\n`;
+                } else {
+                    resultsDiv.textContent += `❌ Test number ${testNum} NOT found after save/fetch cycle\n`;
+                }
+                
+                resultsDiv.textContent += `📊 Total records found: ${fetchResult.data.length}\n`;
+                resultsDiv.textContent += `📋 Numbers: [${fetchResult.data.map(r => r.clicked_number).join(', ')}]\n`;
+                
+            } catch (error) {
+                resultsDiv.textContent += `❌ Save/fetch test failed: ${error.message}\n`;
+                log(`❌ Save/fetch test error: ${error.message}`);
+            }
+        }
+
+        async function clearTestData() {
+            const resultsDiv = document.getElementById('quickResults');
+            resultsDiv.textContent += '\n🧹 Clearing test data...\n';
+            
+            try {
+                const { error } = await window.supabase
+                    .from('topic_clicks')
+                    .delete()
+                    .eq('user_id', config.userId)
+                    .eq('topic_name', config.topic)
+                    .eq('date_key', config.date)
+                    .eq('hour', config.hour)
+                    .gte('clicked_number', 100); // Only remove test numbers >= 100
+                
+                if (error) {
+                    resultsDiv.textContent += `❌ Clear failed: ${error.message}\n`;
+                } else {
+                    resultsDiv.textContent += `✅ Test data cleared\n`;
+                }
+                
+            } catch (error) {
+                resultsDiv.textContent += `❌ Clear test failed: ${error.message}\n`;
+                log(`❌ Clear test error: ${error.message}`);
+            }
+        }
+
+        // Initialize
+        updateConfig();
+        log('🚀 Rule-1 HR2 Diagnostic Tool loaded');
+        log('📋 Configure your test parameters and run diagnostics');
+    </script>
+</body>
+</html>

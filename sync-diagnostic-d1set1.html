@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cross-Page Sync Diagnostic - D-1 Set-1</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border: 1px solid;
+        }
+        .success { background: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+        .info { background: #d1ecf1; border-color: #bee5eb; color: #0c5460; }
+        .warning { background: #fff3cd; border-color: #ffeaa7; color: #856404; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .data-preview {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Cross-Page Sync Diagnostic for D-1 Set-1</h1>
+        <p><strong>Target Date:</strong> 2025-08-14 (14-8-25)</p>
+        <p><strong>Expected Clicked Numbers:</strong> 7, 8</p>
+        <p><strong>Topic:</strong> D-1 Set-1 Matrix</p>
+        
+        <div id="results"></div>
+        
+        <h2>🔧 Test Actions</h2>
+        <button onclick="testSyncService()">Test Sync Service</button>
+        <button onclick="testSpecificDate()">Test Date 2025-08-14</button>
+        <button onclick="testTopicClicks()">Test Topic Clicks</button>
+        <button onclick="openPlanetsPage()">Open PlanetsAnalysis Page</button>
+        
+        <h2>📊 Raw Data Preview</h2>
+        <div id="dataPreview" class="data-preview">Click a test button to see data...</div>
+    </div>
+
+    <script>
+        const results = document.getElementById('results');
+        const dataPreview = document.getElementById('dataPreview');
+        
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = message;
+            results.appendChild(div);
+        }
+
+        function showData(data, title) {
+            dataPreview.innerHTML = `${title}:\n\n${JSON.stringify(data, null, 2)}`;
+        }
+
+        async function testSyncService() {
+            addResult('🔄 Testing crossPageSyncService...', 'info');
+            results.innerHTML = '';
+            
+            try {
+                const module = await import('./src/services/crossPageSyncService.js');
+                const syncService = module.default;
+                addResult('✅ crossPageSyncService imported successfully', 'success');
+                
+                // Test with a test user ID
+                const testUserId = 'test-user-123'; // You might need to replace this with actual user ID
+                
+                const syncData = await syncService.getAllClickedNumbers(testUserId);
+                addResult(`✅ Sync data retrieved for user ${testUserId}`, 'success');
+                addResult(`📊 Found data for ${Object.keys(syncData).length} dates`, 'info');
+                
+                // Check for our target date
+                const targetDate = '2025-08-14';
+                if (syncData[targetDate]) {
+                    addResult(`✅ Found data for target date ${targetDate}`, 'success');
+                    
+                    const topicData = syncData[targetDate]['D-1 Set-1 Matrix'];
+                    if (topicData) {
+                        addResult(`✅ Found D-1 Set-1 Matrix data for ${targetDate}`, 'success');
+                        addResult(`📊 Clicked numbers: [${topicData.clickedNumbers.join(', ')}]`, 'info');
+                        addResult(`📊 ABCD numbers: [${topicData.abcdNumbers.join(', ')}]`, 'info');
+                        addResult(`📊 BCD numbers: [${topicData.bcdNumbers.join(', ')}]`, 'info');
+                        
+                        // Check if 7 and 8 are in clicked numbers
+                        const has7 = topicData.clickedNumbers.includes(7);
+                        const has8 = topicData.clickedNumbers.includes(8);
+                        
+                        if (has7 && has8) {
+                            addResult('✅ Numbers 7 and 8 found in clicked numbers!', 'success');
+                        } else {
+                            addResult(`❌ Missing numbers: ${!has7 ? '7' : ''} ${!has8 ? '8' : ''}`, 'error');
+                        }
+                    } else {
+                        addResult('❌ No D-1 Set-1 Matrix data found for target date', 'error');
+                    }
+                } else {
+                    addResult(`❌ No data found for target date ${targetDate}`, 'error');
+                    addResult(`📊 Available dates: ${Object.keys(syncData).join(', ')}`, 'info');
+                }
+                
+                showData(syncData, 'All Sync Data');
+                
+            } catch (error) {
+                addResult(`❌ Error testing sync service: ${error.message}`, 'error');
+                console.error('Sync service error:', error);
+            }
+        }
+
+        async function testSpecificDate() {
+            addResult('🔄 Testing specific date sync...', 'info');
+            
+            try {
+                const module = await import('./src/services/crossPageSyncService.js');
+                const syncService = module.default;
+                
+                const testUserId = 'test-user-123';
+                const targetDate = '2025-08-14';
+                const targetHour = 1;
+                
+                const syncData = await syncService.getAllClickedNumbers(testUserId);
+                const planetsData = syncService.syncToPlanetsAnalysis(syncData, targetDate, targetHour);
+                
+                addResult(`✅ Generated PlanetsAnalysis format data for ${targetDate}`, 'success');
+                
+                const d1set1Data = planetsData['D-1 Set-1 Matrix'];
+                if (d1set1Data) {
+                    addResult('✅ D-1 Set-1 Matrix found in planets data', 'success');
+                    addResult(`📊 Synced clicked numbers: [${d1set1Data.clickedNumbers.join(', ')}]`, 'info');
+                } else {
+                    addResult('❌ D-1 Set-1 Matrix not found in planets data', 'error');
+                }
+                
+                showData(planetsData, 'PlanetsAnalysis Format Data');
+                
+            } catch (error) {
+                addResult(`❌ Error testing specific date: ${error.message}`, 'error');
+            }
+        }
+
+        async function testTopicClicks() {
+            addResult('🔄 Testing topic clicks directly...', 'info');
+            
+            try {
+                const module = await import('./src/services/CleanSupabaseService.js');
+                const cleanService = module.default;
+                
+                const testUserId = 'test-user-123';
+                const topicClicks = await cleanService.getTopicClicks(testUserId);
+                
+                addResult(`✅ Retrieved ${topicClicks.length} topic clicks`, 'success');
+                
+                // Filter for D-1 Set-1 Matrix and target date
+                const targetClicks = topicClicks.filter(click => 
+                    click.topic_name === 'D-1 Set-1 Matrix' && 
+                    click.date_key === '2025-08-14'
+                );
+                
+                addResult(`✅ Found ${targetClicks.length} clicks for D-1 Set-1 Matrix on 2025-08-14`, 'success');
+                
+                targetClicks.forEach(click => {
+                    addResult(`📊 Click: Number ${click.number}, Hour ${click.hour}`, 'info');
+                });
+                
+                showData(targetClicks, 'D-1 Set-1 Matrix Clicks for 2025-08-14');
+                
+            } catch (error) {
+                addResult(`❌ Error testing topic clicks: ${error.message}`, 'error');
+            }
+        }
+
+        function openPlanetsPage() {
+            const testUserId = 'test-user-123';
+            const targetDate = '2025-08-14';
+            const url = `/planets-analysis/${testUserId}?date=${targetDate}`;
+            addResult(`🔗 Opening PlanetsAnalysis page: ${url}`, 'info');
+            window.open(url, '_blank');
+        }
+
+        // Auto-run basic test on load
+        window.addEventListener('load', () => {
+            addResult('🚀 Cross-Page Sync Diagnostic loaded', 'success');
+            addResult('💡 Click "Test Sync Service" to start diagnosis', 'info');
+        });
+    </script>
+</body>
+</html>

@@ -22,6 +22,8 @@ import NumberGen from './components/NumberGen';
 import ABCDBCDNumber from './components/ABCDBCDNumber';
 import PlanetsAnalysisPage from './components/PlanetsAnalysisPage';
 import DualServiceDemo from './components/DualServiceDemo';
+import Rule1OptimizedPage from './components/Rule1OptimizedPage';
+import Rule1PerformanceDemo from './components/Rule1PerformanceDemo';
 import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
@@ -136,6 +138,20 @@ function App() {
             <Route path="/planets-analysis/:userId" element={
               <ErrorBoundary>
                 <PlanetsAnalysisPage />
+              </ErrorBoundary>
+            } />
+
+            {/* Optimized Rule1 Page */}
+            <Route path="/rule1-optimized/:userId" element={
+              <ErrorBoundary>
+                <Rule1OptimizedPage />
+              </ErrorBoundary>
+            } />
+
+            {/* Performance Demo */}
+            <Route path="/performance-demo" element={
+              <ErrorBoundary>
+                <Rule1PerformanceDemo />
               </ErrorBoundary>
             } />
 

@@ -1,13 +1,14 @@
 /**
  * Number Box Clicks Database Service
  * Manages persistence of user interactions with 1-12 number boxes in Rule1Page_Enhanced
+ * REFACTORED: Now uses topic_clicks table for all data
  */
 
 import { supabase } from '../supabaseClient.js';
 
 class NumberBoxClicksService {
   constructor() {
-    console.log('🎯 NumberBoxClicksService initialized');
+    console.log('🎯 NumberBoxClicksService initialized - using topic_clicks table');
   }
 
   /**
@@ -26,27 +27,44 @@ class NumberBoxClicksService {
         userId, setName, dateKey, numberValue, hrNumber, isClicked, isPresent
       });
 
-      const { data, error } = await supabase
-        .from('number_box_clicks')
-        .upsert({
-          user_id: userId,
-          set_name: setName,
-          date_key: dateKey,
-          number_value: numberValue,
-          hr_number: hrNumber,
-          is_clicked: isClicked,
-          is_present: isPresent,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id,set_name,date_key,number_value,hr_number'
-        })
-        .select()
-        .maybeSingle();
+      const hour = `HR${hrNumber}`;
 
-      if (error) throw error;
+      if (isClicked) {
+        // Insert the click into topic_clicks
+        const { data, error } = await supabase
+          .from('topic_clicks')
+          .upsert({
+            user_id: userId,
+            topic_name: setName,
+            date_key: dateKey,
+            hour: hour,
+            clicked_number: numberValue,
+            is_matched: isPresent,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id,topic_name,date_key,hour,clicked_number'
+          })
+          .select()
+          .maybeSingle();
 
-      console.log(`✅ [NumberBoxClicks] Click saved successfully`);
-      return data;
+        if (error) throw error;
+        console.log(`✅ [NumberBoxClicks] Click saved successfully`);
+        return data;
+      } else {
+        // Remove the click from topic_clicks
+        const { error } = await supabase
+          .from('topic_clicks')
+          .delete()
+          .eq('user_id', userId)
+          .eq('topic_name', setName)
+          .eq('date_key', dateKey)
+          .eq('hour', hour)
+          .eq('clicked_number', numberValue);
+
+        if (error) throw error;
+        console.log(`✅ [NumberBoxClicks] Click removed successfully`);
+        return null;
+      }
     } catch (error) {
       console.error('❌ [NumberBoxClicks] Error saving click:', error);
       throw error;
@@ -64,12 +82,13 @@ class NumberBoxClicksService {
     try {
       console.log(`📥 [NumberBoxClicks] Loading clicks for:`, { userId, dateKey, hrNumber });
 
+      const hour = `HR${hrNumber}`;
       const { data, error } = await supabase
-        .from('number_box_clicks')
+        .from('topic_clicks')
         .select('*')
         .eq('user_id', userId)
         .eq('date_key', dateKey)
-        .eq('hr_number', hrNumber);
+        .eq('hour', hour);
 
       if (error) throw error;
 
@@ -78,9 +97,9 @@ class NumberBoxClicksService {
       const numberPresenceStatus = {};
 
       data.forEach(click => {
-        const boxKey = `${click.set_name}_${click.date_key}_${click.number_value}_HR${click.hr_number}`;
-        clickedNumbers[boxKey] = click.is_clicked;
-        numberPresenceStatus[boxKey] = click.is_present;
+        const boxKey = `${click.topic_name}_${click.date_key}_${click.clicked_number}_${click.hour}`;
+        clickedNumbers[boxKey] = true; // All records in topic_clicks represent clicked numbers
+        numberPresenceStatus[boxKey] = click.is_matched;
       });
 
       console.log(`✅ [NumberBoxClicks] Loaded ${data.length} clicks`);
@@ -102,7 +121,7 @@ class NumberBoxClicksService {
       console.log(`📥 [NumberBoxClicks] Loading all clicks for date:`, { userId, dateKey });
 
       const { data, error } = await supabase
-        .from('number_box_clicks')
+        .from('topic_clicks')
         .select('*')
         .eq('user_id', userId)
         .eq('date_key', dateKey);
@@ -114,9 +133,9 @@ class NumberBoxClicksService {
       const numberPresenceStatus = {};
 
       data.forEach(click => {
-        const boxKey = `${click.set_name}_${click.date_key}_${click.number_value}_HR${click.hr_number}`;
-        clickedNumbers[boxKey] = click.is_clicked;
-        numberPresenceStatus[boxKey] = click.is_present;
+        const boxKey = `${click.topic_name}_${click.date_key}_${click.clicked_number}_${click.hour}`;
+        clickedNumbers[boxKey] = true; // All records in topic_clicks represent clicked numbers
+        numberPresenceStatus[boxKey] = click.is_matched;
       });
 
       console.log(`✅ [NumberBoxClicks] Loaded ${data.length} clicks for all HRs`);
@@ -141,14 +160,15 @@ class NumberBoxClicksService {
         userId, setName, dateKey, numberValue, hrNumber
       });
 
+      const hour = `HR${hrNumber}`;
       const { error } = await supabase
-        .from('number_box_clicks')
+        .from('topic_clicks')
         .delete()
         .eq('user_id', userId)
-        .eq('set_name', setName)
+        .eq('topic_name', setName)
         .eq('date_key', dateKey)
-        .eq('number_value', numberValue)
-        .eq('hr_number', hrNumber);
+        .eq('clicked_number', numberValue)
+        .eq('hour', hour);
 
       if (error) throw error;
 
@@ -169,7 +189,7 @@ class NumberBoxClicksService {
       console.log(`🗑️ [NumberBoxClicks] Deleting all clicks for date:`, { userId, dateKey });
 
       const { error } = await supabase
-        .from('number_box_clicks')
+        .from('topic_clicks')
         .delete()
         .eq('user_id', userId)
         .eq('date_key', dateKey);
@@ -191,18 +211,18 @@ class NumberBoxClicksService {
   async getClickStatistics(userId) {
     try {
       const { data, error } = await supabase
-        .from('number_box_clicks')
-        .select('date_key, hr_number, is_clicked, is_present')
+        .from('topic_clicks')
+        .select('date_key, hour, is_matched')
         .eq('user_id', userId);
 
       if (error) throw error;
 
       const stats = {
         totalClicks: data.length,
-        clickedCount: data.filter(click => click.is_clicked).length,
-        presentCount: data.filter(click => click.is_present).length,
+        clickedCount: data.length, // All records in topic_clicks represent clicked numbers
+        presentCount: data.filter(click => click.is_matched).length,
         dateCount: new Set(data.map(click => click.date_key)).size,
-        hrCount: new Set(data.map(click => click.hr_number)).size
+        hrCount: new Set(data.map(click => click.hour)).size
       };
 
       return stats;
@@ -227,7 +247,7 @@ class NumberBoxClicksService {
       console.log(`🧹 [NumberBoxClicks] Clearing all clicks for user:`, userId);
 
       const { error } = await supabase
-        .from('number_box_clicks')
+        .from('topic_clicks')
         .delete()
         .eq('user_id', userId);
 
@@ -246,7 +266,7 @@ class NumberBoxClicksService {
   async checkConnection() {
     try {
       const { data, error } = await supabase
-        .from('number_box_clicks')
+        .from('topic_clicks')
         .select('count(*)')
         .limit(1);
 

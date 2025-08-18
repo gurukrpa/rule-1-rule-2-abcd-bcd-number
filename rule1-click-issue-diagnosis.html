@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rule-1 Click Issue Diagnosis</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .issue { background: #fff3cd; padding: 15px; margin: 15px 0; border: 1px solid #ffeaa7; border-radius: 5px; }
+        .solution { background: #d4edda; padding: 15px; margin: 15px 0; border: 1px solid #c3e6cb; border-radius: 5px; }
+        .test-results { background: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 3px; font-family: monospace; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Rule-1 Click Issue Diagnosis</h1>
+    
+    <div class="issue">
+        <h3>🚨 Issue Identified</h3>
+        <p><strong>Root Cause:</strong> Rule-1 page only allows clicking numbers that are in ABCD or BCD analysis arrays.</p>
+        <p><strong>Your Problem:</strong> For D-1 Set-1 Matrix on 2025-08-14, numbers 7 and 8 are not in the ABCD/BCD arrays, so they cannot be clicked.</p>
+    </div>
+
+    <div class="solution">
+        <h3>💡 Solution</h3>
+        <p>We need to either:</p>
+        <ol>
+            <li><strong>Generate ABCD/BCD analysis</strong> for D-1 Set-1 Matrix on 2025-08-14</li>
+            <li><strong>Allow manual clicks</strong> for numbers not in analysis (bypass the restriction)</li>
+            <li><strong>Use direct database insert</strong> to save the clicked numbers</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h3>🧪 Test Current State</h3>
+        <button onclick="testCurrentABCDBCDState()">Check ABCD/BCD Analysis</button>
+        <button onclick="testDirectSave()">Test Direct Save</button>
+        <button onclick="testManualClick()">Simulate Manual Click</button>
+        <div id="test-results" class="test-results"></div>
+    </div>
+
+    <div class="solution">
+        <h3>🛠️ Quick Fix Options</h3>
+        <button onclick="enableManualClicks()">Enable Manual Clicks (Bypass Restriction)</button>
+        <button onclick="generateMissingAnalysis()">Generate ABCD/BCD Analysis</button>
+        <button onclick="directSaveNumbers()">Direct Save Numbers 7 & 8</button>
+    </div>
+
+    <script>
+        const userId = '5019aa9a-a653-49f5-b7da-f5bc9dcde985';
+        const targetDate = '2025-08-14';
+        const topicName = 'D-1 Set-1 Matrix';
+        const targetNumbers = [7, 8];
+        
+        function log(message, isError = false) {
+            const element = document.getElementById('test-results');
+            const timeStamp = new Date().toLocaleTimeString();
+            element.textContent += `[${timeStamp}] ${message}\n`;
+            if (isError) {
+                element.style.backgroundColor = '#f8d7da';
+            }
+        }
+
+        async function testCurrentABCDBCDState() {
+            log('🔍 Testing current ABCD/BCD analysis state...');
+            
+            try {
+                // Check if we're on Rule-1 page and can access the analysis
+                if (window.location.pathname.includes('rule-1') && typeof window.abcdBcdAnalysis !== 'undefined') {
+                    log('✅ On Rule-1 page with analysis data');
+                    
+                    const analysisData = window.abcdBcdAnalysis;
+                    log(`📊 Analysis data keys: ${Object.keys(analysisData).join(', ')}`);
+                    
+                    if (analysisData[topicName]) {
+                        log(`✅ Found ${topicName} in analysis`);
+                        
+                        if (analysisData[topicName][targetDate]) {
+                            const dateData = analysisData[topicName][targetDate];
+                            log(`✅ Found data for ${targetDate}:`);
+                            log(`   ABCD Numbers: [${dateData.abcdNumbers?.join(', ') || 'none'}]`);
+                            log(`   BCD Numbers: [${dateData.bcdNumbers?.join(', ') || 'none'}]`);
+                            
+                            const allNumbers = [...(dateData.abcdNumbers || []), ...(dateData.bcdNumbers || [])];
+                            const canClick7 = allNumbers.includes(7);
+                            const canClick8 = allNumbers.includes(8);
+                            
+                            log(`❌ Can click 7: ${canClick7}`);
+                            log(`❌ Can click 8: ${canClick8}`);
+                            
+                            if (!canClick7 || !canClick8) {
+                                log('🚨 This is why your clicks are not working!', true);
+                            }
+                        } else {
+                            log(`❌ No analysis data for ${targetDate}`, true);
+                        }
+                    } else {
+                        log(`❌ ${topicName} not found in analysis`, true);
+                    }
+                } else {
+                    log('❌ Not on Rule-1 page or analysis data not available', true);
+                    log('💡 Open Rule-1 page first, then run this test');
+                }
+                
+            } catch (error) {
+                log(`❌ Test failed: ${error.message}`, true);
+            }
+        }
+
+        async function testDirectSave() {
+            log('🧪 Testing direct database save...');
+            
+            try {
+                const timestamp = Date.now();
+                const cleanModule = await import(`./src/services/CleanSupabaseService.js?v=${timestamp}`);
+                const cleanService = cleanModule.default;
+                
+                // Try to save number 7 directly
+                await cleanService.saveTopicClick(
+                    userId, 
+                    topicName, 
+                    targetDate, 
+                    'HR1', 
+                    7, 
+                    true // isMatched - we'll force this to true
+                );
+                
+                log('✅ Direct save successful for number 7');
+                
+                // Verify it was saved
+                const clicks = await cleanService.getTopicClicks(userId, topicName, targetDate);
+                const savedClick = clicks.find(click => click.clicked_number === 7);
+                
+                if (savedClick) {
+                    log('✅ Verified: Number 7 saved successfully');
+                    log(`📊 Saved data: ${JSON.stringify(savedClick)}`);
+                } else {
+                    log('❌ Number 7 not found after save', true);
+                }
+                
+            } catch (error) {
+                log(`❌ Direct save failed: ${error.message}`, true);
+            }
+        }
+
+        async function directSaveNumbers() {
+            log('💾 Saving numbers 7 and 8 directly to database...');
+            
+            try {
+                const timestamp = Date.now();
+                const cleanModule = await import(`./src/services/CleanSupabaseService.js?v=${timestamp}`);
+                const cleanService = cleanModule.default;
+                
+                // Save both numbers
+                for (const number of targetNumbers) {
+                    await cleanService.saveTopicClick(
+                        userId, 
+                        topicName, 
+                        targetDate, 
+                        'HR1', 
+                        number, 
+                        true
+                    );
+                    log(`✅ Saved number ${number}`);
+                }
+                
+                // Verify both were saved
+                const clicks = await cleanService.getTopicClicks(userId, topicName, targetDate);
+                const savedNumbers = clicks.map(click => click.clicked_number);
+                
+                log(`📊 All saved numbers for ${targetDate}: [${savedNumbers.join(', ')}]`);
+                
+                const has7 = savedNumbers.includes(7);
+                const has8 = savedNumbers.includes(8);
+                
+                if (has7 && has8) {
+                    log('🎉 SUCCESS! Both numbers 7 and 8 are now saved!');
+                    log('💡 Now test the cross-page sync in PlanetsAnalysis');
+                } else {
+                    log(`❌ Missing numbers: 7=${has7}, 8=${has8}`, true);
+                }
+                
+            } catch (error) {
+                log(`❌ Direct save failed: ${error.message}`, true);
+            }
+        }
+
+        async function generateMissingAnalysis() {
+            log('🔄 Attempting to generate ABCD/BCD analysis...');
+            log('⚠️ This requires being on the Rule-1 page with analysis functions available');
+            
+            // This would require access to the Rule-1 page functions
+            log('💡 Navigate to Rule-1 page and ensure analysis is generated for 2025-08-14');
+        }
+
+        async function enableManualClicks() {
+            log('🛠️ This would require modifying the Rule-1 page code...');
+            log('💡 Alternative: Use the Direct Save option above');
+        }
+
+        // Auto-run current state test
+        window.addEventListener('load', () => {
+            setTimeout(testCurrentABCDBCDState, 1000);
+        });
+    </script>
+</body>
+</html>

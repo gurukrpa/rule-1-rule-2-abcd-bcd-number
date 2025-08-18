@@ -155,6 +155,9 @@ function UserList() {
                 <Link to="/users" className="text-indigo-600 hover:text-indigo-900 font-medium">
                   Users
                 </Link>
+                <Link to="/performance-demo" className="text-green-600 hover:text-green-900 font-medium">
+                  🚀 Performance Demo
+                </Link>
                 <Link to="/number-gen" className="text-gray-700 hover:text-gray-900">
                   Number Generator
                 </Link>
@@ -254,6 +257,13 @@ function UserList() {
                     className="text-orange-600 hover:text-orange-900 ml-4"
                   >
                     ABCD Number
+                  </Link>
+                  <Link
+                    to={`/rule1-optimized/${user.id}`}
+                    className="text-green-600 hover:text-green-900 ml-4 font-semibold"
+                    title="Ultra-fast Rule1 page with optimized performance"
+                  >
+                    ⚡ Optimized Rule1
                   </Link>
                   <Link
                     to="/number-gen"

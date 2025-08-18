@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cross-Page Sync Diagnostic - D-1 Set-1</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        .header {
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .section {
+            background: white;
+            margin: 15px 0;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border: 1px solid;
+        }
+        .success { background: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+        .warning { background: #fff3cd; border-color: #ffeaa7; color: #856404; }
+        .info { background: #d1ecf1; border-color: #bee5eb; color: #0c5460; }
+        .code {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #2563eb; }
+        .number-box {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            margin: 2px;
+            background: #f0f0f0;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            text-align: center;
+            line-height: 26px;
+            font-weight: bold;
+        }
+        .clicked { background: #3b82f6; color: white; border-color: #2563eb; }
+        .abcd { background: #10b981; color: white; border-color: #059669; }
+        .bcd { background: #0ea5e9; color: white; border-color: #0284c7; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔍 Cross-Page Sync Diagnostic: D-1 Set-1</h1>
+        <p>Testing synchronization between Rule-1 and PlanetsAnalysis for date 14-8-25</p>
+    </div>
+
+    <div class="section">
+        <h2>📊 Target Analysis</h2>
+        <p><strong>Date:</strong> 14-8-25 (2025-08-14)</p>
+        <p><strong>Topic:</strong> D-1 Set-1</p>
+        <p><strong>Expected ABCD:</strong> [1, 3, 8, 10]</p>
+        <p><strong>Expected BCD:</strong> [6, 7, 9]</p>
+        
+        <div>
+            <strong>Expected Number Box State:</strong><br>
+            <span class="number-box abcd">1</span>
+            <span class="number-box">2</span>
+            <span class="number-box abcd">3</span>
+            <span class="number-box">4</span>
+            <span class="number-box">5</span>
+            <span class="number-box bcd">6</span>
+            <span class="number-box bcd">7</span>
+            <span class="number-box abcd">8</span>
+            <span class="number-box bcd">9</span>
+            <span class="number-box abcd">10</span>
+            <span class="number-box">11</span>
+            <span class="number-box">12</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🔧 Diagnostic Tests</h2>
+        <button onclick="testCrossPageSync()">Test Cross-Page Sync</button>
+        <button onclick="testSupabaseData()">Test Supabase Data</button>
+        <button onclick="testPlanetsAnalysisPage()">Test PlanetsAnalysis Page</button>
+        <button onclick="checkRule1Data()">Check Rule-1 Data</button>
+        <div id="testResults"></div>
+    </div>
+
+    <div class="section">
+        <h2>📋 Test Results</h2>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const results = document.getElementById('results');
+        const testResults = document.getElementById('testResults');
+        
+        function addResult(message, type = 'info', container = results) {
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = message;
+            container.appendChild(div);
+        }
+
+        async function testCrossPageSync() {
+            testResults.innerHTML = '';
+            addResult('🔄 Testing cross-page sync service...', 'info', testResults);
+            
+            try {
+                // Import and test crossPageSyncService
+                const module = await import('./src/services/crossPageSyncService.js');
+                const syncService = module.default;
+                
+                addResult('✅ Cross-page sync service imported successfully', 'success', testResults);
+                
+                // Test with a sample user ID
+                const testUserId = 'user123';
+                addResult(`🔍 Testing sync for user: ${testUserId}`, 'info', testResults);
+                
+                const syncData = await syncService.getAllClickedNumbers(testUserId);
+                addResult(`📊 Sync data retrieved: ${JSON.stringify(syncData, null, 2)}`, 'info', testResults);
+                
+                // Check for D-1 Set-1 data specifically
+                const targetDate = '2025-08-14';
+                const topicName = 'D-1 Set-1';
+                
+                if (syncData[targetDate] && syncData[targetDate][topicName]) {
+                    const topicData = syncData[targetDate][topicName];
+                    addResult(`✅ Found D-1 Set-1 data for ${targetDate}:`, 'success', testResults);
+                    addResult(`  • Clicked Numbers: [${topicData.clickedNumbers.join(', ')}]`, 'info', testResults);
+                    addResult(`  • ABCD Numbers: [${topicData.abcdNumbers.join(', ')}]`, 'info', testResults);
+                    addResult(`  • BCD Numbers: [${topicData.bcdNumbers.join(', ')}]`, 'info', testResults);
+                } else {
+                    addResult(`❌ No D-1 Set-1 data found for ${targetDate}`, 'error', testResults);
+                    addResult(`Available dates: ${Object.keys(syncData).join(', ')}`, 'warning', testResults);
+                    
+                    // Check all available topics for the target date
+                    if (syncData[targetDate]) {
+                        addResult(`Available topics for ${targetDate}: ${Object.keys(syncData[targetDate]).join(', ')}`, 'warning', testResults);
+                    }
+                }
+                
+            } catch (error) {
+                addResult(`❌ Cross-page sync test failed: ${error.message}`, 'error', testResults);
+                console.error('Cross-page sync error:', error);
+            }
+        }
+
+        async function testSupabaseData() {
+            testResults.innerHTML = '';
+            addResult('🔄 Testing Supabase data access...', 'info', testResults);
+            
+            try {
+                // Import CleanSupabaseService
+                const module = await import('./src/services/CleanSupabaseService.js');
+                const supabaseService = module.default;
+                
+                addResult('✅ CleanSupabaseService imported successfully', 'success', testResults);
+                
+                // Test topic clicks
+                const testUserId = 'user123';
+                const topicClicksResult = await supabaseService.getAllTopicClicksByUser(testUserId);
+                
+                if (topicClicksResult.success) {
+                    addResult(`✅ Topic clicks retrieved: ${topicClicksResult.data.length} records`, 'success', testResults);
+                    
+                    // Filter for D-1 Set-1 and target date
+                    const d1set1Clicks = topicClicksResult.data.filter(click => 
+                        click.topic_name === 'D-1 Set-1' && click.date_key === '2025-08-14'
+                    );
+                    
+                    if (d1set1Clicks.length > 0) {
+                        addResult(`✅ Found ${d1set1Clicks.length} D-1 Set-1 clicks for 2025-08-14`, 'success', testResults);
+                        d1set1Clicks.forEach(click => {
+                            addResult(`  • Number ${click.number} (Hour ${click.hour})`, 'info', testResults);
+                        });
+                    } else {
+                        addResult('❌ No D-1 Set-1 clicks found for 2025-08-14', 'error', testResults);
+                    }
+                } else {
+                    addResult(`❌ Failed to retrieve topic clicks: ${topicClicksResult.error}`, 'error', testResults);
+                }
+                
+                // Test analysis results
+                const analysisResult = await supabaseService.getOrganizedAnalysisResults(testUserId);
+                if (analysisResult.success) {
+                    addResult('✅ Analysis results retrieved', 'success', testResults);
+                    
+                    const targetDate = '2025-08-14';
+                    if (analysisResult.data[targetDate] && analysisResult.data[targetDate]['D-1 Set-1']) {
+                        const d1set1Analysis = analysisResult.data[targetDate]['D-1 Set-1'];
+                        addResult(`✅ Found D-1 Set-1 analysis for ${targetDate}:`, 'success', testResults);
+                        addResult(`  • ABCD: [${d1set1Analysis.abcd_numbers.join(', ')}]`, 'info', testResults);
+                        addResult(`  • BCD: [${d1set1Analysis.bcd_numbers.join(', ')}]`, 'info', testResults);
+                    } else {
+                        addResult('❌ No D-1 Set-1 analysis found for 2025-08-14', 'error', testResults);
+                    }
+                } else {
+                    addResult('⚠️ Analysis results not available', 'warning', testResults);
+                }
+                
+            } catch (error) {
+                addResult(`❌ Supabase test failed: ${error.message}`, 'error', testResults);
+                console.error('Supabase error:', error);
+            }
+        }
+
+        async function testPlanetsAnalysisPage() {
+            testResults.innerHTML = '';
+            addResult('🔄 Testing PlanetsAnalysis page functionality...', 'info', testResults);
+            
+            try {
+                // Test if we can import PlanetsAnalysisPage
+                const module = await import('./src/components/PlanetsAnalysisPage.jsx');
+                addResult('✅ PlanetsAnalysisPage imported successfully', 'success', testResults);
+                
+                // Check if the sync functions are available
+                addResult('💡 To test PlanetsAnalysis sync:', 'info', testResults);
+                addResult('  1. Open PlanetsAnalysis page: /planets-analysis/user123?date=2025-08-14', 'info', testResults);
+                addResult('  2. Look for "📊 Rule-1 Sync" section', 'info', testResults);
+                addResult('  3. Click "🔄 Sync Now" button', 'info', testResults);
+                addResult('  4. Check if D-1 Set-1 numbers are highlighted', 'info', testResults);
+                
+            } catch (error) {
+                addResult(`❌ PlanetsAnalysis test failed: ${error.message}`, 'error', testResults);
+            }
+        }
+
+        async function checkRule1Data() {
+            testResults.innerHTML = '';
+            addResult('🔄 Checking Rule-1 data storage...', 'info', testResults);
+            
+            // Check localStorage for any Rule-1 data
+            const localStorageKeys = Object.keys(localStorage).filter(key => 
+                key.includes('rule') || key.includes('click') || key.includes('D-1') || key.includes('analysis')
+            );
+            
+            if (localStorageKeys.length > 0) {
+                addResult(`📦 Found ${localStorageKeys.length} localStorage items:`, 'info', testResults);
+                localStorageKeys.forEach(key => {
+                    const value = localStorage.getItem(key);
+                    addResult(`  • ${key}: ${value.substring(0, 100)}${value.length > 100 ? '...' : ''}`, 'info', testResults);
+                });
+            } else {
+                addResult('⚠️ No Rule-1 related localStorage items found', 'warning', testResults);
+            }
+            
+            addResult('💡 To generate Rule-1 data:', 'info', testResults);
+            addResult('  1. Open Rule-1 page: /abcd-bcd-number/user123', 'info', testResults);
+            addResult('  2. Select D-1 Set-1 topic', 'info', testResults);
+            addResult('  3. Click numbers in the number box', 'info', testResults);
+            addResult('  4. Verify data is saved to Supabase', 'info', testResults);
+        }
+
+        // Auto-run basic tests on load
+        window.addEventListener('load', () => {
+            addResult('🚀 Cross-Page Sync Diagnostic loaded', 'success');
+            addResult('📍 Current URL: ' + window.location.href, 'info');
+            addResult('⏰ Time: ' + new Date().toLocaleString(), 'info');
+            
+            addResult('🎯 Issue: D-1 Set-1 numbers not syncing to PlanetsAnalysis page', 'warning');
+            addResult('📊 Expected: Numbers 1,3,8,10 (ABCD) and 6,7,9 (BCD) should be highlighted', 'info');
+            addResult('❌ Actual: Numbers not highlighted despite being clicked in Rule-1', 'error');
+        });
+    </script>
+</body>
+</html>

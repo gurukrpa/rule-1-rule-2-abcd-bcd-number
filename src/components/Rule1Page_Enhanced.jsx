@@ -1,15 +1,12 @@
 // src/components/Rule1Page_Enhanced.jsx
 // Enhanced Rule1Page with caching and unified data service
 
-import React, { useState, useEffect } from 'react';
-import { unifiedDataService } from '../services/unifiedDataService';
-import { DataService } from '../services/dataService_new';
-import { useCachedData, useAnalysisCache } from '../hooks/useCachedData';
-import { redisCache } from '../services/redisClient';
-import { Rule2ResultsService } from '../services/rule2ResultsService';
-import rule2AnalysisService from '../services/rule2AnalysisService';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAnalysisCache, useCachedData } from '../hooks/useCachedData';
 import cleanSupabaseService from '../services/CleanSupabaseService';
-import ProgressBar from './ProgressBar';
+import { DataService } from '../services/dataService_new';
+import rule2AnalysisService from '../services/rule2AnalysisService';
+import { unifiedDataService } from '../services/unifiedDataService';
 
 function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack, users }) {
   const [loading, setLoading] = useState(true);
@@ -32,6 +29,52 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
   // Clickable number boxes state
   const [clickedNumbers, setClickedNumbers] = useState({}); // {topicName: {dateKey: {hour: [numbers]}}}
   const [numberBoxLoading, setNumberBoxLoading] = useState(false);
+  
+  // Refs for synchronized scrolling
+  const scrollContainerRefs = useRef(new Map());
+  const isScrollingRef = useRef(false);
+
+  // Synchronized scrolling function
+  const handleSynchronizedScroll = useCallback((sourceTopicName, scrollLeft) => {
+    if (isScrollingRef.current) return;
+    
+    isScrollingRef.current = true;
+    
+    // Update all other scroll containers to match the scroll position
+    scrollContainerRefs.current.forEach((container, topicName) => {
+      if (topicName !== sourceTopicName && container) {
+        container.scrollLeft = scrollLeft;
+      }
+    });
+    
+    // Reset the scrolling flag after a brief delay
+    setTimeout(() => {
+      isScrollingRef.current = false;
+    }, 10);
+  }, []);
+
+  // Register scroll container ref
+  const setScrollContainerRef = useCallback((topicName, element) => {
+    if (element) {
+      scrollContainerRefs.current.set(topicName, element);
+      
+      // Add scroll event listener for synchronized scrolling
+      const handleScroll = (e) => {
+        handleSynchronizedScroll(topicName, e.target.scrollLeft);
+      };
+      
+      element.addEventListener('scroll', handleScroll);
+      
+      // Store cleanup function for manual cleanup if needed
+      // Note: Removed return statement to fix React callback ref warning
+    } else {
+      // Cleanup when element is removed
+      const existingElement = scrollContainerRefs.current.get(topicName);
+      if (existingElement) {
+        scrollContainerRefs.current.delete(topicName);
+      }
+    }
+  }, [handleSynchronizedScroll]);
   
   // Highlighted topics count state
   const [highlightedTopicCountPerDate, setHighlightedTopicCountPerDate] = useState({}); // {dateKey: count}
@@ -430,11 +473,30 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
   };
 
   // Handle number box click with toggle functionality
-  const handleNumberBoxClick = async (topicName, dateKey, number) => {
-    if (!selectedUser || !activeHR) return;
+  const handleNumberBoxClick = async (topicName, dateKey, number, event = null) => {
+    // ENHANCED DEBUG LOGGING - Step 2
+    console.group(`🔢 [DEBUG] Number Box Click - ${number}`);
+    console.log('📋 All Parameters:', {
+      topicName,
+      dateKey, 
+      number,
+      activeHR,
+      selectedUser: selectedUser?.id || 'none',
+      eventType: event?.type || 'none',
+      timestamp: new Date().toLocaleTimeString()
+    });
+    
+    if (!selectedUser || !activeHR) {
+      console.error('❌ [ERROR] Missing required parameters:', {
+        hasSelectedUser: !!selectedUser,
+        hasActiveHR: !!activeHR
+      });
+      console.groupEnd();
+      return;
+    }
 
     try {
-      console.log(`🔢 Number box clicked: ${number} for topic ${topicName} on ${dateKey} HR${activeHR}`);
+      console.log(`🎯 Processing click: ${number} for topic ${topicName} on ${dateKey} HR${activeHR}`);
       
       // Check if number matches ABCD or BCD arrays for this topic/date
       const abcdNumbers = abcdBcdAnalysis[topicName]?.[dateKey]?.abcdNumbers || [];
@@ -443,15 +505,22 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
       const isBcdMatch = bcdNumbers.includes(number);
       const isMatched = isAbcdMatch || isBcdMatch;
       
-      // Only proceed if the number is matched (in ABCD or BCD)
-      if (!isMatched) {
-        console.log(`❌ Number ${number} is not in ABCD/BCD arrays - cannot click`, {
-          number,
-          abcdNumbers,
-          bcdNumbers,
-          explanation: 'Only numbers present in ABCD or BCD arrays can be clicked'
-        });
-        return; // Exit early if not matched
+      // 🎯 RULE-1 PAGE: Allow manual clicking for user convenience
+      // User can click any number manually on Rule-1 page
+      // These clicks will sync to PlanetsAnalysis page automatically
+      const allowManualClick = true; // ✅ Allow manual clicks on Rule-1 page
+      const allowShiftOverride = event?.shiftKey; // Keep Shift override for debugging
+      
+      // On Rule-1 page, users can click any number (no restrictions)
+      // The cross-page sync will handle showing these in PlanetsAnalysis
+      
+      // Log the type of click
+      if (isMatched) {
+        console.log(`✅ Matched click: Number ${number} (${isAbcdMatch ? 'ABCD' : 'BCD'} match)`);
+      } else if (allowShiftOverride) {
+        console.log(`🔓 Shift+Click: Number ${number} (manual override with Shift key)`);
+      } else {
+        console.log(`� Manual click: Number ${number} (not in ABCD/BCD arrays - manual entry)`);
       }
       
       // Check if number is already clicked (for toggle logic)
@@ -467,6 +536,14 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
         bcdNumbers
       });
       console.log(`🔄 Toggle check: Number ${number} is ${isAlreadyClicked ? 'ALREADY CLICKED (will remove)' : 'NOT CLICKED (will add)'}`);
+      
+      // Check if this click should be allowed
+      const shouldAllowClick = isMatched || allowManualClick || allowShiftOverride;
+      
+      if (!shouldAllowClick) {
+        console.log(`🚫 Click not allowed: Number ${number} is not matched and manual clicking is disabled`);
+        return;
+      }
       
       if (isAlreadyClicked) {
         // UNCLICK: Remove from database and local state
@@ -496,16 +573,21 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
         console.log(`✅ Number ${number} successfully REMOVED (unclicked)`);
         
       } else {
-        // CLICK: Add to database and local state (only matched numbers reach here)
-        console.log(`➕ Adding matched number ${number} (${matchType}) to database and state`);
+        // CLICK: Add to database and local state (matched or manual click)
+        const clickTypeInfo = isMatched ? `${matchType} match` : 'manual click';
+        console.log(`➕ Adding number ${number} (${clickTypeInfo}) to database and state`);
+        
+        // CRITICAL FIX: Extract user ID from selectedUser object
+        const actualUserId = selectedUser?.id || selectedUser;
+        console.log(`🔍 [DEBUG] User ID for save:`, { selectedUser, actualUserId });
         
         await cleanSupabaseService.saveTopicClick(
-          selectedUser, 
+          actualUserId, 
           topicName, 
           dateKey, 
           `HR${activeHR}`, 
           number, 
-          isMatched // This will always be true here
+          isMatched // Pass the actual match status
         );
         
         // Add to local state
@@ -525,11 +607,16 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
           return updated;
         });
         
-        console.log(`✅ Number ${number} successfully ADDED (clicked as ${matchType})`);
+        console.log(`✅ Number ${number} successfully ADDED (${clickTypeInfo})`);
       }
       
+      // ENHANCED DEBUG LOGGING - Step 3: Track completion
+      console.log('🎉 [SUCCESS] Click processing completed successfully');
+      console.groupEnd();
+      
     } catch (error) {
-      console.error('❌ Error handling number box click:', error);
+      console.error('❌ [ERROR] Failed to handle number box click:', error);
+      console.groupEnd();
     }
   };
 
@@ -640,25 +727,43 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
     
     return (
       <div className="mt-2 space-y-1">
-        {/* Row 1: Numbers 1-6 */}
+        {/* Row 1: Numbers 1-6 - ALL CLICKABLE with different colors for ABCD/BCD/Manual */}
         <div className="flex gap-1 justify-center">
           {[1, 2, 3, 4, 5, 6].map(num => {
             const isClicked = currentClicks.includes(num);
-            const isInAbcdBcd = abcdNumbers.includes(num) || bcdNumbers.includes(num);
-            const isDisabled = !isInAbcdBcd || numberBoxLoading;
+            const isAbcdNumber = abcdNumbers.includes(num);
+            const isBcdNumber = bcdNumbers.includes(num);
+            const isInAbcdBcd = isAbcdNumber || isBcdNumber;
             
             return (
               <button
                 key={`${topicName}-${dateKey}-${num}`}
-                onClick={() => handleNumberBoxClick(topicName, dateKey, num)}
-                disabled={isDisabled}
+                onClick={(e) => handleNumberBoxClick(topicName, dateKey, num, e)}
                 className={`w-6 h-6 text-xs font-bold rounded border transition-all transform ${
-                  isDisabled 
-                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50' 
-                    : getButtonStyle(num, isClicked)
+                  numberBoxLoading 
+                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50'
+                    : isClicked
+                    ? (isAbcdNumber 
+                        ? 'bg-orange-500 text-white border-orange-600 shadow-md scale-105' // Orange for ABCD
+                        : isBcdNumber
+                        ? 'bg-teal-600 text-white border-teal-700 shadow-md scale-105'    // Teal for BCD
+                        : 'bg-gray-400 text-white border-gray-500 shadow-md scale-105')   // Gray for blocked
+                    : isAbcdNumber
+                    ? 'bg-orange-100 text-orange-700 border-orange-300 hover:bg-orange-200 hover:scale-105' // Light orange for ABCD available
+                    : isBcdNumber
+                    ? 'bg-teal-100 text-teal-700 border-teal-300 hover:bg-teal-200 hover:scale-105'        // Light teal for BCD available
+                    : 'bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed opacity-60'            // Disabled for non-ABCD/BCD
                 }`}
-                style={isDisabled ? {} : getInlineStyle(num, isClicked)}
-                title={!isInAbcdBcd ? 'Number not in ABCD/BCD arrays' : ''}
+                disabled={!isInAbcdBcd && !numberBoxLoading} // Disable non-ABCD/BCD numbers
+                title={
+                  isClicked 
+                    ? (isAbcdNumber ? `ABCD match clicked: ${num}` : isBcdNumber ? `BCD match clicked: ${num}` : `Blocked: ${num}`)
+                    : isAbcdNumber 
+                    ? `ABCD match available: ${num}`
+                    : isBcdNumber
+                    ? `BCD match available: ${num}`
+                    : `Only ABCD/BCD numbers can be clicked`
+                }
               >
                 {num}
               </button>
@@ -669,21 +774,39 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
         <div className="flex gap-1 justify-center">
           {[7, 8, 9, 10, 11, 12].map(num => {
             const isClicked = currentClicks.includes(num);
-            const isInAbcdBcd = abcdNumbers.includes(num) || bcdNumbers.includes(num);
-            const isDisabled = !isInAbcdBcd || numberBoxLoading;
+            const isAbcdNumber = abcdNumbers.includes(num);
+            const isBcdNumber = bcdNumbers.includes(num);
+            const isInAbcdBcd = isAbcdNumber || isBcdNumber;
             
             return (
               <button
                 key={`${topicName}-${dateKey}-${num}`}
-                onClick={() => handleNumberBoxClick(topicName, dateKey, num)}
-                disabled={isDisabled}
+                onClick={(e) => handleNumberBoxClick(topicName, dateKey, num, e)}
                 className={`w-6 h-6 text-xs font-bold rounded border transition-all transform ${
-                  isDisabled 
-                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50' 
-                    : getButtonStyle(num, isClicked)
+                  numberBoxLoading 
+                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50'
+                    : isClicked
+                    ? (isAbcdNumber 
+                        ? 'bg-orange-500 text-white border-orange-600 shadow-md scale-105' // Orange for ABCD
+                        : isBcdNumber
+                        ? 'bg-teal-600 text-white border-teal-700 shadow-md scale-105'    // Teal for BCD
+                        : 'bg-gray-400 text-white border-gray-500 shadow-md scale-105')   // Gray for blocked
+                    : isAbcdNumber
+                    ? 'bg-orange-100 text-orange-700 border-orange-300 hover:bg-orange-200 hover:scale-105' // Light orange for ABCD available
+                    : isBcdNumber
+                    ? 'bg-teal-100 text-teal-700 border-teal-300 hover:bg-teal-200 hover:scale-105'        // Light teal for BCD available
+                    : 'bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed opacity-60'            // Disabled for non-ABCD/BCD
                 }`}
-                style={isDisabled ? {} : getInlineStyle(num, isClicked)}
-                title={!isInAbcdBcd ? 'Number not in ABCD/BCD arrays' : ''}
+                disabled={!isInAbcdBcd && !numberBoxLoading} // Disable non-ABCD/BCD numbers
+                title={
+                  isClicked 
+                    ? (isAbcdNumber ? `ABCD match clicked: ${num}` : isBcdNumber ? `BCD match clicked: ${num}` : `Blocked: ${num}`)
+                    : isAbcdNumber 
+                    ? `ABCD match available: ${num}`
+                    : isBcdNumber
+                    ? `BCD match available: ${num}`
+                    : `Only ABCD/BCD numbers can be clicked`
+                }
               >
                 {num}
               </button>
@@ -1572,7 +1695,11 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
               })().map(hr => (
                 <button
                   key={hr}
-                  onClick={() => setActiveHR(hr)}
+                  onClick={() => {
+                    console.log(`🕐 [DEBUG] Hour selection: Changing from HR${activeHR} to HR${hr}`);
+                    setActiveHR(hr);
+                    console.log(`✅ [DEBUG] activeHR updated to: ${hr}`);
+                  }}
                   className={`px-3 py-1 rounded text-sm transition-colors ${
                     activeHR === hr
                       ? 'bg-purple-500 text-white'
@@ -1683,7 +1810,10 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
                   <div className="bg-blue-100 p-3 font-bold text-lg rounded-t-lg border-b border-gray-200">
                     📊 {formatSetName(setName)}
                   </div>
-                  <div className="overflow-x-auto">
+                  <div 
+                    className="overflow-x-auto"
+                    ref={(el) => setScrollContainerRef(setName, el)}
+                  >
                     <table className="w-full border-collapse min-w-max">
                     <thead className="bg-gray-100">
                       <tr>

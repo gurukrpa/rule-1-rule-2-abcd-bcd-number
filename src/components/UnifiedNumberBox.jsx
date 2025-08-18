@@ -16,6 +16,7 @@ const UnifiedNumberBox = ({
   gridCols = 6,
   size = 'medium' // 'small', 'medium', 'large'
 }) => {
+
   const {
     handleNumberClick,
     isNumberClicked,
@@ -25,12 +26,28 @@ const UnifiedNumberBox = ({
     setAnalysisData
   } = useUnifiedNumberBox(userId, topic, date, hour);
 
+  // Feedback message state
+  const [feedback, setFeedback] = React.useState('');
+
   // Set analysis data for highlighting logic
   React.useEffect(() => {
     if (abcdNumbers.length > 0 || bcdNumbers.length > 0) {
       setAnalysisData(topic, date, abcdNumbers, bcdNumbers);
     }
   }, [topic, date, abcdNumbers, bcdNumbers, setAnalysisData]);
+
+  // Debug logging for props
+  React.useEffect(() => {
+    console.log(`🎯 [UnifiedNumberBox] Props received:`, {
+      userId,
+      topic,
+      date,
+      hour,
+      hourType: typeof hour,
+      abcdNumbers,
+      bcdNumbers
+    });
+  }, [userId, topic, date, hour, abcdNumbers, bcdNumbers]);
 
   // Size configurations
   const sizeConfig = {
@@ -127,9 +144,24 @@ const UnifiedNumberBox = ({
         {numbers.map(number => (
           <button
             key={number}
-            onClick={() => {
+            onClick={async () => {
               if (isNumberAvailable(number) && !loading) {
-                handleNumberClick(number);
+                setFeedback('');
+                // Debug log for parameters
+                console.log('[DEBUG] Saving click:', {
+                  userId,
+                  topic,
+                  date,
+                  hour,
+                  number
+                });
+                try {
+                  await handleNumberClick(number);
+                  setFeedback('Saved!');
+                } catch (error) {
+                  setFeedback('Failed to save. Please try again.');
+                  console.error('[DEBUG] Save error:', error);
+                }
               }
             }}
             disabled={!isNumberAvailable(number) || loading}
@@ -151,7 +183,7 @@ const UnifiedNumberBox = ({
         ))}
       </div>
 
-      {/* Status Info */}
+      {/* Status Info & Feedback */}
       <div className="mt-2 text-xs text-gray-600">
         <div className="flex justify-between items-center">
           <span>
@@ -164,6 +196,11 @@ const UnifiedNumberBox = ({
         {loading && (
           <div className="text-blue-600 mt-1">
             ⏳ Updating...
+          </div>
+        )}
+        {feedback && (
+          <div className="mt-1 text-sm text-green-700">
+            {feedback}
           </div>
         )}
       </div>

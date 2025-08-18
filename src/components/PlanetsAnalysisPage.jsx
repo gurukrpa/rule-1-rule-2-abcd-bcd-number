@@ -1,13 +1,11 @@
 // src/components/PlanetsAnalysisPage.jsx
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { supabase } from '../supabaseClient';
 import { abcdBcdDatabaseService } from '../services/abcdBcdDatabaseService';
-import { PlanetsAnalysisDataService } from '../services/planetsAnalysisDataService';
-import { DateValidationService } from '../services/dateValidationService.js';
-import { DateManagementService } from '../utils/dateManagement.js';
+import crossPageSyncService from '../services/crossPageSyncService.js';
+import { supabase } from '../supabaseClient';
 
 function PlanetsAnalysisPage() {
   const navigate = useNavigate();
@@ -37,8 +35,17 @@ function PlanetsAnalysisPage() {
   const [realAnalysisData, setRealAnalysisData] = useState(null);
   const [dataSource, setDataSource] = useState('loading');
   
-  // Interactive number boxes state - track clicked numbers per topic
-  const [clickedNumbersByTopic, setClickedNumbersByTopic] = useState({});
+  // ❌ REMOVED: No manual clicking state needed - all data comes from Rule-1 sync
+  // const [clickedNumbersByTopic, setClickedNumbersByTopic] = useState({});
+  
+  // ✅ LOCAL CLICK STATE: For local highlighting in PlanetsAnalysis page
+  const [localClickedNumbers, setLocalClickedNumbers] = useState({}); // {topicName: Set<number>}
+  
+  // ✅ Cross-page sync state - sync clicked numbers from Rule-1 page
+  const [rule1SyncData, setRule1SyncData] = useState(null);
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncEnabled, setSyncEnabled] = useState(true);
+  const [lastSyncTime, setLastSyncTime] = useState(null);
 
   // Load user information if userId is provided
   useEffect(() => {
@@ -125,6 +132,37 @@ function PlanetsAnalysisPage() {
       }
     }
   }, [selectedHour, realAnalysisData]);
+
+  // Load Rule-1 sync data when component mounts or sync settings change
+  useEffect(() => {
+    if (userId && syncEnabled) {
+      console.log('🔄 [PlanetsAnalysis] Triggering Rule-1 sync data load');
+      loadRule1SyncData();
+    }
+  }, [userId, syncEnabled, selectedDate]); // Reload when date changes too
+
+  // DEBUG: Log sync data changes
+  useEffect(() => {
+    if (rule1SyncData) {
+      console.log('🎯 [DEBUG] Rule1SyncData updated:', rule1SyncData);
+      console.log('🎯 [DEBUG] Selected date:', selectedDate);
+      if (rule1SyncData[selectedDate]) {
+        console.log('🎯 [DEBUG] Data for selected date:', rule1SyncData[selectedDate]);
+        Object.keys(rule1SyncData[selectedDate]).forEach(topic => {
+          const data = rule1SyncData[selectedDate][topic];
+          console.log(`🎯 [DEBUG] ${topic}:`, data);
+          if (topic.includes('D-1 Set-1')) {
+            console.log(`🔍 [FOCUS] D-1 Set-1 clicked numbers:`, data.clickedNumbers);
+            console.log(`🔍 [FOCUS] D-1 Set-1 ABCD numbers:`, data.abcdNumbers);
+            console.log(`🔍 [FOCUS] D-1 Set-1 BCD numbers:`, data.bcdNumbers);
+          }
+        });
+      } else {
+        console.log('❌ [DEBUG] No data found for selected date:', selectedDate);
+        console.log('🔍 [DEBUG] Available dates:', Object.keys(rule1SyncData));
+      }
+    }
+  }, [rule1SyncData, selectedDate]);
 
   // Load ABCD/BCD numbers from all available sources automatically
   const loadAllAvailableData = async () => {
@@ -540,6 +578,50 @@ function PlanetsAnalysisPage() {
       setDataSource('fallback');
     } finally {
       setDatabaseLoading(false);
+    }
+  };
+
+  // Load Rule-1 sync data for cross-page number box synchronization
+  const loadRule1SyncData = async () => {
+    if (!userId || !syncEnabled) {
+      console.log('🔄 [PlanetsAnalysis] Sync disabled or no userId:', { userId, syncEnabled });
+      return;
+    }
+
+    try {
+      setSyncLoading(true);
+      console.log('🔄 [PlanetsAnalysis] Loading Rule-1 sync data...');
+
+      // Get all clicked numbers and analysis results from Rule-1 page
+      const syncData = await crossPageSyncService.getAllClickedNumbers(userId);
+      console.log('📊 [PlanetsAnalysis] Rule-1 sync data loaded:', syncData);
+      
+      // Debug: Check ALL dates to see what we have
+      console.log('🔍 [PlanetsAnalysis] All available dates:', Object.keys(syncData || {}));
+      
+      // Debug: Check specific date data  
+      if (syncData && syncData['2025-08-14']) {
+        console.log('🎯 [PlanetsAnalysis] August 14th data:', syncData['2025-08-14']);
+        if (syncData['2025-08-14']['D-1 Set-1 Matrix']) {
+          const d1Data = syncData['2025-08-14']['D-1 Set-1 Matrix'];
+          console.log('🔢 [PlanetsAnalysis] D-1 Set-1 clicked numbers:', d1Data.clickedNumbers);
+          console.log('📋 [PlanetsAnalysis] Full D-1 Set-1 data:', d1Data);
+        }
+      }
+
+      if (syncData && Object.keys(syncData).length > 0) {
+        setRule1SyncData(syncData);
+        setLastSyncTime(new Date());
+        console.log('✅ [PlanetsAnalysis] Sync data successfully loaded from Rule-1');
+      } else {
+        console.log('ℹ️ [PlanetsAnalysis] No Rule-1 sync data available');
+        setRule1SyncData(null);
+      }
+    } catch (error) {
+      console.error('❌ [PlanetsAnalysis] Error loading Rule-1 sync data:', error);
+      setError(`Failed to sync with Rule-1: ${error.message}`);
+    } finally {
+      setSyncLoading(false);
     }
   };
 
@@ -1054,31 +1136,59 @@ function PlanetsAnalysisPage() {
   // Use a single, constant array for planet order everywhere
   const PLANET_CODES = ['Su', 'Mo', 'Ma', 'Me', 'Ju', 'Ve', 'Sa', 'Ra', 'Ke'];
 
-  // Handle number box clicks - toggle clicked state for specific topic
+  // ✅ ENABLED: Allow local clicking for highlighting on PlanetsAnalysis page
+  // Local clicks for highlighting, synced numbers from Rule-1 page via cross-page sync
   const handleNumberBoxClick = (topicName, number) => {
-    setClickedNumbersByTopic(prev => {
-      const topicKey = `${topicName}_HR${selectedHour}`;
-      const currentClicked = prev[topicKey] || new Set();
-      const newClicked = new Set(currentClicked);
+    console.log(`🔢 [PlanetsAnalysis] Number ${number} clicked for ${topicName}`);
+    
+    // Toggle local click state for highlighting
+    setLocalClickedNumbers(prev => {
+      const newState = { ...prev };
       
-      if (newClicked.has(number)) {
-        newClicked.delete(number);
-      } else {
-        newClicked.add(number);
+      // Initialize topic with empty array if it doesn't exist
+      if (!newState[topicName]) {
+        newState[topicName] = [];
       }
       
-      return {
-        ...prev,
-        [topicKey]: newClicked
-      };
+      // Check if number is already clicked
+      const currentNumbers = [...newState[topicName]]; // Create a copy
+      const numberIndex = currentNumbers.indexOf(number);
+      
+      if (numberIndex > -1) {
+        // Remove the number (unclick)
+        newState[topicName] = currentNumbers.filter(n => n !== number);
+        console.log(`➖ [PlanetsAnalysis] Removed local click: ${number} from ${topicName}`);
+      } else {
+        // Add the number (click)
+        newState[topicName] = [...currentNumbers, number];
+        console.log(`➕ [PlanetsAnalysis] Added local click: ${number} to ${topicName}`);
+      }
+      
+      return newState;
     });
   };
 
   // Check if a number is clicked for a specific topic
   const isNumberClicked = (topicName, number) => {
-    const topicKey = `${topicName}_HR${selectedHour}`;
-    const clickedNumbers = clickedNumbersByTopic[topicKey] || new Set();
-    return clickedNumbers.has(number);
+    // Check local clicks first (for local highlighting)
+    if (localClickedNumbers[topicName] && localClickedNumbers[topicName].includes(number)) {
+      console.log(`✅ Number ${number} was clicked locally for ${topicName}`);
+      return true;
+    }
+    
+    // ✅ Also check numbers that were clicked on Rule-1 page
+    if (syncEnabled && rule1SyncData && selectedDate) {
+      const dateData = rule1SyncData[selectedDate];
+      if (dateData && dateData[topicName] && dateData[topicName].clickedNumbers) {
+        const isClicked = dateData[topicName].clickedNumbers.includes(number);
+        if (isClicked) {
+          console.log(`✅ Number ${number} was clicked on Rule-1 page for ${topicName}`);
+        }
+        return isClicked;
+      }
+    }
+    
+    return false; // Not clicked locally or from Rule-1
   };
 
   // Render interactive number boxes (1-12) for a topic - DEPRECATED: Now using clickable ABCD/BCD numbers directly
@@ -1129,54 +1239,184 @@ function PlanetsAnalysisPage() {
     if (!rawData) return { highlighted: false };
     const number = extractElementNumber(rawData);
     if (!number) return { highlighted: false };
-    const isClicked = isNumberClicked(topicName, number);
     
-    if (!isClicked) return { highlighted: false };
+    // DEBUG: Log what we're checking (only for D-1 Set-1 Matrix and specific numbers)
+    const isDebugTopic = topicName.includes('D-1 Set-1');
+    const isDebugNumber = [3, 8, 10, 12, 9, 5].includes(number);
     
-    // Determine if this is ABCD or BCD highlighting
-    const { abcd, bcd } = getTopicNumbersWithNormalization(topicName);
-    const isAbcd = abcd.includes(number);
-    const isBcd = bcd.includes(number);
+    if (isDebugTopic && isDebugNumber) {
+      console.log(`🔍 [Highlight] Checking ${topicName}, number: ${number}, selectedDate: ${selectedDate}`);
+    }
     
-    return { 
-      highlighted: true, 
-      type: isAbcd ? 'ABCD' : isBcd ? 'BCD' : 'unknown'
-    };
+    // ✅ FIXED: Check synced data from Rule-1 FIRST (higher priority)
+    let isSyncedFromRule1 = false;
+    let syncSource = null; // 'clicked' or 'analysis'
+    
+    if (syncEnabled && rule1SyncData && selectedDate) {
+      // Rule1SyncData is organized by date, then topic
+      const dateData = rule1SyncData[selectedDate];
+      
+      if (isDebugTopic && isDebugNumber) {
+        console.log(`🔍 [Highlight] DateData for ${selectedDate}:`, dateData ? Object.keys(dateData) : 'No data');
+        console.log(`🔍 [Highlight] Available dates in rule1SyncData:`, Object.keys(rule1SyncData || {}));
+      }
+      
+      // Try multiple topic name variations
+      const topicVariations = [
+        topicName,
+        normalizeTopicName(topicName),
+        topicName.replace(' Matrix', ''),
+        topicName + ' Matrix'
+      ];
+      
+      let syncData = null;
+      let foundTopic = null;
+      
+      for (const variation of topicVariations) {
+        if (dateData && dateData[variation]) {
+          syncData = dateData[variation];
+          foundTopic = variation;
+          break;
+        }
+      }
+      
+      if (syncData) {
+        if (isDebugTopic && isDebugNumber) {
+          console.log(`🔍 [Highlight] SyncData found for ${foundTopic} (from ${topicName}):`, syncData);
+        }
+        
+        // Check if this number was clicked in Rule-1
+        if (syncData.clickedNumbers && syncData.clickedNumbers.includes(number)) {
+          if (isDebugTopic && isDebugNumber) {
+            console.log(`✅ [Highlight] Number ${number} found in clicked numbers for ${foundTopic}`);
+          }
+          isSyncedFromRule1 = true;
+          syncSource = 'clicked';
+        }
+        
+        // Also check if this number is in the ABCD/BCD results from Rule-1
+        if (syncData.abcdNumbers && syncData.abcdNumbers.includes(number)) {
+          if (isDebugTopic && isDebugNumber) {
+            console.log(`✅ [Highlight] Number ${number} found in ABCD numbers for ${foundTopic}`);
+          }
+          isSyncedFromRule1 = true;
+          syncSource = 'analysis';
+        }
+        if (syncData.bcdNumbers && syncData.bcdNumbers.includes(number)) {
+          if (isDebugTopic && isDebugNumber) {
+            console.log(`✅ [Highlight] Number ${number} found in BCD numbers for ${foundTopic}`);
+          }
+          isSyncedFromRule1 = true;
+          syncSource = 'analysis';
+        }
+      } else {
+        if (isDebugTopic && isDebugNumber) {
+          console.log(`❌ [Highlight] No sync data found for topic: ${topicName} (tried: ${topicVariations.join(', ')})`);
+        }
+      }
+    }
+    
+    // Return synced data highlighting (highest priority)
+    if (isSyncedFromRule1) {
+      const { abcd, bcd } = getTopicNumbersWithNormalization(topicName);
+      const isAbcd = abcd.includes(number);
+      const isBcd = bcd.includes(number);
+      
+      if (isDebugTopic && isDebugNumber) {
+        console.log(`🎯 [Highlight] Highlighting number ${number} for ${topicName} - ABCD: ${isAbcd}, BCD: ${isBcd}, Source: rule1-sync`);
+      }
+      
+      return { 
+        highlighted: true, 
+        type: isAbcd ? 'ABCD' : isBcd ? 'BCD' : 'unknown',
+        source: 'rule1-sync',
+        syncSource: syncSource // 'clicked' or 'analysis' for synced numbers
+      };
+    }
+    
+    // ✅ SECOND PRIORITY: Check local clicks (only if no sync data)
+    if (localClickedNumbers[topicName] && localClickedNumbers[topicName].includes(number)) {
+      const { abcd, bcd } = getTopicNumbersWithNormalization(topicName);
+      const isAbcd = abcd.includes(number);
+      const isBcd = bcd.includes(number);
+      
+      return { 
+        highlighted: true, 
+        type: isAbcd ? 'ABCD' : isBcd ? 'BCD' : 'unknown',
+        source: 'local-click',
+        syncSource: 'local'
+      };
+    }
+    
+    // No highlighting
+    if (isDebugTopic && isDebugNumber) {
+      console.log(`⚫ [Highlight] No highlighting for number ${number} in ${topicName}`);
+    }
+    return { highlighted: false };
   };
   
   // Get planet cell highlight styles based on Rule1Page colors
   const getPlanetCellHighlightStyle = (highlightInfo) => {
     if (!highlightInfo.highlighted) return {};
     
+    // Base styles for ABCD and BCD
+    let baseStyle = {};
+    
     if (highlightInfo.type === 'ABCD') {
-      return {
+      baseStyle = {
         backgroundColor: '#FCE7C8',
         borderColor: '#F97316',
         color: '#8B4513',
         fontWeight: 'bold',
-        fontSize: '0.875rem', // text-sm equivalent (14px)
+        fontSize: '0.875rem',
         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
       };
     } else if (highlightInfo.type === 'BCD') {
-      return {
+      baseStyle = {
         backgroundColor: '#41B3A2',
         borderColor: '#359486',
         color: '#FFFFFF',
         fontWeight: 'bold',
-        fontSize: '0.875rem', // text-sm equivalent (14px)
+        fontSize: '0.875rem',
         boxShadow: '0 4px 6px -1px rgba(65, 179, 162, 0.4), 0 2px 4px -1px rgba(65, 179, 162, 0.3)'
+      };
+    } else {
+      // Fallback
+      baseStyle = {
+        backgroundColor: '#FCE7C8',
+        borderColor: '#F97316',
+        color: '#8B4513',
+        fontWeight: 'bold',
+        fontSize: '0.875rem',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
       };
     }
     
-    // Fallback
-    return {
-      backgroundColor: '#FCE7C8',
-      borderColor: '#F97316',
-      color: '#8B4513',
-      fontWeight: 'bold',
-      fontSize: '0.875rem',
-      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
-    };
+    // Modify styles for synced numbers from Rule-1
+    if (highlightInfo.source === 'rule1-sync') {
+      if (highlightInfo.type === 'ABCD') {
+        baseStyle = {
+          ...baseStyle,
+          backgroundColor: '#E0F2FE', // Light blue background for synced ABCD
+          borderColor: '#0EA5E9',     // Blue border
+          color: '#0C4A6E',           // Dark blue text
+          boxShadow: '0 0 0 2px rgba(14, 165, 233, 0.3), 0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+        };
+      } else if (highlightInfo.type === 'BCD') {
+        baseStyle = {
+          ...baseStyle,
+          backgroundColor: '#F0F9FF', // Very light blue for synced BCD
+          borderColor: '#0EA5E9',
+          color: '#0C4A6E',
+          boxShadow: '0 0 0 2px rgba(14, 165, 233, 0.5), 0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+        };
+      }
+      
+      // Add a distinctive pattern or gradient for synced numbers
+      baseStyle.background = `linear-gradient(135deg, ${baseStyle.backgroundColor} 0%, ${baseStyle.backgroundColor} 80%, #E0F2FE 100%)`;
+    }
+    
+    return baseStyle;
   };
 
   return (
@@ -1224,6 +1464,94 @@ function PlanetsAnalysisPage() {
             )}
           </div>
         </div>
+
+        {/* Rule-1 Sync Controls */}
+        {false && userId && (
+          <div className="bg-white rounded-lg shadow-md p-4 mb-4 border-l-4 border-blue-500">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <h3 className="text-sm font-semibold text-gray-800">📊 Rule-1 Sync</h3>
+                
+                {/* Sync Toggle */}
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={syncEnabled}
+                    onChange={(e) => setSyncEnabled(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">Enable sync</span>
+                </label>
+
+                {/* Sync Status */}
+                <div className={`px-2 py-1 rounded-lg text-xs font-medium ${
+                  syncLoading 
+                    ? 'bg-yellow-100 text-yellow-700' 
+                    : rule1SyncData && Object.keys(rule1SyncData).length > 0
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {syncLoading 
+                    ? '⏳ Syncing...' 
+                    : rule1SyncData && Object.keys(rule1SyncData).length > 0
+                      ? `✅ ${Object.keys(rule1SyncData).length} topics synced`
+                      : '⚫ No sync data'
+                  }
+                </div>
+
+                {/* Last Sync Time */}
+                {lastSyncTime && (
+                  <div className="text-xs text-gray-500">
+                    Last sync: {lastSyncTime.toLocaleTimeString()}
+                  </div>
+                )}
+              </div>
+
+              {/* Manual Sync Button */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={loadRule1SyncData}
+                  disabled={!syncEnabled || syncLoading}
+                  className="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-xs font-medium"
+                >
+                  {syncLoading ? '🔄' : '🔄'} Sync Now
+                </button>
+              </div>
+            </div>
+
+            {/* Sync Data Preview */}
+            {rule1SyncData && Object.keys(rule1SyncData).length > 0 && selectedDate && (
+              <div className="mt-3 p-2 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="text-xs text-blue-700 font-medium mb-1">Synced from Rule-1 for {selectedDate}:</div>
+                <div className="text-xs text-blue-600 space-y-1">
+                  {rule1SyncData[selectedDate] ? (
+                    Object.entries(rule1SyncData[selectedDate]).slice(0, 3).map(([topic, data]) => (
+                      <div key={topic} className="flex items-center gap-2">
+                        <span className="font-medium">{topic}:</span>
+                        <span>
+                          {data.clickedNumbers && data.clickedNumbers.length > 0 
+                            ? `Clicked: ${data.clickedNumbers.join(', ')}`
+                            : 'No clicks'
+                          }
+                        </span>
+                        <span className="text-green-600">
+                          | ABCD: {data.abcdNumbers?.length || 0} | BCD: {data.bcdNumbers?.length || 0}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-gray-500">No sync data for {selectedDate}</div>
+                  )}
+                  {rule1SyncData[selectedDate] && Object.keys(rule1SyncData[selectedDate]).length > 3 && (
+                    <div className="text-blue-500">...and {Object.keys(rule1SyncData[selectedDate]).length - 3} more topics</div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+
 
         {/* Hour Tabs with Visual Data Update Indicator */}
         {userInfo && userInfo.hr && userInfo.hr > 1 && (
@@ -1371,8 +1699,8 @@ function PlanetsAnalysisPage() {
             </div>
           </div>
           
-          {/* Real Analysis Data Status */}
-          {realAnalysisData ? (
+          {/* Real Analysis Data Status - HIDDEN */}
+          {false && realAnalysisData ? (
             <div className={`border-l-4 p-2 rounded text-xs mb-3 transition-all duration-300 ${
               hourSwitchLoading 
                 ? 'bg-orange-50 border-orange-400' 
@@ -1414,8 +1742,8 @@ function PlanetsAnalysisPage() {
                   <div><strong>BCD:</strong> {Object.values(realAnalysisData.topicNumbers || {}).reduce((sum, topic) => sum + topic.bcd.length, 0)}</div>
                 </div>
               </div>
-              {/* Topic verification for current hour */}
-              {realAnalysisData.topicNumbers && realAnalysisData.topicNumbers['D-1 Set-1 Matrix'] && (
+              {/* Topic verification for current hour - HIDDEN */}
+              {false && realAnalysisData.topicNumbers && realAnalysisData.topicNumbers['D-1 Set-1 Matrix'] && (
                 <div className="mt-1 p-1 bg-white rounded border text-xs">
                   <div className="font-medium text-green-800">🔍 D-1 Set-1 Verification (HR {selectedHour}):</div>
                   <div className="text-green-700">
@@ -1430,15 +1758,15 @@ function PlanetsAnalysisPage() {
             </div>
           ) : null}
           
-          {/* Database Analysis Summary */}
-          {databaseTopicNumbers && !realAnalysisData ? (
+          {/* Database Analysis Summary - HIDDEN */}
+          {false && databaseTopicNumbers && !realAnalysisData ? (
             <div className="bg-green-50 border-l-4 border-green-400 p-2 rounded text-xs">
               <div className="flex items-center gap-1 mb-1">
                 <span className="bg-green-500 text-white px-1 py-0.5 rounded text-xs font-medium">✓ DATABASE</span>
                 <span className="text-green-700 font-medium text-xs">Using Supabase ABCD/BCD numbers</span>
               </div>
             </div>
-          ) : !realAnalysisData ? (
+          ) : false && !realAnalysisData ? (
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-2 rounded text-xs">
               <div className="flex items-center gap-1 mb-1">
                 <span className="bg-yellow-500 text-white px-1 py-0.5 rounded text-xs font-medium">⚠ FALLBACK</span>
@@ -1540,12 +1868,12 @@ function PlanetsAnalysisPage() {
         )}
 
         {/* Error/Success Messages */}
-        {error && (
+        {false && error && (
           <div className="bg-red-50 border-l-4 border-red-400 text-red-700 px-2 py-1 rounded mb-3 text-xs">
             {error}
           </div>
         )}
-        {success && (
+        {false && success && (
           <div className="bg-green-50 border-l-4 border-green-400 text-green-700 px-2 py-1 rounded mb-3 text-xs">
             {success}
           </div>
@@ -1554,7 +1882,7 @@ function PlanetsAnalysisPage() {
         {/* Main Content */}
         <div className="bg-white rounded-lg shadow-md p-3">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-gray-800">
+            <h3 className="text-sm font-semibold text-gray-800" style={{display: 'none'}}>
               Planets Analysis Results
             </h3>
           </div>
@@ -1562,7 +1890,7 @@ function PlanetsAnalysisPage() {
           {loading ? (
             <div className="text-center py-8">
               <div className="animate-spin h-6 w-6 border-4 border-teal-500 border-t-transparent rounded-full mx-auto mb-2"></div>
-              <p className="text-sm text-gray-600">Processing Excel file...</p>
+              <p className="text-sm text-gray-600" style={{display: 'none'}}>Processing Excel file...</p>
             </div>
           ) : planetsData && planetsData.sets && Object.keys(planetsData.sets).length > 0 ? (
             <div className="space-y-4">
@@ -1583,7 +1911,7 @@ function PlanetsAnalysisPage() {
                         hourSwitchLoading 
                           ? 'bg-orange-100 text-orange-700' 
                           : 'bg-teal-100 text-teal-700'
-                      }`}>
+                      }`} style={{display: 'none'}}>
                         {hourSwitchLoading ? '⏳ HR Data' : `HR ${selectedHour} Data`}
                       </span>
                     )}
@@ -1597,7 +1925,7 @@ function PlanetsAnalysisPage() {
                     return (
                       <div className="mb-2 flex flex-wrap gap-4 items-center bg-blue-50 p-2 rounded">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-green-700 mr-1">ABCD:</span>
+                          <span className="text-xs font-semibold text-green-700 mr-1" style={{display: 'none'}}>ABCD:</span>
                           {abcd && abcd.length > 0 ? abcd.sort((a,b)=>a-b).map(num => (
                             <button
                               key={num}
@@ -1614,10 +1942,10 @@ function PlanetsAnalysisPage() {
                             >
                               {num}
                             </button>
-                          )) : <span className="text-xs text-gray-400">None</span>}
+                          )) : <span className="text-xs text-gray-400" style={{display: 'none'}}>None</span>}
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-blue-700 mr-1">BCD:</span>
+                          <span className="text-xs font-semibold text-blue-700 mr-1" style={{display: 'none'}}>BCD:</span>
                           {bcd && bcd.length > 0 ? bcd.sort((a,b)=>a-b).map(num => (
                             <button
                               key={num}
@@ -1634,7 +1962,7 @@ function PlanetsAnalysisPage() {
                             >
                               {num}
                             </button>
-                          )) : <span className="text-xs text-gray-400">None</span>}
+                          )) : <span className="text-xs text-gray-400" style={{display: 'none'}}>None</span>}
                         </div>
                       </div>
                     );
@@ -1756,7 +2084,7 @@ function PlanetsAnalysisPage() {
             </div>
           ) : (
             <div className="text-center py-8">
-              <p className="text-sm text-gray-600">No analysis results available. Please upload an Excel file.</p>
+              <p className="text-sm text-gray-600" style={{display: 'none'}}>No analysis results available. Please upload an Excel file.</p>
             </div>
           )}
         </div>
