@@ -1027,6 +1027,18 @@ function PlanetsAnalysisPage() {
 
   // Topic management functions
   const availableTopics = planetsData ? naturalTopicSort(Object.keys(planetsData.sets)) : [];
+  // Bulk select/deselect for Set-1 and Set-2
+  const handleBulkSetToggle = (setNumber) => {
+    const setTopics = availableTopics.filter(topic => topic.includes(`Set-${setNumber}`));
+    const allSelected = setTopics.every(topic => selectedTopics.has(topic));
+    const newSelectedTopics = new Set(selectedTopics);
+    if (allSelected) {
+      setTopics.forEach(topic => newSelectedTopics.delete(topic));
+    } else {
+      setTopics.forEach(topic => newSelectedTopics.add(topic));
+    }
+    setSelectedTopics(newSelectedTopics);
+  };
 
   const getTopicsForDisplay = () => {
     if (selectedTopics.size === 0) {
@@ -1140,30 +1152,69 @@ function PlanetsAnalysisPage() {
   // Local clicks for highlighting, synced numbers from Rule-1 page via cross-page sync
   const handleNumberBoxClick = (topicName, number) => {
     console.log(`🔢 [PlanetsAnalysis] Number ${number} clicked for ${topicName}`);
-    
-    // Toggle local click state for highlighting
+
+    // Check if number is already clicked
     setLocalClickedNumbers(prev => {
       const newState = { ...prev };
-      
-      // Initialize topic with empty array if it doesn't exist
-      if (!newState[topicName]) {
-        newState[topicName] = [];
-      }
-      
-      // Check if number is already clicked
-      const currentNumbers = [...newState[topicName]]; // Create a copy
+      if (!newState[topicName]) newState[topicName] = [];
+      const currentNumbers = [...newState[topicName]];
       const numberIndex = currentNumbers.indexOf(number);
-      
+
       if (numberIndex > -1) {
         // Remove the number (unclick)
         newState[topicName] = currentNumbers.filter(n => n !== number);
-        console.log(`➖ [PlanetsAnalysis] Removed local click: ${number} from ${topicName}`);
+        console.log(`➖ [PlanetsAnalysis] Removed click: ${number} from ${topicName}`);
+
+        // Always remove from database and sync, even if originally clicked in Rule-1
+        if (window.cleanSupabaseService && window.selectedUser && window.selectedDate) {
+          const userId = window.selectedUser?.id || window.selectedUser;
+          const dateKey = window.selectedDate;
+          const hour = window.selectedHour ? `HR${window.selectedHour}` : 'HR1';
+          console.log('[Unclick] Attempting deleteTopicClick with:', { userId, topicName, dateKey, hour, number });
+          window.cleanSupabaseService.deleteTopicClick(
+            userId,
+            topicName,
+            dateKey,
+            hour,
+            number
+          ).then((result) => {
+            console.log(`✅ [PlanetsAnalysis] Number ${number} removed from DB and sync (cross-page)`, result);
+            // Force sync refresh and UI update
+            if (window.crossPageSyncService) {
+              window.crossPageSyncService.getAllClickedNumbers(userId).then(syncData => {
+                if (window.setRule1SyncData) window.setRule1SyncData(syncData);
+                // Optionally force a UI re-render
+                if (window.forceUpdatePlanetsAnalysis) window.forceUpdatePlanetsAnalysis();
+              });
+            }
+          }).catch(err => {
+            console.error('[Unclick] deleteTopicClick failed:', err);
+          });
+        }
       } else {
         // Add the number (click)
         newState[topicName] = [...currentNumbers, number];
         console.log(`➕ [PlanetsAnalysis] Added local click: ${number} to ${topicName}`);
+
+        // Add to database and sync
+        if (window.cleanSupabaseService && window.selectedUser && window.selectedDate) {
+          window.cleanSupabaseService.saveTopicClick(
+            window.selectedUser,
+            topicName,
+            window.selectedDate,
+            window.selectedHour ? `HR${window.selectedHour}` : 'HR1',
+            number,
+            true
+          ).then(() => {
+            console.log(`✅ [PlanetsAnalysis] Number ${number} added to DB and sync`);
+            if (window.crossPageSyncService) {
+              window.crossPageSyncService.getAllClickedNumbers(window.selectedUser).then(syncData => {
+                if (window.setRule1SyncData) window.setRule1SyncData(syncData);
+              });
+            }
+          });
+        }
       }
-      
       return newState;
     });
   };
@@ -1239,118 +1290,64 @@ function PlanetsAnalysisPage() {
     if (!rawData) return { highlighted: false };
     const number = extractElementNumber(rawData);
     if (!number) return { highlighted: false };
-    
-    // DEBUG: Log what we're checking (only for D-1 Set-1 Matrix and specific numbers)
-    const isDebugTopic = topicName.includes('D-1 Set-1');
-    const isDebugNumber = [3, 8, 10, 12, 9, 5].includes(number);
-    
-    if (isDebugTopic && isDebugNumber) {
-      console.log(`🔍 [Highlight] Checking ${topicName}, number: ${number}, selectedDate: ${selectedDate}`);
+
+    // Only highlight if number is in topic's ABCD or BCD (top row)
+    const { abcd, bcd } = getTopicNumbersWithNormalization(topicName);
+    const isAbcd = abcd.includes(number);
+    const isBcd = bcd.includes(number);
+    if (!(isAbcd || isBcd)) {
+      return { highlighted: false };
     }
-    
-    // ✅ FIXED: Check synced data from Rule-1 FIRST (higher priority)
+
+    // Check synced data from Rule-1 (clickedNumbers, abcdNumbers, bcdNumbers)
     let isSyncedFromRule1 = false;
-    let syncSource = null; // 'clicked' or 'analysis'
-    
+    let syncSource = null;
     if (syncEnabled && rule1SyncData && selectedDate) {
-      // Rule1SyncData is organized by date, then topic
       const dateData = rule1SyncData[selectedDate];
-      
-      if (isDebugTopic && isDebugNumber) {
-        console.log(`🔍 [Highlight] DateData for ${selectedDate}:`, dateData ? Object.keys(dateData) : 'No data');
-        console.log(`🔍 [Highlight] Available dates in rule1SyncData:`, Object.keys(rule1SyncData || {}));
-      }
-      
-      // Try multiple topic name variations
       const topicVariations = [
         topicName,
         normalizeTopicName(topicName),
         topicName.replace(' Matrix', ''),
         topicName + ' Matrix'
       ];
-      
       let syncData = null;
-      let foundTopic = null;
-      
       for (const variation of topicVariations) {
         if (dateData && dateData[variation]) {
           syncData = dateData[variation];
-          foundTopic = variation;
           break;
         }
       }
-      
       if (syncData) {
-        if (isDebugTopic && isDebugNumber) {
-          console.log(`🔍 [Highlight] SyncData found for ${foundTopic} (from ${topicName}):`, syncData);
-        }
-        
-        // Check if this number was clicked in Rule-1
         if (syncData.clickedNumbers && syncData.clickedNumbers.includes(number)) {
-          if (isDebugTopic && isDebugNumber) {
-            console.log(`✅ [Highlight] Number ${number} found in clicked numbers for ${foundTopic}`);
-          }
           isSyncedFromRule1 = true;
           syncSource = 'clicked';
         }
-        
-        // Also check if this number is in the ABCD/BCD results from Rule-1
         if (syncData.abcdNumbers && syncData.abcdNumbers.includes(number)) {
-          if (isDebugTopic && isDebugNumber) {
-            console.log(`✅ [Highlight] Number ${number} found in ABCD numbers for ${foundTopic}`);
-          }
           isSyncedFromRule1 = true;
           syncSource = 'analysis';
         }
         if (syncData.bcdNumbers && syncData.bcdNumbers.includes(number)) {
-          if (isDebugTopic && isDebugNumber) {
-            console.log(`✅ [Highlight] Number ${number} found in BCD numbers for ${foundTopic}`);
-          }
           isSyncedFromRule1 = true;
           syncSource = 'analysis';
         }
-      } else {
-        if (isDebugTopic && isDebugNumber) {
-          console.log(`❌ [Highlight] No sync data found for topic: ${topicName} (tried: ${topicVariations.join(', ')})`);
-        }
       }
     }
-    
-    // Return synced data highlighting (highest priority)
     if (isSyncedFromRule1) {
-      const { abcd, bcd } = getTopicNumbersWithNormalization(topicName);
-      const isAbcd = abcd.includes(number);
-      const isBcd = bcd.includes(number);
-      
-      if (isDebugTopic && isDebugNumber) {
-        console.log(`🎯 [Highlight] Highlighting number ${number} for ${topicName} - ABCD: ${isAbcd}, BCD: ${isBcd}, Source: rule1-sync`);
-      }
-      
-      return { 
-        highlighted: true, 
+      return {
+        highlighted: true,
         type: isAbcd ? 'ABCD' : isBcd ? 'BCD' : 'unknown',
         source: 'rule1-sync',
-        syncSource: syncSource // 'clicked' or 'analysis' for synced numbers
+        syncSource
       };
     }
-    
-    // ✅ SECOND PRIORITY: Check local clicks (only if no sync data)
+    // Check local clicks (only if no sync data)
     if (localClickedNumbers[topicName] && localClickedNumbers[topicName].includes(number)) {
-      const { abcd, bcd } = getTopicNumbersWithNormalization(topicName);
-      const isAbcd = abcd.includes(number);
-      const isBcd = bcd.includes(number);
-      
-      return { 
-        highlighted: true, 
+      return {
+        highlighted: true,
         type: isAbcd ? 'ABCD' : isBcd ? 'BCD' : 'unknown',
         source: 'local-click',
         syncSource: 'local'
       };
-    }
-    
-    // No highlighting
-    if (isDebugTopic && isDebugNumber) {
-      console.log(`⚫ [Highlight] No highlighting for number ${number} in ${topicName}`);
     }
     return { highlighted: false };
   };
@@ -1785,85 +1782,76 @@ function PlanetsAnalysisPage() {
           <div className="bg-white rounded-lg shadow-md p-3 mb-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-gray-800">Filter Topics:</h3>
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-gray-600">
-                  {selectedTopics.size}/{availableTopics.length}
-                </span>
+            </div>
+            {/* Rule-1 style topic selector UI */}
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-xs font-semibold text-gray-800">📊 Topic Selection</h3>
+              <div className="flex gap-1">
                 <button
                   onClick={handleSelectAll}
-                  className="text-blue-600 hover:text-blue-800"
+                  className="bg-green-300 hover:bg-green-400 text-green-800 px-1.5 py-0.5 rounded text-xs"
                 >
                   All
                 </button>
                 <button
                   onClick={handleClearAll}
-                  className="text-red-600 hover:text-red-800"
+                  className="bg-red-300 hover:bg-red-400 text-red-800 px-1.5 py-0.5 rounded text-xs"
                 >
                   Clear
                 </button>
                 <button
                   onClick={() => setShowTopicSelector(!showTopicSelector)}
-                  className="text-gray-600 hover:text-gray-800"
+                  className="bg-gray-500 hover:bg-gray-600 text-white px-1.5 py-0.5 rounded text-xs"
                 >
-                  {showTopicSelector ? '☑️' : '◻️'}
+                  {showTopicSelector ? 'Hide' : 'Show'}
                 </button>
               </div>
             </div>
-
-            {/* ABCD/BCD Topic Status Overview */}
-            {realAnalysisData && (
-              <div className="mb-3 p-2 bg-green-50 rounded text-xs">
-                <div className="font-medium text-green-800 mb-1">📊 HR {selectedHour} ABCD/BCD Status:</div>
-                <div className="grid grid-cols-4 gap-1 text-xs">
-                  {availableTopics.slice(0, 8).map(topic => {
-                    const { abcd, bcd } = getTopicNumbersWithNormalization(topic);
-                    const hasData = abcd.length > 0 || bcd.length > 0;
-                    return (
-                      <div key={topic} className={`p-1 rounded ${hasData ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        <div className="font-medium">{formatSetName(topic)}</div>
-                        <div>{hasData ? `A:${abcd.length} B:${bcd.length}` : 'No data'}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-                {availableTopics.length > 8 && (
-                  <div className="mt-1 text-green-700">...and {availableTopics.length - 8} more topics</div>
-                )}
+            {/* Combined Topics in 2 rows */}
+            <div className="space-y-0.5">
+              {/* Set-1 Topics Row */}
+              <div className="flex flex-wrap gap-0.5 items-center">
+                <button 
+                  onClick={() => handleBulkSetToggle(1)}
+                  className="text-xs font-medium text-blue-600 mr-1 hover:text-blue-800 hover:bg-blue-50 px-1 py-0.5 rounded cursor-pointer transition-colors"
+                  title="Click to select/deselect all Set-1 topics"
+                >
+                  Set-1:
+                </button>
+                {availableTopics.filter(topic => topic.includes('Set-1')).map(topic => (
+                  <label key={topic} className="flex items-center space-x-0.5 text-xs bg-blue-50 px-1 py-0.5 rounded border">
+                    <input
+                      type="checkbox"
+                      checked={selectedTopics.has(topic)}
+                      onChange={() => handleTopicToggle(topic)}
+                      className="rounded border-gray-300 w-2.5 h-2.5"
+                    />
+                    <span className="whitespace-nowrap text-xs">{formatSetName(topic)}</span>
+                  </label>
+                ))}
               </div>
-            )}
-
-            {showTopicSelector && (
-              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-1">
-                {availableTopics.map(topic => {
-                  const { abcd, bcd } = getTopicNumbersWithNormalization(topic);
-                  const hasData = abcd.length > 0 || bcd.length > 0;
-                  
-                  return (
-                    <button
-                      key={topic}
-                      onClick={() => handleTopicToggle(topic)}
-                      className={`w-full px-1 py-1 rounded text-xs font-medium transition-all text-left relative ${
-                        selectedTopics.has(topic)
-                          ? 'bg-green-500 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-green-100'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="truncate text-xs">{formatSetName(topic)}</span>
-                        <div className="flex items-center gap-0.5">
-                          {hasData ? (
-                            <span className="text-green-600 text-xs">●</span>
-                          ) : (
-                            <span className="text-red-500 text-xs">○</span>
-                          )}
-                          {selectedTopics.has(topic) && <span className="text-white text-xs">✓</span>}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
+              {/* Set-2 Topics Row */}
+              <div className="flex flex-wrap gap-0.5 items-center">
+                <button 
+                  onClick={() => handleBulkSetToggle(2)}
+                  className="text-xs font-medium text-green-600 mr-1 hover:text-green-800 hover:bg-green-50 px-1 py-0.5 rounded cursor-pointer transition-colors"
+                  title="Click to select/deselect all Set-2 topics"
+                >
+                  Set-2:
+                </button>
+                {availableTopics.filter(topic => topic.includes('Set-2')).map(topic => (
+                  <label key={topic} className="flex items-center space-x-0.5 text-xs bg-green-50 px-1 py-0.5 rounded border">
+                    <input
+                      type="checkbox"
+                      checked={selectedTopics.has(topic)}
+                      onChange={() => handleTopicToggle(topic)}
+                      className="rounded border-gray-300 w-2.5 h-2.5"
+                    />
+                    <span className="whitespace-nowrap text-xs">{formatSetName(topic)}</span>
+                  </label>
+                ))}
               </div>
-            )}
+            </div>
           </div>
         )}
 
@@ -1968,38 +1956,62 @@ function PlanetsAnalysisPage() {
                     );
                   })()}
                   
-                  {/* Planet Headers with topic-specific ABCD/BCD numbers */}
-                  <div key={`planet-headers-${selectedHour}-${realAnalysisData?.timestamp || 'fallback'}`} className="mb-2 grid grid-cols-9 gap-1">
-                    {PLANET_CODES.map(planetCode => {
-                      // Get topic-level ABCD/BCD numbers for this hour
-                      const { abcd, bcd } = getTopicNumbersWithNormalization(setName);
-                      // Get this planet's element numbers for this topic
-                      const planetNumbers = getTopicPlanetNumbers(setName)[planetCode] || [];
-                      // Only show numbers that are both in ABCD/BCD and in this planet's numbers
-                      const abcdForPlanet = planetNumbers.filter(num => abcd.includes(num));
-                      const bcdForPlanet = planetNumbers.filter(num => bcd.includes(num));
-                      return (
-                        <div key={`${planetCode}-${selectedHour}`} className="text-center bg-purple-100 p-1 rounded">
-                          <div className="text-xs font-semibold">{planetCode}</div>
-                          <div className="text-xs mt-0.5">
-                            {abcdForPlanet.length > 0 && (
-                              <div className="bg-green-200 text-green-800 px-0.5 py-0.5 rounded mb-0.5 text-xs">
-                                A: {abcdForPlanet.join(',')}
+                  {/* Planet Count Box for D-1 Set-1: show up to 2 numbers per planet, representing count of topics where each planet is highlighted */}
+                  {setName === 'D-1 Set-1 Matrix' && planetsData && (
+                    <div className="mb-2 grid grid-cols-10 gap-1">
+                      {/* Alignment box before Su */}
+                      <div className="text-center"></div>
+                      {PLANET_CODES.map(planetCode => {
+                        // Count topics where this planet is highlighted (from cross-page sync OR manual clicks)
+                        let highlightCount = 0;
+                        let highlightTopics = [];
+                        
+                        // Go through all topics/sets in planetsData
+                        Object.keys(planetsData.sets).forEach(topic => {
+                          const topicData = planetsData.sets[topic];
+                          
+                          // Check if this planet is highlighted in any element of this topic
+                          let planetHighlightedInTopic = false;
+                          
+                          Object.keys(topicData).forEach(elementName => {
+                            const elementData = topicData[elementName];
+                            if (elementData && elementData[planetCode]) {
+                              const rawData = elementData[planetCode];
+                              
+                              // Check 1: Cross-page sync highlighting (from Rule 1 page)
+                              const shouldHighlight = shouldHighlightPlanetCell(topic, rawData);
+                              if (shouldHighlight.highlighted) {
+                                planetHighlightedInTopic = true;
+                              }
+                              
+                              // Check 2: Manual clicks on this specific topic
+                              const number = extractElementNumber(rawData);
+                              if (number && localClickedNumbers[topic] && Array.isArray(localClickedNumbers[topic]) && localClickedNumbers[topic].includes(number)) {
+                                planetHighlightedInTopic = true;
+                              }
+                            }
+                          });
+                          
+                          // If planet is highlighted in this topic (either way), count it once
+                          if (planetHighlightedInTopic && !highlightTopics.includes(topic)) {
+                            highlightCount++;
+                            highlightTopics.push(topic);
+                          }
+                        });
+                        
+                        // Always show count box (remove dashes, show empty box if 0)
+                        return (
+                          <div key={planetCode} className="text-center">
+                            <div className="inline-flex flex-col items-center justify-center">
+                              <div className="bg-yellow-200 text-yellow-800 px-2 py-1 rounded mb-0.5 text-xs font-bold min-w-[24px] min-h-[20px] flex items-center justify-center">
+                                {highlightCount || ''}
                               </div>
-                            )}
-                            {bcdForPlanet.length > 0 && (
-                              <div className="bg-blue-200 text-blue-800 px-0.5 py-0.5 rounded text-xs">
-                                B: {bcdForPlanet.join(',')}
-                              </div>
-                            )}
-                            {abcdForPlanet.length === 0 && bcdForPlanet.length === 0 && (
-                              <div className="text-gray-400 text-xs">—</div>
-                            )}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                   
                   {/* Data Table */}
                   <div className="w-full overflow-x-auto">
