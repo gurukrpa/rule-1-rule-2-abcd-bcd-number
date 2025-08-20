@@ -135,6 +135,64 @@ function PlanetsAnalysisPage() {
       
       console.log('🔍 [PlanetsAnalysis] Loading ABCD/BCD numbers from all sources...');
       
+      // PRIORITY 1: Try to load from Supabase abcd_bcd_analysis_results with expiry logic
+      if (userId && selectedDate) {
+        console.log('🔍 [PlanetsAnalysis] Checking Supabase abcd_bcd_analysis_results table...');
+        try {
+          const nowIso = new Date().toISOString();
+          console.log('🕐 [PlanetsAnalysis] Current time (ISO):', nowIso);
+          
+          // Try the full query with expires_at logic first
+          let { data, error } = await supabase
+            .from('abcd_bcd_analysis_results')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('date', selectedDate)
+            .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
+            .order('created_at', { ascending: false })
+            .maybeSingle();
+            
+          // If error indicates unknown column, fall back to simpler query
+          if (error && error.message.includes('expires_at')) {
+            console.log('⚠️ [PlanetsAnalysis] expires_at column not found, falling back to simpler query');
+            const fallbackResult = await supabase
+              .from('abcd_bcd_analysis_results')
+              .select('*')
+              .eq('user_id', userId)
+              .eq('date', selectedDate)
+              .order('created_at', { ascending: false })
+              .maybeSingle();
+            data = fallbackResult.data;
+            error = fallbackResult.error;
+          }
+          
+          if (error) {
+            console.log('❌ [PlanetsAnalysis] Supabase query error:', error.message);
+          } else if (data) {
+            console.log('✅ [PlanetsAnalysis] Found Supabase data:', data);
+            console.log('📊 [PlanetsAnalysis] Topic numbers:', Object.keys(data.topic_numbers || {}).length, 'topics');
+            
+            // Set the real analysis data with Supabase data
+            setRealAnalysisData({
+              source: 'supabase',
+              topicNumbers: data.topic_numbers || {},
+              timestamp: data.created_at,
+              analysisDate: selectedDate,
+              dataSource: 'supabase-only'
+            });
+            setDataSource('supabase-only');
+            setSuccess(`✅ Loaded data from Supabase for ${new Date(selectedDate).toLocaleDateString()}`);
+            setDatabaseLoading(false);
+            return; // Success - use Supabase data
+          } else {
+            console.log('ℹ️ [PlanetsAnalysis] No Supabase data found for user/date combination');
+            setError(`No analysis found in Supabase for ${userId} on ${selectedDate}.`);
+          }
+        } catch (supabaseError) {
+          console.log('⚠️ [PlanetsAnalysis] Supabase check failed:', supabaseError.message);
+        }
+      }
+      
       // Strategy 1: Try to get real Rule2 analysis data using actual available dates
       try {
         if (userId) {
@@ -860,6 +918,62 @@ function PlanetsAnalysisPage() {
     return result;
   };
 
+  // Save Excel-derived topic numbers to Supabase with 18-hour expiry
+  const saveExcelNumbersToSupabase = async (topicNumbers) => {
+    try {
+      console.log('💾 [PlanetsAnalysis] Saving Excel-derived numbers to Supabase...');
+      console.log('📊 [PlanetsAnalysis] Topic numbers to save:', Object.keys(topicNumbers).length, 'topics');
+      
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + 18 * 60 * 60 * 1000); // 18 hours from now
+      
+      const payload = {
+        user_id: userId,
+        date: selectedDate,
+        topic_numbers: topicNumbers,
+        source: 'excel',
+        expires_at: expiresAt.toISOString(),
+        created_at: now.toISOString()
+      };
+      
+      console.log('📦 [PlanetsAnalysis] Payload:', payload);
+      
+      // Try to upsert with all fields
+      let { data, error } = await supabase
+        .from('abcd_bcd_analysis_results')
+        .upsert(payload, { onConflict: 'user_id,date' })
+        .select();
+        
+      // If error indicates unknown column, retry without source/expires_at
+      if (error && (error.message.includes('source') || error.message.includes('expires_at'))) {
+        console.log('⚠️ [PlanetsAnalysis] source/expires_at columns not found, retrying without them');
+        const fallbackPayload = {
+          user_id: userId,
+          date: selectedDate,
+          topic_numbers: topicNumbers,
+          created_at: now.toISOString()
+        };
+        
+        const fallbackResult = await supabase
+          .from('abcd_bcd_analysis_results')
+          .upsert(fallbackPayload, { onConflict: 'user_id,date' })
+          .select();
+        data = fallbackResult.data;
+        error = fallbackResult.error;
+      }
+      
+      if (error) {
+        throw new Error(`Failed to save to Supabase: ${error.message}`);
+      }
+      
+      console.log('✅ [PlanetsAnalysis] Successfully saved to Supabase:', data);
+      return true;
+    } catch (error) {
+      console.error('❌ [PlanetsAnalysis] Failed to save Excel numbers to Supabase:', error);
+      throw error;
+    }
+  };
+
   // Handle Excel upload
   const handleExcelUpload = async (event) => {
     const file = event.target.files[0];
@@ -888,7 +1002,83 @@ function PlanetsAnalysisPage() {
           
           setPlanetsData(processedData);
           setSelectedTopics(new Set()); // Reset topic selection
-          setSuccess(`✅ Excel uploaded successfully! Found ${Object.keys(processedData.sets).length} topics.`);
+          
+          // NEW: Generate ABCD/BCD numbers from Excel data and save to Supabase
+          try {
+            console.log('🚀 [PlanetsAnalysis] Generating ABCD/BCD numbers from Excel data...');
+            
+            // Import RealTimeRule2AnalysisService to trigger analysis with Excel data
+            const { RealTimeRule2AnalysisService } = await import('../services/realTimeRule2AnalysisService.js');
+            
+            // Get available dates to build sequence for analysis
+            // Try CleanSupabaseServiceWithSeparateStorage first
+            let availableDates = [];
+            try {
+              const { default: cleanSupabaseService, PAGE_CONTEXTS } = await import('../services/CleanSupabaseServiceWithSeparateStorage.js');
+              availableDates = await cleanSupabaseService.getUserDates(userId, PAGE_CONTEXTS.ABCD);
+              console.log('📅 [PlanetsAnalysis] Available dates for analysis:', availableDates);
+            } catch (e) {
+              console.log('⚠️ [PlanetsAnalysis] Could not load dates for analysis:', e.message);
+              // Continue without analysis if no dates available
+              setSuccess(`✅ Excel uploaded successfully! Found ${Object.keys(processedData.sets).length} topics.`);
+              return;
+            }
+            
+            // Add current date to available dates if not present
+            if (selectedDate && !availableDates.includes(selectedDate)) {
+              availableDates = [...availableDates, selectedDate].sort((a, b) => new Date(a) - new Date(b));
+              console.log('📅 [PlanetsAnalysis] Added current date to sequence for analysis');
+            }
+            
+            // Perform analysis using uploaded data as the latest date
+            const analysisResult = await RealTimeRule2AnalysisService.performRule2Analysis(
+              userId,
+              selectedDate,
+              availableDates
+            );
+            
+            if (analysisResult.success && analysisResult.data.hrResults) {
+              console.log('✅ [PlanetsAnalysis] Analysis successful, extracting topic numbers...');
+              
+              // Extract topic numbers from the analysis results (use first HR's data as baseline)
+              const hrResults = analysisResult.data.hrResults;
+              const firstHrNumber = Object.keys(hrResults)[0];
+              const firstHrData = hrResults[firstHrNumber];
+              
+              if (firstHrData && firstHrData.topicResults) {
+                const topicNumbers = {};
+                
+                firstHrData.topicResults.forEach(topicResult => {
+                  if (!topicResult.error) {
+                    topicNumbers[topicResult.setName] = {
+                      abcd: topicResult.abcdNumbers || [],
+                      bcd: topicResult.bcdNumbers || []
+                    };
+                  }
+                });
+                
+                console.log('📊 [PlanetsAnalysis] Generated topic numbers:', Object.keys(topicNumbers).length, 'topics');
+                
+                // Save to Supabase
+                await saveExcelNumbersToSupabase(topicNumbers);
+                
+                // Refresh the page data to show the new numbers
+                console.log('🔄 [PlanetsAnalysis] Refreshing page data...');
+                await loadAllAvailableData();
+                
+                setSuccess(`✅ Excel uploaded and analyzed! Generated ABCD/BCD numbers for ${Object.keys(topicNumbers).length} topics.`);
+              } else {
+                console.log('⚠️ [PlanetsAnalysis] Analysis completed but no topic results found');
+                setSuccess(`✅ Excel uploaded successfully! Found ${Object.keys(processedData.sets).length} topics.`);
+              }
+            } else {
+              console.log('⚠️ [PlanetsAnalysis] Analysis failed:', analysisResult.error);
+              setSuccess(`✅ Excel uploaded successfully! Found ${Object.keys(processedData.sets).length} topics. (Analysis for ABCD/BCD numbers failed: ${analysisResult.error})`);
+            }
+          } catch (analysisError) {
+            console.error('❌ [PlanetsAnalysis] Analysis/save error:', analysisError);
+            setSuccess(`✅ Excel uploaded successfully! Found ${Object.keys(processedData.sets).length} topics. (Could not generate ABCD/BCD numbers: ${analysisError.message})`);
+          }
           
         } catch (error) {
           console.error('Excel processing error:', error);
