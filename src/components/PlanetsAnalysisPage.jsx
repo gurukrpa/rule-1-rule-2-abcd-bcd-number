@@ -274,59 +274,67 @@ function PlanetsAnalysisPage() {
     };
   }, [userId]);
 
-  // Helper to save Excel-parsed numbers to Supabase with 18h expiry
+  // Helper to normalize date (ensure YYYY-MM-DD)
+  const normalizeDateStr = (d) => {
+    if (!d) return '';
+    // If it's already 'YYYY-MM-DD', keep it. If it's ISO, take first 10 chars.
+    return String(d).slice(0, 10);
+  };
+
+  // Strong save with fallback (handles missing columns like source, expires_at, created_at)
   const saveExcelNumbersToSupabase = async (parsedTopicNumbers) => {
-    if (!userId || !selectedDate) {
-      console.error('[PlanetsAnalysis] Cannot save: missing userId or selectedDate');
+    if (!userId) {
+      console.warn('[PlanetsAnalysis] Missing userId on save');
+      return false;
+    }
+    const dateStr = normalizeDateStr(selectedDate);
+    if (!dateStr) {
+      console.warn('[PlanetsAnalysis] Missing selectedDate on save');
       return false;
     }
 
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 18 * 60 * 60 * 1000).toISOString();
+
+    // Full payload (best effort)
+    const fullPayload = {
+      user_id: userId,
+      date: dateStr,
+      topic_numbers: parsedTopicNumbers,
+      source: 'excel',
+      expires_at: expiresAt,
+      created_at: now.toISOString(),
+    };
+
+    console.log('[PlanetsAnalysis] Saving Excel numbers for user/date', { userId, dateStr });
+
     try {
-      console.log('[PlanetsAnalysis] Saving Excel data for 18 hours...');
-      
-      // Calculate expiry time (18 hours from now)
-      const now = new Date();
-      const expiresAt = new Date(now.getTime() + 18 * 60 * 60 * 1000); // 18 hours in milliseconds
-      
-      // Build payload with optional fields
-      const payload = {
-        user_id: userId,
-        date: selectedDate,
-        topic_numbers: parsedTopicNumbers,
-        source: 'excel',
-        expires_at: expiresAt.toISOString(),
-        created_at: now.toISOString()
-      };
-
-      // Try upsert with all fields first
-      let { error } = await supabase
+      // Try 1: full payload
+      let { error: upsertError } = await supabase
         .from('abcd_bcd_analysis_results')
-        .upsert(payload, { onConflict: 'user_id,date' });
+        .upsert(fullPayload, { onConflict: 'user_id,date' });
 
-      // If error about unknown columns, retry without optional fields
-      if (error && (error.message.includes('source') || error.message.includes('expires_at'))) {
-        console.log('[PlanetsAnalysis] Optional columns not found; retrying without source/expires_at');
-        const basicPayload = {
+      // Try 2: remove optional columns if any column is missing
+      if (upsertError) {
+        console.warn('[PlanetsAnalysis] Full upsert failed, retrying with minimal payload. Error:', upsertError.message);
+        const minimalPayload = {
           user_id: userId,
-          date: selectedDate,
+          date: dateStr,
           topic_numbers: parsedTopicNumbers,
-          created_at: now.toISOString()
         };
-        
         const { error: retryError } = await supabase
           .from('abcd_bcd_analysis_results')
-          .upsert(basicPayload, { onConflict: 'user_id,date' });
+          .upsert(minimalPayload, { onConflict: 'user_id,date' });
           
-        if (retryError) throw retryError;
-      } else if (error) {
-        throw error;
+        if (retryError) {
+          console.error('[PlanetsAnalysis] Excel upsert failed:', retryError);
+          setError(`Failed to save Excel data: ${retryError.message}`);
+          return false;
+        }
       }
 
-      console.log('[PlanetsAnalysis] Saved Excel data for 18 hours');
-      
-      // Reload the display to show the saved numbers immediately
-      await loadAllAvailableData();
-      
+      console.log('✅ [PlanetsAnalysis] Excel data saved. Reloading from Supabase...');
+      await loadAllAvailableData(); // refresh UI so numbers show immediately
       return true;
     } catch (error) {
       console.error('[PlanetsAnalysis] Error saving Excel data:', error);
@@ -335,14 +343,19 @@ function PlanetsAnalysisPage() {
     }
   };
 
-  // Load ABCD/BCD numbers from Supabase only
+  // Loader with fallback if expires_at filter fails
   const loadAllAvailableData = async () => {
+    setDatabaseLoading(true);
+    setError('');
+    setDataSource('supabase-only');
+
     try {
-      setDatabaseLoading(true);
-      setError('');
-      setDataSource('supabase-only');
-      
-      console.log('🔍 [PlanetsAnalysis] Loading ABCD/BCD numbers from Supabase only...');
+      const dateStr = normalizeDateStr(selectedDate);
+      if (!userId || !dateStr) {
+        setError('Missing user or date.');
+        return;
+      }
+      console.log('[PlanetsAnalysis] Loading data for user/date', { userId, dateStr });
       
       // Supabase-only fetch
       if (userId && selectedDate) {
