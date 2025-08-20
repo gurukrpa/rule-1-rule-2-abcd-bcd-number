@@ -9,6 +9,22 @@ import rule2AnalysisService from '../services/rule2AnalysisService';
 import { unifiedDataService } from '../services/unifiedDataService';
 
 function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack, users }) {
+  // Cross-page sync: Listen for unclicks from Planet Analysis page
+  useEffect(() => {
+    const handlePlanetAnalysisUnclick = (event) => {
+      if (event.data?.type === 'planet-analysis-unclick' && event.data?.clickData) {
+        const { topicName, number, userId, dateKey, hour } = event.data.clickData;
+        // Only process if for this user
+        if ((selectedUser?.id || selectedUser) === userId) {
+          console.log(`🔄 [Rule-1] Received cross-page unclick: ${number} from ${topicName} (${dateKey}, ${hour})`);
+          // Reload clicked numbers from DB to ensure true sync
+          loadClickedNumbers();
+        }
+      }
+    };
+    window.addEventListener('message', handlePlanetAnalysisUnclick);
+    return () => window.removeEventListener('message', handlePlanetAnalysisUnclick);
+  }, [selectedUser]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedUserData, setSelectedUserData] = useState(null);

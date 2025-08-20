@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 // Using CleanSupabaseService with separate storage for true independence
 import cleanSupabaseService, { PAGE_CONTEXTS } from '../services/CleanSupabaseServiceWithSeparateStorage'; // ✅ True independence service
+import { supabase } from '../supabaseClient';
 import * as XLSX from 'xlsx';
 // Import strict Excel validation
 import { validateExcelStructure, generateValidationReport } from '../utils/excelValidation';
@@ -913,11 +914,14 @@ function ABCDBCDNumber() {
       return;
     }
     
-    // 📅 PROGRESSIVE CALENDAR: Navigate directly to Planets Analysis without N-1 validation
-    console.log('📅 [PROGRESSIVE] Navigating to Planets Analysis with progressive calendar logic...');
+    // NOTE: For Supabase-only implementation, PlanetsAnalysisPage will fetch data directly from Supabase
+    // No need to perform analysis here since the planets page handles all data loading
+    
+    // 📅 PROGRESSIVE CALENDAR: Navigate directly to Planets Analysis
+    console.log('📅 [PROGRESSIVE] Navigating to Planets Analysis...');
     console.log(`🪐 [PROGRESSIVE] User selected date: ${date} - allowing direct navigation`);
     
-    // Navigate directly without validation - PlanetsAnalysisPage will handle data availability
+    // Navigate directly - PlanetsAnalysisPage will fetch from Supabase
     const navigationUrl = `/planets-analysis/${selectedUser}?date=${date}`;
     console.log('🪐 Navigating to URL:', navigationUrl);
     navigate(navigationUrl);
