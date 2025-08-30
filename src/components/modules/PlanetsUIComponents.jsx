@@ -1,7 +1,7 @@
 // PlanetsUIComponents.js - Enhanced UI components for Planets Analysis
 // Modular components for rendering different sections of the interface
 
-import React from 'react';
+import { getBadgeColor } from '../../utils/constants';
 
 export const UserSelector = ({ users, selectedUser, onUserChange, loading }) => (
   <div className="mb-4">
@@ -198,11 +198,7 @@ export const ElementCard = ({ elementName, planetData, badge, onClick, isSelecte
     <div className="flex items-center justify-between mb-2">
       <h4 className="font-medium text-sm text-gray-800 truncate">{elementName}</h4>
       {badge && (
-        <span className={`px-2 py-1 text-xs rounded-full font-semibold ${
-          badge === 'ABCD' 
-            ? 'bg-red-100 text-red-800' 
-            : 'bg-yellow-100 text-yellow-800'
-        }`}>
+        <span className={`px-2 py-1 text-xs rounded-full font-semibold ${getBadgeColor(badge, elementName)}`}>
           {badge}
         </span>
       )}

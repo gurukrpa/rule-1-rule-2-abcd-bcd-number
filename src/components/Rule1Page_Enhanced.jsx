@@ -7,24 +7,9 @@ import cleanSupabaseService from '../services/CleanSupabaseService';
 import { DataService } from '../services/dataService_new';
 import rule2AnalysisService from '../services/rule2AnalysisService';
 import { unifiedDataService } from '../services/unifiedDataService';
+import { getBadgeColor, houseGroups } from '../utils/constants';
 
 function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack, users }) {
-  // Cross-page sync: Listen for unclicks from Planet Analysis page
-  useEffect(() => {
-    const handlePlanetAnalysisUnclick = (event) => {
-      if (event.data?.type === 'planet-analysis-unclick' && event.data?.clickData) {
-        const { topicName, number, userId, dateKey, hour } = event.data.clickData;
-        // Only process if for this user
-        if ((selectedUser?.id || selectedUser) === userId) {
-          console.log(`🔄 [Rule-1] Received cross-page unclick: ${number} from ${topicName} (${dateKey}, ${hour})`);
-          // Reload clicked numbers from DB to ensure true sync
-          loadClickedNumbers();
-        }
-      }
-    };
-    window.addEventListener('message', handlePlanetAnalysisUnclick);
-    return () => window.removeEventListener('message', handlePlanetAnalysisUnclick);
-  }, [selectedUser]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedUserData, setSelectedUserData] = useState(null);
@@ -682,55 +667,145 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
     const bcdNumbers = abcdBcdAnalysis[topicName]?.[dateKey]?.bcdNumbers || [];
     
     // Helper function to get button styling based on match type
-    const getButtonStyle = (num, isClicked) => {
+    const getButtonStyle = (num, isClicked, isInAbcdBcd) => {
+      if (!isInAbcdBcd) {
+        // Disabled style for numbers not in ABCD/BCD
+        return 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50';
+      }
+      
       if (!isClicked) {
-        return 'bg-white text-gray-700 border-gray-300 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:border-gray-400 hover:shadow-sm';
+        // Clean white background for unclicked but enabled numbers
+        return 'bg-white text-gray-800 border border-gray-300 hover:bg-gray-50 hover:border-gray-400';
       }
       
-      const isAbcdMatch = abcdNumbers.includes(num);
-      const isBcdMatch = bcdNumbers.includes(num);
-      
-      if (isAbcdMatch) {
-        // Orange for ABCD matches
-        return 'text-white border-orange-400 shadow-md scale-105';
-      } else if (isBcdMatch) {
-        // Teal (#41B3A2) for BCD matches
-        return 'text-white shadow-md scale-105';
-      } else {
-        // Default green for non-matching clicked numbers
-        return 'bg-gradient-to-r from-green-400 to-emerald-500 text-white border-emerald-400 shadow-md scale-105';
-      }
+      // For clicked numbers, use enhanced styling and let inline styles handle house group colors
+      return 'text-black border-2 shadow-lg scale-105 font-bold';
     };
     
-    // Helper function to get inline styles
-    const getInlineStyle = (num, isClicked) => {
-      if (!isClicked) return {};
-      
-      const isAbcdMatch = abcdNumbers.includes(num);
-      const isBcdMatch = bcdNumbers.includes(num);
-      
-      if (isAbcdMatch) {
-        // Orange for ABCD matches
-        return {
-          backgroundColor: '#FB923C',
-          borderColor: '#F97316',
-          color: 'white'
-        };
-      } else if (isBcdMatch) {
-        // Teal (#41B3A2) for BCD matches
-        return {
-          backgroundColor: '#41B3A2',
-          borderColor: '#359486',
-          color: 'white'
-        };
-      } else {
-        // Default green for non-matching clicked numbers
-        return {
-          background: 'linear-gradient(to right, #4ade80, #10b981)',
-          color: 'white',
-          borderColor: '#10b981'
-        };
+    // Helper function to get the house for a specific number from the topic data
+    const getHouseForNumber = (num, topicName, dateKey) => {
+      try {
+        console.log(`🏠 Getting house for number ${num} in ${topicName} on ${dateKey}`);
+        
+        // Get the topic data for this date
+        const topicData = allDaysData[dateKey]?.[topicName];
+        if (!topicData) {
+          console.log(`🏠 No topic data found for ${topicName} on ${dateKey}`);
+          console.log(`🏠 Available dates:`, Object.keys(allDaysData));
+          console.log(`🏠 Available topics for ${dateKey}:`, Object.keys(allDaysData[dateKey] || {}));
+          return null;
+        }
+        
+        console.log(`🏠 Topic data found, elements:`, Object.keys(topicData));
+        
+        // Look through all elements in the topic to find the number
+        for (const [elementName, elementData] of Object.entries(topicData)) {
+          if (elementData) {
+            // Check different possible data formats
+            let rawString = null;
+            
+            if (elementData.rawData) {
+              rawString = elementData.rawData;
+            } else if (typeof elementData === 'string') {
+              rawString = elementData;
+            } else if (elementData.value) {
+              rawString = elementData.value;
+            }
+            
+            if (rawString) {
+              console.log(`🏠 Checking ${elementName}: ${rawString}`);
+              
+              // Extract number and house from strings like "as-8-cp", "mo-3-ge"
+              const match = rawString.match(/([a-z]+)-(\d+)-([a-z]{2})/i);
+              if (match) {
+                const [, planet, number, house] = match;
+                console.log(`🏠 Parsed: planet=${planet}, number=${number}, house=${house}`);
+                if (parseInt(number) === num) {
+                  console.log(`🏠 ✅ Found house ${house} for number ${num}`);
+                  return house.toLowerCase();
+                }
+              }
+            }
+          }
+        }
+        
+        console.log(`🏠 ❌ No house found for number ${num}`);
+        return null;
+      } catch (error) {
+        console.log(`🏠 Error:`, error);
+        return null;
       }
+    };
+
+    // Helper function to get house group color based on actual house data
+    const getHouseGroupColorForNumber = (num, topicName, dateKey) => {
+      const house = getHouseForNumber(num, topicName, dateKey);
+      if (!house) return "#F3F4F6"; // Light gray fallback
+      
+      // Convert house abbreviation to proper case for houseGroups lookup
+      const houseKey = house.charAt(0).toUpperCase() + house.slice(1);
+      
+      // Use the existing house group color logic
+      if (houseGroups.group1.includes(houseKey)) {
+        return "#DCEDC1"; // Ar group color (green)
+      } else if (houseGroups.group2.includes(houseKey)) {
+        return "#93C5FD"; // Ta group color (blue)
+      } else if (houseGroups.group3.includes(houseKey)) {
+        return "#FFAAA5"; // Ge group color (pink)
+      }
+      
+      return "#F3F4F6"; // Light gray fallback
+    };
+
+    // Helper function to get inline styles with house group colors for clicked numbers
+    const getInlineStyle = (num, isClicked) => {
+      // Add debugging
+      console.log(`🎯 getInlineStyle: num=${num}, isClicked=${isClicked}`);
+      
+      // Only apply colors if the number is clicked
+      if (!isClicked) {
+        console.log(`🎯 Number ${num} not clicked`);
+        return {};
+      }
+      
+      const isAbcdNumber = abcdNumbers.includes(num);
+      const isBcdNumber = bcdNumbers.includes(num);
+      const isInAbcdBcd = isAbcdNumber || isBcdNumber;
+      
+      console.log(`🎯 Number ${num}: ABCD=${isAbcdNumber}, BCD=${isBcdNumber}, inArray=${isInAbcdBcd}`);
+      console.log(`🎯 ABCD array:`, abcdNumbers);
+      console.log(`🎯 BCD array:`, bcdNumbers);
+      
+      // Only show colors for numbers that are actually in ABCD/BCD arrays
+      if (!isInAbcdBcd) {
+        console.log(`🎯 Number ${num} not in ABCD/BCD arrays - no color`);
+        return {};
+      }
+      
+      // Get the actual house group color for this number based on the house data
+      console.log(`🎯 Getting house color for number ${num} in topic ${topicName} on ${dateKey}`);
+      const houseColor = getHouseGroupColorForNumber(num, topicName, dateKey);
+      console.log(`🎯 House color result: ${houseColor}`);
+      
+      // If house color detection fails, use fallback colors for testing
+      let backgroundColor = houseColor;
+      if (houseColor === "#F3F4F6") {
+        // Fallback: use simple ABCD/BCD colors if house detection fails
+        backgroundColor = isAbcdNumber ? "#DCEDC1" : "#93C5FD";
+        console.log(`🎯 Using fallback color: ${backgroundColor}`);
+      }
+      
+      const style = {
+        backgroundColor: backgroundColor,
+        borderColor: backgroundColor,
+        color: 'black',
+        fontWeight: 'bold',
+        borderWidth: '2px',
+        borderStyle: 'solid'
+      };
+      
+      console.log(`🎯 Final style for number ${num}:`, style);
+      return style;
     };
     
     // Debug logging
@@ -758,22 +833,13 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
                 className={`w-6 h-6 text-xs font-bold rounded border transition-all transform ${
                   numberBoxLoading 
                     ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50'
-                    : isClicked
-                    ? (isAbcdNumber 
-                        ? 'bg-orange-500 text-white border-orange-600 shadow-md scale-105' // Orange for ABCD
-                        : isBcdNumber
-                        ? 'bg-teal-600 text-white border-teal-700 shadow-md scale-105'    // Teal for BCD
-                        : 'bg-gray-400 text-white border-gray-500 shadow-md scale-105')   // Gray for blocked
-                    : isAbcdNumber
-                    ? 'bg-orange-100 text-orange-700 border-orange-300 hover:bg-orange-200 hover:scale-105' // Light orange for ABCD available
-                    : isBcdNumber
-                    ? 'bg-teal-100 text-teal-700 border-teal-300 hover:bg-teal-200 hover:scale-105'        // Light teal for BCD available
-                    : 'bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed opacity-60'            // Disabled for non-ABCD/BCD
+                    : getButtonStyle(num, isClicked, isInAbcdBcd)
                 }`}
+                style={getInlineStyle(num, isClicked)}
                 disabled={!isInAbcdBcd && !numberBoxLoading} // Disable non-ABCD/BCD numbers
                 title={
                   isClicked 
-                    ? (isAbcdNumber ? `ABCD match clicked: ${num}` : isBcdNumber ? `BCD match clicked: ${num}` : `Blocked: ${num}`)
+                    ? `Clicked: ${num}`
                     : isAbcdNumber 
                     ? `ABCD match available: ${num}`
                     : isBcdNumber
@@ -801,22 +867,13 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
                 className={`w-6 h-6 text-xs font-bold rounded border transition-all transform ${
                   numberBoxLoading 
                     ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50'
-                    : isClicked
-                    ? (isAbcdNumber 
-                        ? 'bg-orange-500 text-white border-orange-600 shadow-md scale-105' // Orange for ABCD
-                        : isBcdNumber
-                        ? 'bg-teal-600 text-white border-teal-700 shadow-md scale-105'    // Teal for BCD
-                        : 'bg-gray-400 text-white border-gray-500 shadow-md scale-105')   // Gray for blocked
-                    : isAbcdNumber
-                    ? 'bg-orange-100 text-orange-700 border-orange-300 hover:bg-orange-200 hover:scale-105' // Light orange for ABCD available
-                    : isBcdNumber
-                    ? 'bg-teal-100 text-teal-700 border-teal-300 hover:bg-teal-200 hover:scale-105'        // Light teal for BCD available
-                    : 'bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed opacity-60'            // Disabled for non-ABCD/BCD
+                    : getButtonStyle(num, isClicked, isInAbcdBcd)
                 }`}
+                style={getInlineStyle(num, isClicked)}
                 disabled={!isInAbcdBcd && !numberBoxLoading} // Disable non-ABCD/BCD numbers
                 title={
                   isClicked 
-                    ? (isAbcdNumber ? `ABCD match clicked: ${num}` : isBcdNumber ? `BCD match clicked: ${num}` : `Blocked: ${num}`)
+                    ? `Clicked: ${num}`
                     : isAbcdNumber 
                     ? `ABCD match available: ${num}`
                     : isBcdNumber
@@ -1562,20 +1619,38 @@ function Rule1PageEnhanced({ date, analysisDate, selectedUser, datesList, onBack
     // Check if this number is in ABCD or BCD results
     if (abcdNumbers.includes(elementNumber)) {
       console.log(`✅ [Rule1Page] Rendering ABCD tag for number ${elementNumber} from "${displayValue}"`);
+      
+      // Try to extract house from displayValue to use dynamic colors
+      let badgeColorClass = 'bg-green-200 text-green-800'; // fallback
+      const houseMatch = displayValue.match(/-([a-z]{2})$/i);
+      if (houseMatch) {
+        const elementNameForColor = `element-${elementNumber}-${houseMatch[1].toLowerCase()}`;
+        badgeColorClass = getBadgeColor('ABCD', elementNameForColor);
+      }
+      
       return (
         <div className="flex items-center justify-center gap-1">
           <span className="text-data-value">{displayValue}</span>
-          <span className="bg-green-200 text-green-800 text-xs font-medium px-1 py-0.5 rounded">
+          <span className={`text-xs font-medium px-1 py-0.5 rounded ${badgeColorClass}`}>
             ABCD
           </span>
         </div>
       );
     } else if (bcdNumbers.includes(elementNumber)) {
       console.log(`✅ [Rule1Page] Rendering BCD tag for number ${elementNumber} from "${displayValue}"`);
+      
+      // Try to extract house from displayValue to use dynamic colors
+      let badgeColorClass = 'bg-blue-200 text-blue-800'; // fallback
+      const houseMatch = displayValue.match(/-([a-z]{2})$/i);
+      if (houseMatch) {
+        const elementNameForColor = `element-${elementNumber}-${houseMatch[1].toLowerCase()}`;
+        badgeColorClass = getBadgeColor('BCD', elementNameForColor);
+      }
+      
       return (
         <div className="flex items-center justify-center gap-1">
           <span className="text-data-value">{displayValue}</span>
-          <span className="bg-blue-200 text-blue-800 text-xs font-medium px-1 py-0.5 rounded">
+          <span className={`text-xs font-medium px-1 py-0.5 rounded ${badgeColorClass}`}>
             BCD
           </span>
         </div>

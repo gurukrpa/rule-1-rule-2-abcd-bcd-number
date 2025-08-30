@@ -164,6 +164,9 @@ function UserList() {
                 <Link to="/dual-service-demo" className="text-gray-700 hover:text-gray-900">
                   Firebase Sync Demo
                 </Link>
+                <Link to="/sandbox-vedic" className="text-purple-600 hover:text-purple-900 font-medium">
+                  🔮 Vedic Astrology
+                </Link>
                 <Link to="/test" className="text-gray-700 hover:text-gray-900">
                   Test
                 </Link>

@@ -139,169 +139,35 @@ function Rule1OptimizedPage() {
     };
   }, [loadAllData]);
 
-  // Cross-page sync for bi-directional unclicking
-  useEffect(() => {
-    // Listen for planet analysis unclick events
-    const handlePlanetMessage = (event) => {
-      if (event.data?.type === 'planet-analysis-unclick' && event.data?.clickData) {
-        const { topicName, number, userId: eventUserId, dateKey } = event.data.clickData;
-        // Only process if it's for the same user
-        if (eventUserId === selectedUser) {
-          console.log(`🔄 [Rule1Optimized] Received unclick from Planet Analysis: ${number} from ${topicName} for date ${dateKey}`);
-          // Update local state to unclick the number for the specific dateKey
-          setClickedNumbers(prev => {
-            const newState = { ...prev };
-            if (newState[topicName] && newState[topicName][dateKey] && newState[topicName][dateKey][number]) {
-              delete newState[topicName][dateKey][number];
-              console.log(`➖ [Rule1Optimized] Cross-page unclick: ${number} from ${topicName}-${dateKey}`);
-              // Clean up empty objects
-              if (Object.keys(newState[topicName][dateKey]).length === 0) {
-                delete newState[topicName][dateKey];
-              }
-              if (Object.keys(newState[topicName]).length === 0) {
-                delete newState[topicName];
-              }
-            }
-            return newState;
-          });
-        }
-      }
-
-      // Listen for planet analysis click events
-      if (event.data?.type === 'planet-analysis-click' && event.data?.clickData) {
-        const { topicName, number, userId: eventUserId, dateKey } = event.data.clickData;
-        
-        // Only process if it's for the same user
-        if (eventUserId === selectedUser) {
-          console.log(`🔄 [Rule1Optimized] Received click from Planet Analysis: ${number} to ${topicName}`);
-          
-          // Update local state to click the number
-          setClickedNumbers(prev => ({
-            ...prev,
-            [topicName]: {
-              ...prev[topicName],
-              [dateKey]: {
-                ...prev[topicName]?.[dateKey],
-                [number]: true
-              }
-            }
-          }));
-        }
-      }
-    };
-
-    // Add window message listener for cross-page communication
-    window.addEventListener('message', handlePlanetMessage);
-    
-    return () => {
-      window.removeEventListener('message', handlePlanetMessage);
-    };
-  }, [selectedUser]);
-
-  // Optimized number box click handler with optimistic updates and unclick support
+  // Optimized number box click handler with optimistic updates
   const handleNumberBoxClick = useCallback((topicName, dateKey, number) => {
     const clickKey = `${topicName}-${dateKey}-${number}`;
-    const isCurrentlyClicked = clickedNumbers[topicName]?.[dateKey]?.[number] || false;
     
-    if (isCurrentlyClicked) {
-      // Unclick - Remove the number
-      setClickedNumbers(prev => {
-        const newState = { ...prev };
-        if (newState[topicName]?.[dateKey]?.[number]) {
-          delete newState[topicName][dateKey][number];
-          
-          // Clean up empty objects
-          if (Object.keys(newState[topicName][dateKey]).length === 0) {
-            delete newState[topicName][dateKey];
-          }
-          if (Object.keys(newState[topicName]).length === 0) {
-            delete newState[topicName];
-          }
+    // Optimistic UI update
+    setClickedNumbers(prev => ({
+      ...prev,
+      [topicName]: {
+        ...prev[topicName],
+        [dateKey]: {
+          ...prev[topicName]?.[dateKey],
+          [number]: true
         }
-        return newState;
-      });
-
-      // Remove from cache for instant UI response
-      optimizedRule1Service.updateClickedNumberCache(selectedUser, topicName, dateKey, number, false);
-
-      // Sync with database and cross-page
-      if (window.cleanSupabaseService && selectedUser) {
-        const userId = selectedUser?.id || selectedUser;
-        const hour = 'HR1'; // Default hour for Rule1
-        console.log(`🔄 [Rule1Optimized] Unclick sync: ${clickKey}`);
-        
-        window.cleanSupabaseService.deleteTopicClick(
-          userId,
-          topicName,
-          dateKey,
-          hour,
-          number
-        ).then((result) => {
-          console.log(`✅ [Rule1Optimized] Number ${number} removed from DB and sync`, result);
-          
-          // Notify Planet Analysis page of unclick
-          window.postMessage({
-            type: 'rule1-unclick',
-            clickData: { topicName, number, userId, dateKey, hour }
-          }, '*');
-        }).catch(err => {
-          console.error(`❌ [Rule1Optimized] Unclick failed:`, err);
-        });
       }
+    }));
 
-      console.log(`➖ [Rule1Optimized] Unclick: ${clickKey}`);
-    } else {
-      // Click - Add the number
-      setClickedNumbers(prev => ({
-        ...prev,
-        [topicName]: {
-          ...prev[topicName],
-          [dateKey]: {
-            ...prev[topicName]?.[dateKey],
-            [number]: true
-          }
-        }
-      }));
+    // Add to pending batch
+    setPendingClicks(prev => new Set([...prev, {
+      topicName,
+      dateKey,
+      number,
+      timestamp: Date.now()
+    }]));
 
-      // Add to pending batch
-      setPendingClicks(prev => new Set([...prev, {
-        topicName,
-        dateKey,
-        number,
-        timestamp: Date.now()
-      }]));
+    // Update cache immediately for instant UI response
+    optimizedRule1Service.updateClickedNumberCache(selectedUser, topicName, dateKey, number, true);
 
-      // Update cache immediately for instant UI response
-      optimizedRule1Service.updateClickedNumberCache(selectedUser, topicName, dateKey, number, true);
-
-      // Sync with database and cross-page
-      if (window.cleanSupabaseService && selectedUser) {
-        const userId = selectedUser?.id || selectedUser;
-        const hour = 'HR1'; // Default hour for Rule1
-        
-        window.cleanSupabaseService.saveTopicClick(
-          userId,
-          topicName,
-          dateKey,
-          hour,
-          number,
-          true
-        ).then(() => {
-          console.log(`✅ [Rule1Optimized] Number ${number} added to DB and sync`);
-          
-          // Notify Planet Analysis page of click
-          window.postMessage({
-            type: 'rule1-click', 
-            clickData: { topicName, number, userId, dateKey, hour }
-          }, '*');
-        }).catch(err => {
-          console.error(`❌ [Rule1Optimized] Click sync failed:`, err);
-        });
-      }
-
-      console.log(`⚡ [Rule1Optimized] Click: ${clickKey}`);
-    }
-  }, [selectedUser, clickedNumbers]);
+    console.log(`⚡ [Rule1Optimized] Optimistic click: ${clickKey}`);
+  }, [selectedUser]);
 
   // Fast lookup functions
   const isNumberClicked = useCallback((topicName, dateKey, number) => {

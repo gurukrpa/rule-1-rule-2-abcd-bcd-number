@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔮 Vedic Astrology Calculator</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: white; 
+            border-radius: 15px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header { 
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white; 
+            padding: 30px; 
+            text-align: center;
+        }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .header p { font-size: 1.2em; opacity: 0.9; }
+        
+        .form-section { 
+            padding: 30px; 
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .form-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
+            gap: 20px; 
+        }
+        .form-group { 
+            display: flex; 
+            flex-direction: column; 
+        }
+        .form-group label { 
+            font-weight: 600; 
+            margin-bottom: 8px; 
+            color: #495057;
+        }
+        .form-group input { 
+            padding: 12px; 
+            border: 2px solid #dee2e6; 
+            border-radius: 8px; 
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        .form-group input:focus { 
+            outline: none; 
+            border-color: #667eea; 
+        }
+        
+        .calculate-btn { 
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white; 
+            border: none; 
+            padding: 15px 30px; 
+            border-radius: 25px; 
+            font-size: 18px; 
+            font-weight: 600;
+            cursor: pointer; 
+            transition: transform 0.2s;
+            margin: 20px auto;
+            display: block;
+        }
+        .calculate-btn:hover { transform: translateY(-2px); }
+        
+        .results { 
+            padding: 30px; 
+            display: none;
+        }
+        .results.show { display: block; }
+        
+        .result-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+            gap: 20px; 
+        }
+        .result-card { 
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 12px; 
+            padding: 20px; 
+            border: 1px solid #dee2e6;
+        }
+        .result-card h3 { 
+            color: #495057; 
+            margin-bottom: 15px; 
+            font-size: 1.3em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 8px;
+        }
+        
+        .planet-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); 
+            gap: 10px; 
+        }
+        .planet-item { 
+            background: white; 
+            padding: 12px; 
+            border-radius: 8px; 
+            text-align: center;
+            border: 1px solid #e9ecef;
+        }
+        .planet-item.enhanced {
+            text-align: left;
+            padding: 15px;
+        }
+        .planet-name { 
+            font-weight: bold; 
+            color: #667eea; 
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        .planet-pos { 
+            font-size: 0.9em; 
+            color: #6c757d; 
+            margin: 5px 0;
+            font-weight: 600;
+        }
+        .planet-details {
+            font-size: 0.8em;
+            color: #6c757d;
+            margin-top: 8px;
+            line-height: 1.3;
+        }
+        
+        .special-item { 
+            background: white; 
+            padding: 15px; 
+            margin: 8px 0; 
+            border-radius: 8px;
+            border-left: 4px solid #ff6b6b;
+        }
+        .special-item.enhanced {
+            border-left: 4px solid #667eea;
+        }
+        .special-name { 
+            font-weight: bold; 
+            color: #667eea; 
+            margin-bottom: 5px;
+        }
+        .special-pos { 
+            color: #495057; 
+            margin: 5px 0;
+            font-weight: 600;
+        }
+        
+        .error { 
+            background: #f8d7da; 
+            color: #721c24; 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin: 20px 0;
+        }
+        
+        .loading { 
+            text-align: center; 
+            padding: 40px; 
+            font-size: 1.2em; 
+            color: #667eea;
+        }
+        
+        @media (max-width: 768px) {
+            .form-grid { grid-template-columns: 1fr; }
+            .result-grid { grid-template-columns: 1fr; }
+            .planet-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔮 Vedic Astrology Calculator</h1>
+            <p>Complete calculations with Swiss Ephemeris • Gulika • Mandi • All Special Lagnas</p>
+        </div>
+        
+        <div class="form-section">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="date">📅 Date</label>
+                    <input type="date" id="date" required>
+                </div>
+                <div class="form-group">
+                    <label for="time">🕐 Time</label>
+                    <input type="time" id="time" required>
+                </div>
+                <div class="form-group">
+                    <label for="timezone">🌍 Timezone</label>
+                    <input type="text" id="timezone" value="Asia/Kolkata" placeholder="Asia/Kolkata" required>
+                </div>
+                <div class="form-group">
+                    <label for="latitude">📍 Latitude</label>
+                    <input type="number" id="latitude" step="0.0001" value="22.5726" placeholder="22.5726 (Kolkata)" required>
+                </div>
+                <div class="form-group">
+                    <label for="longitude">📍 Longitude</label>
+                    <input type="number" id="longitude" step="0.0001" value="88.3639" placeholder="88.3639 (Kolkata)" required>
+                </div>
+            </div>
+            <button class="calculate-btn" onclick="calculateChart()">🔮 Calculate Vedic Chart</button>
+        </div>
+        
+        <div class="results" id="results">
+            <div class="result-grid">
+                <div class="result-card">
+                    <h3>🏠 Ascendant & Planets</h3>
+                    <div class="planet-grid" id="planets"></div>
+                </div>
+                
+                <div class="result-card">
+                    <h3>✨ Special Lagnas</h3>
+                    <div id="specials"></div>
+                </div>
+                
+                <div class="result-card">
+                    <h3>🌙 Upagrahas</h3>
+                    <div id="upagrahas"></div>
+                </div>
+                
+                <div class="result-card">
+                    <h3>📊 Chart Info</h3>
+                    <div id="chartinfo"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Set default to current date and time
+        function setDefaultDateTime() {
+            const now = new Date();
+            document.getElementById('date').value = now.toISOString().split('T')[0];
+            document.getElementById('time').value = now.toTimeString().slice(0,5);
+        }
+        
+        function formatDMS(dms) {
+            return `${dms.d}°${dms.m}'${dms.s}" ${dms.sign.toUpperCase()}`;
+        }
+        
+        function createPlanetItem(name, data) {
+            return `
+                <div class="planet-item">
+                    <div class="planet-name">${name}</div>
+                    <div class="planet-pos">${formatDMS(data)}</div>
+                </div>
+            `;
+        }
+        
+        function createSpecialItem(name, data) {
+            const pos = data.deg ? formatDMS(data) : `${data.sign ? data.sign.toUpperCase() : 'N/A'}`;
+            return `
+                <div class="special-item">
+                    <div class="special-name">${name}</div>
+                    <div class="special-pos">${pos}</div>
+                    ${data.token ? `<small style="color: #6c757d;">Token: ${data.token}</small>` : ''}
+                </div>
+            `;
+        }
+        
+        async function calculateChart() {
+            const date = document.getElementById('date').value;
+            const time = document.getElementById('time').value;
+            const timezone = document.getElementById('timezone').value;
+            const latitude = parseFloat(document.getElementById('latitude').value);
+            const longitude = parseFloat(document.getElementById('longitude').value);
+            
+            if (!date || !time || !timezone || isNaN(latitude) || isNaN(longitude)) {
+                alert('Please fill in all fields correctly');
+                return;
+            }
+            
+            const dateTime = `${date}T${time}:00`;
+            
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="loading">🔮 Calculating your Vedic chart...</div>';
+            resultsDiv.classList.add('show');
+            
+            try {
+                const response = await fetch('/api/compute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dateTime, tz: timezone, lat: latitude, lon: longitude })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                displayResults(data);
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+        
+        function displayResults(data) {
+            console.log('Received data:', data); // Debug log
+            
+            // Create the complete results HTML structure
+            const resultsHTML = `
+                <div class="result-grid">
+                    <div class="result-card">
+                        <h3>🏠 Ascendant & Planets</h3>
+                        <div class="planet-grid" id="planets-content">
+                            ${createPlanetsHTML(data)}
+                        </div>
+                    </div>
+                    
+                    <div class="result-card">
+                        <h3>✨ Special Lagnas</h3>
+                        <div id="specials-content">
+                            ${createSpecialsHTML(data)}
+                        </div>
+                    </div>
+                    
+                    <div class="result-card">
+                        <h3>🌙 Upagrahas</h3>
+                        <div id="upagrahas-content">
+                            ${createUpagrahasHTML(data)}
+                        </div>
+                    </div>
+                    
+                    <div class="result-card">
+                        <h3>📊 Chart Info</h3>
+                        <div id="chartinfo-content">
+                            ${createChartInfoHTML(data)}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Update the results container
+            document.getElementById('results').innerHTML = resultsHTML;
+        }
+        
+        function createPlanetsHTML(data) {
+            let planetsHTML = '';
+            
+            if (data.planets) {
+                // Create enhanced planet display matching original format
+                Object.entries(data.planets).forEach(([key, planet]) => {
+                    const name = {
+                        'as': 'Lagna',
+                        'su': 'Sun',
+                        'mo': 'Moon', 
+                        'ma': 'Mars',
+                        'me': 'Mercury',
+                        'ju': 'Jupiter',
+                        've': 'Venus',
+                        'sa': 'Saturn',
+                        'ra': 'Rahu',
+                        'ke': 'Ketu'
+                    }[key] || key.toUpperCase();
+                    
+                    planetsHTML += `
+                        <div class="planet-item enhanced">
+                            <div class="planet-name">${name}</div>
+                            <div class="planet-pos">${formatDMSEnhanced(planet)}</div>
+                            <div class="planet-details">
+                                <small>Nakshatra: ${planet.nakshatra?.name || 'N/A'}</small><br>
+                                <small>Pada: ${planet.nakshatra?.pada || 'N/A'}</small><br>
+                                <small>Navamsa: ${planet.navamsa?.sign?.toUpperCase() || 'N/A'}</small>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            return planetsHTML || '<p>Planetary positions will appear here</p>';
+        }
+        
+        function formatDMSEnhanced(planet) {
+            if (planet.d !== undefined) {
+                return `${planet.d}° ${planet.m}' ${planet.s}" ${planet.sign.toUpperCase()}`;
+            }
+            return 'N/A';
+        }
+        
+        function createSpecialsHTML(data) {
+            let specialsHTML = '';
+            if (data.specials) {
+                const specialNames = {
+                    'hl': 'Hora Lagna',
+                    'gl': 'Ghati Lagna', 
+                    'pp': 'Pranapada Lagna',
+                    'sl': 'Sree Lagna',
+                    'il': 'Indu Lagna',
+                    'var': 'Varnada Lagna',
+                    'bl': 'Bhava Lagna',
+                    'vl': 'Vighati Lagna'
+                };
+                
+                Object.entries(data.specials).forEach(([key, value]) => {
+                    const name = specialNames[key] || key.toUpperCase();
+                    specialsHTML += createEnhancedSpecialItem(name, value);
+                });
+            }
+            return specialsHTML || '<p>Special lagnas will appear here</p>';
+        }
+        
+        function createEnhancedSpecialItem(name, data) {
+            const pos = data.deg ? formatDMSEnhanced(data) : `${data.sign ? data.sign.toUpperCase() : 'N/A'}`;
+            return `
+                <div class="special-item enhanced">
+                    <div class="special-name">${name}</div>
+                    <div class="special-pos">${pos}</div>
+                    ${data.nakshatra ? `<small>Nakshatra: ${data.nakshatra.name} (Pada ${data.nakshatra.pada})</small><br>` : ''}
+                    ${data.token ? `<small style="color: #6c757d;">Token: ${data.token}</small>` : ''}
+                </div>
+            `;
+        }
+        
+        function createUpagrahasHTML(data) {
+            let upagrahasHTML = '';
+            if (data.upagrahas) {
+                Object.entries(data.upagrahas).forEach(([key, value]) => {
+                    const name = key === 'gulika' ? 'Gulika' : 'Mandi';
+                    upagrahasHTML += createEnhancedSpecialItem(name, value);
+                });
+            }
+            return upagrahasHTML || '<p>Gulika and Mandi will appear here</p>';
+        }
+        
+        function createChartInfoHTML(data) {
+            let lunarInfo = '';
+            if (data.lunar_calendar) {
+                const lc = data.lunar_calendar;
+                lunarInfo = `
+                    <p><strong>🌙 Tithi:</strong> ${lc.tithi?.paksha || ''} ${lc.tithi?.name || 'N/A'} (${lc.tithi?.leftPercent || '0'}% left)</p>
+                    <p><strong>📅 Vedic Weekday:</strong> ${lc.vedic_weekday?.name || 'N/A'} (${lc.vedic_weekday?.lord?.toUpperCase() || ''})</p>
+                    <p><strong>⭐ Moon Nakshatra:</strong> ${lc.moon_nakshatra?.name || 'N/A'} (${lc.moon_nakshatra?.leftPercent || '0'}% left)</p>
+                `;
+            }
+            
+            return `
+                <div style="background: white; padding: 15px; border-radius: 8px;">
+                    <p><strong>🌟 Ayanamsha:</strong> ${data.ayanamsa_fixed_deg || 'N/A'}° (Fixed Lahiri)</p>
+                    <p><strong>🌅 Event Time:</strong> ${data.event_local || data.dateTime || 'N/A'}</p>
+                    ${data.sunrise_local ? `<p><strong>☀️ Sunrise:</strong> ${data.sunrise_local}</p>` : ''}
+                    ${data.minutes_since_sunrise ? `<p><strong>⏰ Minutes since sunrise:</strong> ${data.minutes_since_sunrise}</p>` : ''}
+                    ${lunarInfo}
+                </div>
+            `;
+        }
+        
+        // Initialize with current date/time
+        setDefaultDateTime();
+    </script>
+</body>
+</html>

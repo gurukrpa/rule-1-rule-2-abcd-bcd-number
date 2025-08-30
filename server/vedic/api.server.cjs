@@ -1,0 +1,616 @@
+const express = require("express");
+const cors = require("cors");
+const path = require("path");
+const { DateTime } = require("luxon");
+const swe = require("sweph");
+
+const FIXED_LAHIRI_DEG = 24.214722; // 24°12′53″
+const SIG = ["ar","ta","ge","cn","le","vi","li","sc","sg","cp","aq","pi"];
+
+const norm360 = (x) => { x %= 360; return x < 0 ? x + 360 : x; };
+const siderealFromTropicalFixed = (t) => norm360(t - FIXED_LAHIRI_DEG);
+const signIndex = (lon) => Math.floor(norm360(lon) / 30);
+const houseFromAsc = (a, b) => ((b - a + 12) % 12) + 1;
+const token = (ascIdx, objIdx, ascSign, key) => `as-${houseFromAsc(ascIdx, objIdx)}-${ascSign}-${key}`;
+
+function dmsInSign(lon) {
+  const idx = signIndex(lon);
+  const within = norm360(lon) - idx * 30;
+  const d = Math.floor(within);
+  const mFloat = (within - d) * 60;
+  const m = Math.floor(mFloat);
+  const s = Math.round((mFloat - m) * 60);
+  return { idx, sign: SIG[idx], d, m, s };
+}
+
+// ---- Swiss init (no sidereal mode; we subtract fixed ayanamsha ourselves) ----
+swe.set_ephe_path(path.join(process.cwd(), "ephe"));
+
+// ---- Time helpers: local ISO -> JD(UT) ----
+function jdutFromLocalISO(isoLocal, tz) {
+  const dt = DateTime.fromISO(isoLocal, { zone: tz });
+  if (!dt.isValid) throw new Error("Invalid dateTime or tz");
+  const ut = dt.toUTC();
+  const hour = ut.hour + ut.minute / 60 + ut.second / 3600 + ut.millisecond / 3600000;
+  return swe.julday(ut.year, ut.month, ut.day, hour, swe.constants.SE_GREG_CAL);
+}
+
+function jdutToLocal(jdut, tz) {
+  const { year, month, day, hour } = swe.revjul(jdut, swe.constants.SE_GREG_CAL);
+  const secs = (hour * 3600);
+  const utc = DateTime.utc(year, month, day).plus({ seconds: Math.round(secs) });
+  return utc.setZone(tz);
+}
+
+// ---- Sunrise (Swiss rise/transit) ----
+function sunriseJdutForLocalDate(localDateISO, tz, lat, lon) {
+  const noonLocal = DateTime.fromISO(localDateISO + "T12:00:00", { zone: tz });
+  const noonUT = noonLocal.toUTC();
+  const jd0 = swe.julday(noonUT.year, noonUT.month, noonUT.day, noonUT.hour + noonUT.minute / 60 + noonUT.second / 3600, swe.constants.SE_GREG_CAL);
+
+  const rsmi = swe.constants.SE_CALC_RISE;
+  const geopos = [lon, lat, 0];
+  const press = 1013.25, temp = 15.0;
+  const result = swe.rise_trans(jd0, swe.constants.SE_SUN, "", swe.constants.SEFLG_SWIEPH, rsmi, geopos, press, temp);
+  const tret = result.data;
+
+  const local = jdutToLocal(tret, tz);
+  if (local.toISODate() !== noonLocal.toISODate()) {
+    const shift = local < noonLocal ? -1 : 1;
+    const newNoonLocal = noonLocal.plus({ days: shift });
+    const newNoonUT = newNoonLocal.toUTC();
+    const jd1 = swe.julday(newNoonUT.year, newNoonUT.month, newNoonUT.day, newNoonUT.hour + newNoonUT.minute / 60 + newNoonUT.second / 3600, swe.constants.SE_GREG_CAL);
+    const result2 = swe.rise_trans(jd1, swe.constants.SE_SUN, "", swe.constants.SEFLG_SWIEPH, rsmi, geopos, press, temp);
+    return result2.data;
+  }
+  return tret;
+}
+
+// ---- Sunset helper for Gulika/Mandi ----
+function sunsetJdutForLocalDate(localDateISO, tz, lat, lon) {
+  const noonLocal = DateTime.fromISO(localDateISO + "T12:00:00", { zone: tz }).toUTC();
+  const jd0 = swe.julday(noonLocal.year, noonLocal.month, noonLocal.day,
+    noonLocal.hour + noonLocal.minute / 60 + noonLocal.second / 3600, swe.constants.SE_GREG_CAL);
+  const rsmi = swe.constants.SE_CALC_SET;
+  const geopos = [lon, lat, 0];
+  const result = swe.rise_trans(jd0, swe.constants.SE_SUN, "", swe.constants.SEFLG_SWIEPH, rsmi, geopos, 1013.25, 15.0);
+  const tret = result.data;
+
+  const want = DateTime.fromISO(localDateISO, { zone: tz });
+  const got = jdutToLocal(tret, tz);
+  if (got.toISODate() !== want.toISODate()) {
+    const shift = got < want ? -1 : 1;
+    const noon2 = want.plus({ days: shift }).set({ hour: 12 }).toUTC();
+    const jd1 = swe.julday(noon2.year, noon2.month, noon2.day, noon2.hour, swe.constants.SE_GREG_CAL);
+    const result2 = swe.rise_trans(jd1, swe.constants.SE_SUN, "", swe.constants.SEFLG_SWIEPH, rsmi, geopos, 1013.25, 15.0);
+    return result2.data;
+  }
+  return tret;
+}
+
+// ---- Asc/Moon sidereal (fixed) ----
+function ascSiderealFixed(jdut, lat, lon) {
+  const h = swe.houses_ex(jdut, swe.constants.SEFLG_SWIEPH, lat, lon, "P");
+  return siderealFromTropicalFixed(h.data.points[0]); // Ascendant is first point
+}
+
+function moonSiderealFixed(jdut) {
+  const result = swe.calc_ut(jdut, swe.constants.SE_MOON, swe.constants.SEFLG_SWIEPH);
+  const moonTrop = result.data[0]; // Longitude is first element
+  return siderealFromTropicalFixed(moonTrop);
+}
+
+function sunSiderealFromJdut(jdut) {
+  const result = swe.calc_ut(jdut, swe.constants.SE_SUN, swe.constants.SEFLG_SWIEPH);
+  const sunTrop = result.data[0]; // Longitude is first element
+  return siderealFromTropicalFixed(sunTrop);
+}
+
+// ---- Specials (fixed ayanamsha only) ----
+function calcHL(sunSidAtRiseDeg, minutesSinceRise) {
+  return norm360(sunSidAtRiseDeg + minutesSinceRise / 2); // 0.5° per minute
+}
+function calcGL(sunSidAtRiseDeg, minutesSinceRise) {
+  return norm360(sunSidAtRiseDeg + minutesSinceRise * 1.25); // 1.25° per minute
+}
+function calcPP(sunSidAtRiseDeg, minutesSinceRise) {
+  let pp = norm360(sunSidAtRiseDeg + minutesSinceRise * 5); // minutes * 5°
+  const sunIdx = signIndex(sunSidAtRiseDeg);
+  const mod = ["mov", "fix", "dual", "mov", "fix", "dual", "mov", "fix", "dual", "mov", "fix", "dual"][sunIdx];
+  if (mod === "fix") pp = norm360(pp + 240);
+  else if (mod === "dual") pp = norm360(pp + 120);
+  return pp;
+}
+function calcSL(lagnaSidDeg, moonSidDeg) {
+  const NAK = 360 / 27;
+  const start = Math.floor((moonSidDeg % 360) / NAK) * NAK;
+  const frac = ((moonSidDeg - start + 360) % 360) / NAK;
+  return norm360(lagnaSidDeg + frac * 360);
+}
+const LORD = ["ma", "ve", "me", "mo", "su", "me", "ve", "ma", "ju", "sa", "sa", "ju"];
+const KALA = { su: 30, mo: 16, ma: 6, me: 8, ju: 10, ve: 12, sa: 1 };
+function calcIL(lagnaSidDeg, moonSidDeg) {
+  const ninth = (i) => (i + 8) % 12;
+  const lagIdx = signIndex(lagnaSidDeg), mooIdx = signIndex(moonSidDeg);
+  let r = (KALA[LORD[ninth(lagIdx)]] + KALA[LORD[ninth(mooIdx)]]) % 12;
+  if (r === 0) r = 12;
+  return (mooIdx + r - 1) % 12; // sign index (sign-only)
+}
+function calcVAR(lagnaDeg, hlDeg) {
+  const isEven = (i) => [1, 3, 5, 7, 9, 11].includes(i);
+  const L = signIndex(lagnaDeg), H = signIndex(hlDeg);
+  const adj = (d) => isEven(signIndex(d)) ? norm360(360 - d) : norm360(d);
+  const La = adj(lagnaDeg), Ha = adj(hlDeg);
+  const same = (isEven(L) === isEven(H));
+  let val = same ? norm360(La + Ha) : Math.abs(La - Ha);
+  if (isEven(L)) val = norm360(360 - val);
+  return signIndex(val); // sign-only
+}
+
+// ---- Gulika & Mandi (Upagrahas) ----
+const WK = ["su", "mo", "ma", "me", "ju", "ve", "sa"];
+const wkIndex = (w) => WK.indexOf(w);
+
+function weekdayLord(dtISO, tz) {
+  const d = DateTime.fromISO(dtISO, { zone: tz });
+  const dow = d.weekday; // 1=Mon .. 7=Sun
+  return ["mo", "ma", "me", "ju", "ve", "sa", "su"][dow - 1];
+}
+
+function kalavelaForEventHalf(eventISO, tz, lat, lon) {
+  const ev = DateTime.fromISO(eventISO, { zone: tz });
+  const civil = ev.toISODate();
+  const sr = sunriseJdutForLocalDate(civil, tz, lat, lon);
+  const ss = sunsetJdutForLocalDate(civil, tz, lat, lon);
+  const srL = jdutToLocal(sr, tz);
+  const ssL = jdutToLocal(ss, tz);
+
+  let startLocal, endLocal, half;
+  if (ev >= srL && ev < ssL) {
+    startLocal = srL; endLocal = ssL; half = "day";
+  } else {
+    const nightStart = ev >= ssL ? ssL : jdutToLocal(
+      sunsetJdutForLocalDate(ev.minus({ days: 1 }).toISODate(), tz, lat, lon), tz
+    );
+    const nightEnd = jdutToLocal(
+      sunriseJdutForLocalDate(ev >= ssL ? ev.toISODate() : civil, tz, lat, lon), tz
+    );
+    startLocal = nightStart; endLocal = nightEnd; half = "night";
+  }
+  const totalMin = endLocal.diff(startLocal, "minutes").minutes;
+  const segMin = totalMin / 8;
+  return { startLocal, segMin, half, srLocal: srL, ssLocal: ssL };
+}
+
+function saturnSegmentIndex(dayLord, half) {
+  const startLord = half === "day" ? dayLord : WK[(wkIndex(dayLord) + 4) % 7]; // 5th from day-lord
+  for (let i = 0; i < 7; i++) {
+    if (WK[(wkIndex(startLord) + i) % 7] === "sa") return i;
+  }
+  return 6; // fallback
+}
+
+function ascSidAtLocal(dt, lat, lon) {
+  const ut = dt.toUTC();
+  const jd = swe.julday(ut.year, ut.month, ut.day, ut.hour + ut.minute / 60 + ut.second / 3600, swe.constants.SE_GREG_CAL);
+  const h = swe.houses_ex(jd, swe.constants.SEFLG_SWIEPH, lat, lon, "P");
+  return siderealFromTropicalFixed(h.data.points[0]); // Ascendant is first point
+}
+
+// ---- Nakshatra calculations ----
+const NAKSHATRA_NAMES = [
+  "Aswi", "Bhar", "Krit", "Rohi", "Mrig", "Ardr", "Puna", "Push", "Asle",
+  "Magh", "PPha", "UPha", "Hast", "Chit", "Swat", "Vish", "Anus", "Jye",
+  "Mool", "PSha", "USha", "Srav", "Dhan", "Sata", "PBha", "UBha", "Reva"
+];
+
+const NAKSHATRA_LORDS = [
+  "ke", "ve", "su", "mo", "ma", "ra", "ju", "sa", "me",
+  "ke", "ve", "su", "mo", "ma", "ra", "ju", "sa", "me",
+  "ke", "ve", "su", "mo", "ma", "ra", "ju", "sa", "me"
+];
+
+function nakshatra(lon) {
+  const nakDeg = 360 / 27; // 13.333... degrees per nakshatra
+  const idx = Math.floor(norm360(lon) / nakDeg);
+  const withinNak = (norm360(lon) % nakDeg);
+  const pada = Math.floor(withinNak / (nakDeg / 4)) + 1;
+  const leftPercent = ((nakDeg - withinNak) / nakDeg * 100);
+  
+  return {
+    idx: idx,
+    name: NAKSHATRA_NAMES[idx],
+    lord: NAKSHATRA_LORDS[idx],
+    pada: pada,
+    leftPercent: leftPercent.toFixed(2)
+  };
+}
+
+// ---- Additional Lagna calculations ----
+function calcBhavaLagna(sunSidAtRiseDeg, minutesSinceRise) {
+  // Bhava Lagna: Sun at sunrise + minutes since rise (same speed as Hora Lagna)
+  return norm360(sunSidAtRiseDeg + minutesSinceRise / 2);
+}
+
+function calcVighatiLagna(sunSidAtRiseDeg, minutesSinceRise) {
+  // Vighati Lagna: Based on vighatis (24 seconds = 1 vighati)
+  const vighatis = minutesSinceRise * 2.5; // Convert minutes to vighatis
+  return norm360(sunSidAtRiseDeg + vighatis * 0.25); // 0.25° per vighati
+}
+
+function calcSreeLagna(lagnaSidDeg, moonSidDeg) {
+  // Sree Lagna: Lagana + Moon - Sun (wealth indicator)
+  const sunSid = planetSiderealFixed(jdut, "su"); // Need jdut in scope
+  return norm360(lagnaSidDeg + moonSidDeg - sunSid);
+}
+
+// ---- Lunar calendar calculations ----
+function calcTithi(sunSidDeg, moonSidDeg) {
+  const diff = norm360(moonSidDeg - sunSidDeg);
+  const tithiNum = Math.floor(diff / 12) + 1;
+  const withinTithi = diff % 12;
+  const leftPercent = ((12 - withinTithi) / 12 * 100);
+  
+  const tithiNames = [
+    "Pratipad", "Dwitiya", "Tritiya", "Chaturthi", "Panchami", "Shashthi", "Saptami", "Ashtami", "Navami", "Dashami", "Ekadashi", "Dwadashi", "Trayodashi", "Chaturdashi", "Amavasya/Purnima"
+  ];
+  
+  const paksha = tithiNum <= 15 ? "Sukla" : "Krishna";
+  const adjustedTithi = tithiNum > 15 ? tithiNum - 15 : tithiNum;
+  
+  return {
+    num: tithiNum,
+    name: tithiNames[adjustedTithi - 1] || "Amavasya",
+    paksha: paksha,
+    leftPercent: leftPercent.toFixed(2)
+  };
+}
+
+function calcVedicWeekday(dtISO, tz) {
+  const d = DateTime.fromISO(dtISO, { zone: tz });
+  const dow = d.weekday; // 1=Mon .. 7=Sun
+  const vedicDays = [
+    { name: "Monday", lord: "mo", sanskrit: "Soma" },
+    { name: "Tuesday", lord: "ma", sanskrit: "Mangal" }, 
+    { name: "Wednesday", lord: "me", sanskrit: "Budh" },
+    { name: "Thursday", lord: "ju", sanskrit: "Guru" },
+    { name: "Friday", lord: "ve", sanskrit: "Sukra" },
+    { name: "Saturday", lord: "sa", sanskrit: "Sani" },
+    { name: "Sunday", lord: "su", sanskrit: "Surya" }
+  ];
+  return vedicDays[dow - 1];
+}
+
+// ---- Planets & longitudes (sidereal fixed) ----
+const PLANETS = ["su", "mo", "ma", "me", "ju", "ve", "sa", "ra", "ke"];
+function planetSiderealFixed(jdut, which) {
+  if (which === "ke") {
+    const rahu = planetSiderealFixed(jdut, "ra");
+    return norm360(rahu + 180);
+  }
+  if (which === "ra") {
+    const result = swe.calc_ut(jdut, swe.constants.SE_TRUE_NODE, swe.constants.SEFLG_SWIEPH);
+    const longitude = result.data[0];
+    return siderealFromTropicalFixed(longitude);
+  }
+  const map = {
+    su: swe.constants.SE_SUN, mo: swe.constants.SE_MOON, ma: swe.constants.SE_MARS, me: swe.constants.SE_MERCURY,
+    ju: swe.constants.SE_JUPITER, ve: swe.constants.SE_VENUS, sa: swe.constants.SE_SATURN
+  };
+  const result = swe.calc_ut(jdut, map[which], swe.constants.SEFLG_SWIEPH);
+  const longitude = result.data[0];
+  return siderealFromTropicalFixed(longitude);
+}
+
+function moonSiderealFixed(jdut) {
+  const result = swe.calc_ut(jdut, swe.constants.SE_MOON, swe.constants.SEFLG_SWIEPH);
+  const moonTrop = result.data[0];
+  return siderealFromTropicalFixed(moonTrop);
+}
+
+function allBodiesSidereal(jdut, lat, lon) {
+  const asc = ascSiderealFixed(jdut, lat, lon);
+  const out = { as: asc };
+  for (const p of PLANETS) out[p] = planetSiderealFixed(jdut, p);
+  return out;
+}
+
+// ---- Enhanced planet calculations ----
+function allPlanetsWithDetails(jdut, lat, lon) {
+  const asc = ascSiderealFixed(jdut, lat, lon);
+  const planets = {};
+  
+  // Add Ascendant
+  planets.as = {
+    deg: asc,
+    ...dmsInSign(asc),
+    nakshatra: nakshatra(asc),
+    navamsa: { idx: d9_navamsa(asc), sign: SIG[d9_navamsa(asc)] }
+  };
+  
+  // Add all planets
+  const planetList = ["su", "mo", "ma", "me", "ju", "ve", "sa", "ra", "ke"];
+  for (const p of planetList) {
+    const lon = planetSiderealFixed(jdut, p);
+    planets[p] = {
+      deg: lon,
+      ...dmsInSign(lon),
+      nakshatra: nakshatra(lon),
+      navamsa: { idx: d9_navamsa(lon), sign: SIG[d9_navamsa(lon)] }
+    };
+  }
+  
+  return planets;
+}
+
+// ---- Varga helpers ----
+const isMov = (i) => [0, 3, 6, 9].includes(i);       // Ar,Cn,Li,Cap
+const isFix = (i) => [1, 4, 7, 10].includes(i);      // Ta,Le,Sc,Aq
+const isDual = (i) => [2, 5, 8, 11].includes(i);      // Ge,Vi,Sg,Pi
+
+function fracInSign(lon) { return (norm360(lon) % 30) / 30; }
+
+function d3_parashara(lon) {
+  const s = signIndex(lon), part = Math.floor(fracInSign(lon) * 3); // 0,1,2
+  if (s % 2 === 0) return (s + 4 * part) % 12;        // odd signs (Ar idx=0): +0,+4,+8
+  else return (s + (12 - 4 * part) % 12) % 12; // even signs reverse: +0,-4,-8
+}
+
+function d9_navamsa(lon) {
+  const s = signIndex(lon), p = Math.floor(fracInSign(lon) * 9); // 0..8
+  let start = s;
+  if (isFix(s)) start = (s + 8) % 12;   // 9th from sign
+  if (isDual(s)) start = (s + 4) % 12;  // 5th from sign
+  return (start + p) % 12;
+}
+
+function d10_dasamsa(lon) {
+  const s = signIndex(lon), p = Math.floor(fracInSign(lon) * 10);
+  return ((s % 2 === 0) /*Ar=0 odd*/ ? (s + p) : ((s + 8) % 12 + p) % 12);
+}
+
+function d12_dwadasamsa(lon) {
+  const s = signIndex(lon), p = Math.floor(fracInSign(lon) * 12);
+  return (s + p) % 12; // from sign itself
+}
+
+function d30_trimsamsa(lon) {
+  const s = signIndex(lon);
+  const deg = (norm360(lon) % 30);
+  let lord;
+  if (s % 2 === 0) { // odd sign indices (Ar=0) => odd signs
+    if (deg < 5) lord = "ma";
+    else if (deg < 10) lord = "sa";
+    else if (deg < 18) lord = "ju";
+    else if (deg < 25) lord = "me";
+    else lord = "ve";
+    const oddSign = { ma: 0, me: 2, ju: 8, ve: 1, sa: 10 }; // Ar,Ge,Sg,Ta,Aq
+    return oddSign[lord];
+  } else {
+    if (deg < 5) lord = "ve";
+    else if (deg < 12) lord = "me";
+    else if (deg < 20) lord = "ju";
+    else if (deg < 25) lord = "sa";
+    else lord = "ma";
+    const evenSign = { ma: 7, me: 5, ju: 11, ve: 6, sa: 9 }; // Sc,Vi,Pi,Li,Cap
+    return evenSign[lord];
+  }
+}
+
+function dEqual(lon, n) {
+  const s = signIndex(lon);
+  const p = Math.floor(fracInSign(lon) * n);
+  return (s + p) % 12; // start from sign itself
+}
+
+function vargaIndex(lon, which) {
+  switch (which) {
+    case "D1": return signIndex(lon);
+    case "D3": return d3_parashara(lon);
+    case "D9": return d9_navamsa(lon);
+    case "D10": return d10_dasamsa(lon);
+    case "D12": return d12_dwadasamsa(lon);
+    case "D30": return d30_trimsamsa(lon);
+    case "D60": return dEqual(lon, 60);
+    case "D81": return dEqual(lon, 81);
+    case "D108": return dEqual(lon, 108);
+    case "D144": return dEqual(lon, 144);
+    case "D2": return dEqual(lon, 2);
+    case "D4": return dEqual(lon, 4);
+    case "D5": return dEqual(lon, 5);
+    case "D6": return dEqual(lon, 6);
+    case "D7": return dEqual(lon, 7);
+    case "D8": return dEqual(lon, 8);
+    case "D11": return dEqual(lon, 11);
+    case "D16": return dEqual(lon, 16);
+    case "D20": return dEqual(lon, 20);
+    case "D24": return dEqual(lon, 24);
+    case "D27": return dEqual(lon, 27);
+    case "D40": return dEqual(lon, 40);
+    case "D45": return dEqual(lon, 45);
+    default: return signIndex(lon);
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Express API
+// ----------------------------------------------------------------------------
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// Root route
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "calculator.html"));
+});
+
+// API info route
+app.get("/api", (req, res) => {
+  res.json({
+    name: "Vedic Astrology API",
+    version: "1.0.0",
+    description: "Swiss Ephemeris based Vedic calculations with Gulika, Mandi, and all Vargas",
+    endpoints: {
+      "POST /api/compute": "Complete Vedic calculations including Gulika/Mandi",
+      "POST /api/varga": "Divisional chart calculations"
+    },
+    features: [
+      "Fixed Lahiri Ayanamsha (24°12'53\")",
+      "Swiss Ephemeris integration",
+      "Gulika & Mandi calculations", 
+      "All Varga charts (D1-D144)",
+      "Special calculations (HL, GL, PP, SL, IL, VAR)"
+    ],
+    example_request: {
+      dateTime: "2024-01-15T14:30:00",
+      tz: "Asia/Kolkata",
+      lat: 28.6139,
+      lon: 77.2090
+    }
+  });
+});
+
+app.post("/api/compute", (req, res) => {
+  try {
+    const { dateTime, tz, lat, lon } = req.body;
+
+    // 1) Event jdut
+    const jd_ut_event = jdutFromLocalISO(dateTime, tz);
+
+    // 2) Sunrise for SAME local date; if event before sunrise, use previous day's sunrise
+    const localEvent = jdutToLocal(jd_ut_event, tz);
+    const riseJdutSame = sunriseJdutForLocalDate(localEvent.toISODate(), tz, lat, lon);
+    const riseLocal = jdutToLocal(riseJdutSame, tz);
+    let riseJdut = riseJdutSame;
+    if (localEvent < riseLocal) {
+      const prevDateISO = localEvent.minus({ days: 1 }).toISODate();
+      riseJdut = sunriseJdutForLocalDate(prevDateISO, tz, lat, lon);
+    }
+    const riseLocalFinal = jdutToLocal(riseJdut, tz);
+
+    // 3) Minutes since sunrise (local)
+    const minutesSinceRise = (localEvent.diff(riseLocalFinal, "minutes").minutes + 24 * 60) % (24 * 60);
+
+    // 4) All planets with enhanced details
+    const allPlanets = allPlanetsWithDetails(jd_ut_event, lat, lon);
+    const ascSid = allPlanets.as.deg;
+    const moonSid = allPlanets.mo.deg;
+    const sunSid = allPlanets.su.deg;
+    const ascIdx = signIndex(ascSid), ascSign = SIG[ascIdx];
+
+    // 5) Sun sidereal @ sunrise
+    const sunAtRiseSid = sunSiderealFromJdut(riseJdut);
+
+    // 6) Enhanced Special Lagnas
+    const HL = calcHL(sunAtRiseSid, minutesSinceRise);
+    const GL = calcGL(sunAtRiseSid, minutesSinceRise);
+    const PP = calcPP(sunAtRiseSid, minutesSinceRise);
+    const SL = calcSL(ascSid, moonSid);
+    const IL_idx = calcIL(ascSid, moonSid);
+    const VAR_idx = calcVAR(ascSid, HL);
+    
+    // New Lagnas
+    const BL = calcBhavaLagna(sunAtRiseSid, minutesSinceRise);
+    const VL = calcVighatiLagna(sunAtRiseSid, minutesSinceRise);
+    // Note: Sree Lagna needs planet data, will calculate separately
+
+    // 7) Gulika & Mandi (Upagrahas)
+    const dayLord = weekdayLord(localEvent.toISO(), tz);
+    const kv = kalavelaForEventHalf(localEvent.toISO(), tz, lat, lon);
+    const segIdx = saturnSegmentIndex(dayLord, kv.half);
+    const gulikaStart = kv.startLocal.plus({ minutes: segIdx * kv.segMin });
+    const mandiMid = kv.startLocal.plus({ minutes: (segIdx + 0.5) * kv.segMin });
+
+    const gulikaLon = ascSidAtLocal(gulikaStart, lat, lon);
+    const mandiLon = ascSidAtLocal(mandiMid, lat, lon);
+
+    // 8) Lunar calendar calculations
+    const tithi = calcTithi(sunSid, moonSid);
+    const vedicWeekday = calcVedicWeekday(localEvent.toISO(), tz);
+    const moonNakshatra = nakshatra(moonSid);
+
+    // 9) Tokens for all positions
+    const createToken = (objDeg, key) => token(ascIdx, signIndex(objDeg), ascSign, key);
+
+    res.json({
+      // Basic info
+      ayanamsa_fixed_deg: FIXED_LAHIRI_DEG,
+      event_local: localEvent.toISO(),
+      sunrise_local: riseLocalFinal.toISO(),
+      minutes_since_sunrise: Math.round(minutesSinceRise),
+      
+      // Enhanced planetary positions
+      planets: allPlanets,
+      
+      // Special lagnas (enhanced)
+      specials: {
+        hl: { deg: HL, ...dmsInSign(HL), nakshatra: nakshatra(HL), token: createToken(HL, "hl") },
+        gl: { deg: GL, ...dmsInSign(GL), nakshatra: nakshatra(GL), token: createToken(GL, "gl") },
+        pp: { deg: PP, ...dmsInSign(PP), nakshatra: nakshatra(PP), token: createToken(PP, "pp") },
+        sl: { deg: SL, ...dmsInSign(SL), nakshatra: nakshatra(SL), token: createToken(SL, "sl") },
+        il: { idx: IL_idx, sign: SIG[IL_idx], token: createToken(IL_idx * 30, "il") },
+        var: { idx: VAR_idx, sign: SIG[VAR_idx], token: createToken(VAR_idx * 30, "var") },
+        bl: { deg: BL, ...dmsInSign(BL), nakshatra: nakshatra(BL), token: createToken(BL, "bl") },
+        vl: { deg: VL, ...dmsInSign(VL), nakshatra: nakshatra(VL), token: createToken(VL, "vl") }
+      },
+      
+      // Upagrahas (enhanced)
+      upagrahas: {
+        gulika: {
+          deg: gulikaLon, ...dmsInSign(gulikaLon), 
+          nakshatra: nakshatra(gulikaLon),
+          token: createToken(gulikaLon, "gu"),
+          timing: { half: kv.half, start_local: gulikaStart.toISO() }
+        },
+        mandi: {
+          deg: mandiLon, ...dmsInSign(mandiLon),
+          nakshatra: nakshatra(mandiLon), 
+          token: createToken(mandiLon, "ma"),
+          timing: { half: kv.half, mid_local: mandiMid.toISO() }
+        }
+      },
+      
+      // Lunar calendar
+      lunar_calendar: {
+        tithi: tithi,
+        vedic_weekday: vedicWeekday,
+        moon_nakshatra: moonNakshatra
+      }
+    });
+  } catch (e) {
+    res.status(400).json({ error: e?.message ?? String(e) });
+  }
+});
+
+app.post("/api/varga", (req, res) => {
+  try {
+    const { dateTime, tz, lat, lon, charts } = req.body;
+    const jd = jdutFromLocalISO(dateTime, tz);
+
+    const bodies = allBodiesSidereal(jd, lat, lon);
+    const ascIdx = signIndex(bodies.as), ascSign = SIG[ascIdx];
+
+    const out = {};
+    for (const ch of charts) {
+      const place = {};
+      for (const k of Object.keys(bodies)) {
+        const idx = vargaIndex(bodies[k], ch);
+        place[k] = { idx, sign: SIG[idx] };
+        if (k !== "as") {
+          place[k].token = token(ascIdx, idx, ascSign, k);
+        }
+      }
+      out[ch] = place;
+    }
+    res.json({
+      ayanamsa_fixed_deg: FIXED_LAHIRI_DEG,
+      dateTime, tz, lat, lon,
+      vargas: out
+    });
+  } catch (e) {
+    res.status(400).json({ error: e?.message ?? String(e) });
+  }
+});
+
+const PORT = process.env.PORT || 8086;
+app.listen(PORT, () => console.log(`Vedic API (Swiss, fixed Lahiri) running on :${PORT}`));

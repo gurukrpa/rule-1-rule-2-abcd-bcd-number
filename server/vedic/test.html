@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Vedic API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .endpoint { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        button { padding: 10px 20px; margin: 5px; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+        .result { margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Vedic API Test</h1>
+    
+    <div class="endpoint">
+        <h2>Compute Endpoint (/api/compute)</h2>
+        <p>Tests Gulika, Mandi, and special calculations</p>
+        <button onclick="testCompute()">Test Compute</button>
+        <div id="computeResult" class="result"></div>
+    </div>
+    
+    <div class="endpoint">
+        <h2>Varga Endpoint (/api/varga)</h2>
+        <p>Tests divisional charts (D1, D3, D9, D10, D12, D30)</p>
+        <button onclick="testVarga()">Test Varga</button>
+        <div id="vargaResult" class="result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8086';
+        
+        async function testCompute() {
+            const data = {
+                dateTime: "2024-01-15T14:30:00",
+                tz: "Asia/Kolkata", 
+                lat: 28.6139,
+                lon: 77.2090
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/compute`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                document.getElementById('computeResult').innerHTML = 
+                    '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
+            } catch (e) {
+                document.getElementById('computeResult').innerHTML = 
+                    '<pre style="color: red;">Error: ' + e.message + '</pre>';
+            }
+        }
+        
+        async function testVarga() {
+            const data = {
+                dateTime: "2024-01-15T14:30:00",
+                tz: "Asia/Kolkata",
+                lat: 28.6139, 
+                lon: 77.2090,
+                charts: ["D1", "D3", "D9", "D10", "D12", "D30"]
+            };
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/varga`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                document.getElementById('vargaResult').innerHTML = 
+                    '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
+            } catch (e) {
+                document.getElementById('vargaResult').innerHTML = 
+                    '<pre style="color: red;">Error: ' + e.message + '</pre>';
+            }
+        }
+    </script>
+</body>
+</html>

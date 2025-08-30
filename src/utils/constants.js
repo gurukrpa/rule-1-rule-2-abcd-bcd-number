@@ -91,7 +91,7 @@ export const getHouseGroupColor = (house) => {
     return "bg-[#DCEDC1] text-black"; // DCEDC1 for group1
   }
   if (houseGroups.group2.includes(house)) {
-    return "bg-[#FFD3B6] text-black"; // FFD3B6 for group2
+    return "bg-[#93C5FD] text-black"; // 93C5FD (blue-300) for group2
   }
   if (houseGroups.group3.includes(house)) {
     return "bg-[#FFAAA5] text-black"; // FFAAA5 for group3
@@ -101,6 +101,47 @@ export const getHouseGroupColor = (house) => {
 
 export const getHouseTextStyle = (house) => {
   return boldHouses.includes(house) ? "font-bold" : "";
+};
+
+// Badge color mapping - now dynamic based on element group
+export const getBadgeColor = (badge, elementName) => {
+  if (!badge || !elementName) {
+    return "bg-gray-100 text-gray-800";
+  }
+  
+  // Extract house from element name (e.g., "as-8-cp" -> "cp")
+  const houseMatch = elementName.match(/-([a-z]{2})$/i);
+  if (!houseMatch) {
+    return "bg-gray-100 text-gray-800";
+  }
+  
+  const house = houseMatch[1].charAt(0).toUpperCase() + houseMatch[1].charAt(1).toLowerCase(); // "cp" -> "Cp"
+  
+  // Use the same color logic as house groups
+  if (houseGroups.group1.includes(house)) {
+    return "bg-[#DCEDC1] text-black"; // Ar group color
+  }
+  if (houseGroups.group2.includes(house)) {
+    return "bg-[#93C5FD] text-black"; // Ta group color (blue)
+  }
+  if (houseGroups.group3.includes(house)) {
+    return "bg-[#FFAAA5] text-black"; // Ge group color
+  }
+  
+  return "bg-gray-100 text-gray-800"; // fallback
+};
+
+// Get house group color for number boxes - requires actual house data, not fixed mapping
+export const getNumberBoxHouseColor = (number, houseData = null) => {
+  // If we have actual house data, use it to determine the color
+  if (houseData && houseData[number]) {
+    const house = houseData[number];
+    return getHouseGroupColor(house);
+  }
+  
+  // For now, return a neutral color until we have proper house mapping
+  // This prevents incorrect color assignments
+  return "#F3F4F6"; // Light gray - neutral color
 };
 
 // Function to extract house from degree value (e.g. "11Ta34" -> "Ta")

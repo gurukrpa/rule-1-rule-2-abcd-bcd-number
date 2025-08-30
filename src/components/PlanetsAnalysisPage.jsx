@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
+import { abcdBcdDatabaseService } from '../services/abcdBcdDatabaseService';
+import crossPageSyncService from '../services/crossPageSyncService.js';
 import { supabase } from '../supabaseClient';
-// Removed unused fallbacks for Supabase-only mode
+import { getNumberBoxHouseColor, houseGroups } from '../utils/constants';
 
 function PlanetsAnalysisPage() {
   const navigate = useNavigate();
@@ -43,7 +45,8 @@ function PlanetsAnalysisPage() {
   // ✅ Cross-page sync state - sync clicked numbers from Rule-1 page
   const [rule1SyncData, setRule1SyncData] = useState(null);
   const [syncLoading, setSyncLoading] = useState(false);
-  const [syncEnabled, setSyncEnabled] = useState(true);
+  // Cross-page sync is disabled by default to avoid implicit synchronization
+  const [syncEnabled, setSyncEnabled] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState(null);
 
   // Load user information if userId is provided
@@ -163,274 +166,418 @@ function PlanetsAnalysisPage() {
     }
   }, [rule1SyncData, selectedDate]);
 
-  // Cross-page sync for bi-directional unclicking
-  useEffect(() => {
-    // Listen for Rule1 unclick events
-    const handleRule1Unclick = (event) => {
-      // 🔍 DEBUG: Log all incoming cross-page events
-      if (event.data?.type?.startsWith('rule1-') || event.data?.type?.startsWith('planet-analysis-')) {
-        console.log(`🔍 [CrossPageSync] Received event:`, {
-          type: event.data.type,
-          clickData: event.data.clickData,
-          currentUserId: userId,
-          selectedDate,
-          selectedHour
-        });
-      }
-
-      if (event.data?.type === 'rule1-unclick' && event.data?.clickData) {
-        const { topicName, number, userId: eventUserId, dateKey, hour } = event.data.clickData;
-        
-        // Only process if it's for the same user
-        if (eventUserId === userId) {
-          console.log(`🔄 [PlanetsAnalysis] Processing unclick from Rule1: ${number} from ${topicName} (${dateKey}, ${hour})`);
-          
-          // 🔍 DEBUG: Check current state before update
-          console.log(`🔍 [CrossPageSync] Before unclick - LocalClickedNumbers:`, localClickedNumbers[topicName]);
-          console.log(`🔍 [CrossPageSync] Before unclick - Rule1SyncData:`, rule1SyncData?.[selectedDate]?.[topicName]);
-          
-          // Update local clicked numbers state to unclick the number
-          setLocalClickedNumbers(prev => {
-            const newState = { ...prev };
-            if (newState[topicName]) {
-              const currentNumbers = [...newState[topicName]];
-              const numberIndex = currentNumbers.indexOf(number);
-              if (numberIndex > -1) {
-                newState[topicName] = currentNumbers.filter(n => n !== number);
-                console.log(`➖ [PlanetsAnalysis] Cross-page unclick: ${number} from ${topicName}`);
-              }
-            }
-            // 🔍 DEBUG: Log new state after unclick
-            console.log(`🔍 [CrossPageSync] After unclick - LocalClickedNumbers:`, newState[topicName]);
-            return newState;
-          });
-
-          // Also update rule1SyncData to ensure UI consistency
-          setRule1SyncData(prev => {
-            if (!prev || !prev[selectedDate] || !prev[selectedDate][topicName]) return prev;
-            const newState = { ...prev };
-            const topicData = { ...newState[selectedDate][topicName] };
-            topicData.clickedNumbers = topicData.clickedNumbers.filter(n => n !== number);
-            newState[selectedDate] = { ...newState[selectedDate], [topicName]: topicData };
-            console.log(`🔍 [CrossPageSync] Updated Rule1SyncData after unclick:`, topicData.clickedNumbers);
-            return newState;
-          });
-        }
-      }
-
-      // Listen for Rule1 click events
-      if (event.data?.type === 'rule1-click' && event.data?.clickData) {
-        const { topicName, number, userId: eventUserId, dateKey, hour } = event.data.clickData;
-        
-        // Only process if it's for the same user
-        if (eventUserId === userId) {
-          console.log(`🔄 [PlanetsAnalysis] Processing click from Rule1: ${number} to ${topicName} (${dateKey}, ${hour})`);
-          
-          // 🔍 DEBUG: Check current state before update
-          console.log(`🔍 [CrossPageSync] Before click - LocalClickedNumbers:`, localClickedNumbers[topicName]);
-          console.log(`🔍 [CrossPageSync] Before click - Rule1SyncData:`, rule1SyncData?.[selectedDate]?.[topicName]);
-          
-          // Update local clicked numbers state to click the number
-          setLocalClickedNumbers(prev => {
-            const newState = { ...prev };
-            const currentNumbers = newState[topicName] || [];
-            if (!currentNumbers.includes(number)) {
-              newState[topicName] = [...currentNumbers, number];
-              console.log(`➕ [PlanetsAnalysis] Cross-page click: ${number} to ${topicName}`);
-            }
-            // 🔍 DEBUG: Log new state after click
-            console.log(`🔍 [CrossPageSync] After click - LocalClickedNumbers:`, newState[topicName]);
-            return newState;
-          });
-
-          // Also update rule1SyncData to ensure UI consistency
-          setRule1SyncData(prev => {
-            if (!prev) {
-              const newState = { [selectedDate]: { [topicName]: { clickedNumbers: [number], abcdNumbers: [], bcdNumbers: [] } } };
-              console.log(`🔍 [CrossPageSync] Created new Rule1SyncData after click:`, newState);
-              return newState;
-            }
-            const newState = { ...prev };
-            if (!newState[selectedDate]) newState[selectedDate] = {};
-            if (!newState[selectedDate][topicName]) newState[selectedDate][topicName] = { clickedNumbers: [], abcdNumbers: [], bcdNumbers: [] };
-            
-            const topicData = { ...newState[selectedDate][topicName] };
-            if (!topicData.clickedNumbers.includes(number)) {
-              topicData.clickedNumbers = [...topicData.clickedNumbers, number];
-            }
-            newState[selectedDate] = { ...newState[selectedDate], [topicName]: topicData };
-            console.log(`🔍 [CrossPageSync] Updated Rule1SyncData after click:`, topicData.clickedNumbers);
-            return newState;
-          });
-        }
-      }
-    };
-
-    // Add window message listener for cross-page communication
-    window.addEventListener('message', handleRule1Unclick);
-    
-    return () => {
-      window.removeEventListener('message', handleRule1Unclick);
-    };
-  }, [userId]);
-
-  // Helper to normalize date (ensure YYYY-MM-DD)
-  const normalizeDateStr = (d) => {
-    if (!d) return '';
-    // If it's already 'YYYY-MM-DD', keep it. If it's ISO, take first 10 chars.
-    return String(d).slice(0, 10);
-  };
-
-  // Strong save with fallback (handles missing columns like source, expires_at, created_at)
-  const saveExcelNumbersToSupabase = async (parsedTopicNumbers) => {
-    if (!userId) {
-      console.warn('[PlanetsAnalysis] Missing userId on save');
-      return false;
-    }
-    const dateStr = normalizeDateStr(selectedDate);
-    if (!dateStr) {
-      console.warn('[PlanetsAnalysis] Missing selectedDate on save');
-      return false;
-    }
-
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + 18 * 60 * 60 * 1000).toISOString();
-
-    // Full payload (best effort)
-    const fullPayload = {
-      user_id: userId,
-      date: dateStr,
-      topic_numbers: parsedTopicNumbers,
-      source: 'excel',
-      expires_at: expiresAt,
-      created_at: now.toISOString(),
-    };
-
-    console.log('[PlanetsAnalysis] Saving Excel numbers for user/date', { userId, dateStr });
-
-    try {
-      // Try 1: full payload
-      let { error: upsertError } = await supabase
-        .from('abcd_bcd_analysis_results')
-        .upsert(fullPayload, { onConflict: 'user_id,date' });
-
-      // Try 2: remove optional columns if any column is missing
-      if (upsertError) {
-        console.warn('[PlanetsAnalysis] Full upsert failed, retrying with minimal payload. Error:', upsertError.message);
-        const minimalPayload = {
-          user_id: userId,
-          date: dateStr,
-          topic_numbers: parsedTopicNumbers,
-        };
-        const { error: retryError } = await supabase
-          .from('abcd_bcd_analysis_results')
-          .upsert(minimalPayload, { onConflict: 'user_id,date' });
-          
-        if (retryError) {
-          console.error('[PlanetsAnalysis] Excel upsert failed:', retryError);
-          setError(`Failed to save Excel data: ${retryError.message}`);
-          return false;
-        }
-      }
-
-      console.log('✅ [PlanetsAnalysis] Excel data saved. Reloading from Supabase...');
-      await loadAllAvailableData(); // refresh UI so numbers show immediately
-      return true;
-    } catch (error) {
-      console.error('[PlanetsAnalysis] Error saving Excel data:', error);
-      setError(`Failed to save Excel data: ${error.message}`);
-      return false;
-    }
-  };
-
-  // Loader with fallback if expires_at filter fails
+  // Load ABCD/BCD numbers from all available sources automatically
   const loadAllAvailableData = async () => {
-    setDatabaseLoading(true);
-    setError('');
-    setDataSource('supabase-only');
-
     try {
-      const dateStr = normalizeDateStr(selectedDate);
-      if (!userId || !dateStr) {
-        setError('Missing user or date.');
-        return;
-      }
-      console.log('[PlanetsAnalysis] Loading data for user/date', { userId, dateStr });
+      setDatabaseLoading(true);
+      setError('');
+      setDataSource('loading');
       
-      // Supabase-only fetch
-      if (userId && selectedDate) {
-        console.log(`� [PlanetsAnalysis] Fetching analysis from Supabase for user ${userId} on ${selectedDate}`);
-        
-        const { data, error } = await supabase
-          .from('abcd_bcd_analysis_results')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('date', selectedDate)
-          .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
-          .order('created_at', { ascending: false })
-          .maybeSingle();
+      console.log('🔍 [PlanetsAnalysis] Loading ABCD/BCD numbers from all sources...');
+      
+      // Strategy 1: Try to get real Rule2 analysis data using actual available dates
+      try {
+        if (userId) {
+          console.log('📊 [PlanetsAnalysis] Attempting to fetch real Rule2 analysis data...');
           
-        // Handle expires_at column not existing
-        if (error && error.message.includes('expires_at')) {
-          console.log('[PlanetsAnalysis] expires_at not found; loading without expiry filter');
-          const { data: fallbackData, error: fallbackError } = await supabase
-            .from('abcd_bcd_analysis_results')
-            .select('*')
-            .eq('user_id', userId)
-            .eq('date', selectedDate)
-            .order('created_at', { ascending: false })
-            .maybeSingle();
+          // 🔍 PRIORITY FIX: Try CleanSupabaseServiceWithSeparateStorage FIRST (most reliable)
+          let availableDates = [];
+          console.log('🔍 [DEBUG] Loading dates - Priority 1: CleanSupabaseServiceWithSeparateStorage');
+          try {
+            const { default: cleanSupabaseService, PAGE_CONTEXTS } = await import('../services/CleanSupabaseServiceWithSeparateStorage.js');
+            console.log('🔧 [PlanetsAnalysis] Attempting to load dates from CleanSupabaseServiceWithSeparateStorage...');
+            console.log('🔧 [PlanetsAnalysis] Using userId:', userId);
+            console.log('🔧 [PlanetsAnalysis] Using PAGE_CONTEXTS.ABCD:', PAGE_CONTEXTS.ABCD);
             
-          if (fallbackError || !fallbackData) {
-            setError(`No analysis found in Supabase for ${userId} on ${selectedDate}.`);
+            availableDates = await cleanSupabaseService.getUserDates(userId, PAGE_CONTEXTS.ABCD);
+            console.log('📅 [PlanetsAnalysis] CleanSupabaseServiceWithSeparateStorage result:', availableDates);
+            console.log('📅 [PlanetsAnalysis] Result type:', typeof availableDates);
+            console.log('📅 [PlanetsAnalysis] Result length:', availableDates ? availableDates.length : 'null/undefined');
+            
+            if (availableDates && availableDates.length > 0) {
+              console.log('✅ [PlanetsAnalysis] Successfully loaded dates from CleanSupabaseServiceWithSeparateStorage');
+              console.log('🔍 [PRIORITY DEBUG] All dates from CleanSupabaseServiceWithSeparateStorage:', availableDates);
+              console.log('🔍 [PRIORITY DEBUG] July 2025 dates available:', availableDates.filter(d => d.startsWith('2025-07')));
+            } else {
+              console.log('❌ [PlanetsAnalysis] CleanSupabaseServiceWithSeparateStorage returned empty/null result');
+              availableDates = []; // Ensure it's an array for the next check
+            }
+          } catch (e) {
+            console.log('❌ [PlanetsAnalysis] CleanSupabaseServiceWithSeparateStorage error:', e);
+            console.log('❌ [PlanetsAnalysis] Error details:', e.message);
+            console.log('❌ [PlanetsAnalysis] Error stack:', e.stack);
+            availableDates = []; // Ensure it's an array for the next check
+          }
+          
+          // Fallback to localStorage only if CleanSupabaseServiceWithSeparateStorage failed
+          if (availableDates.length === 0) {
+            console.log('🔄 [DEBUG] CleanSupabaseServiceWithSeparateStorage failed, falling back to localStorage');
+            try {
+              const storedDates = localStorage.getItem(`abcd_dates_${userId}`);
+              if (storedDates) {
+                availableDates = JSON.parse(storedDates);
+                console.log('📅 [PlanetsAnalysis] Found dates in localStorage:', availableDates);
+              } else {
+                console.log('⚠️ [PlanetsAnalysis] No dates found in localStorage with key:', `abcd_dates_${userId}`);
+                
+                // 🔍 DEBUG: Check what localStorage keys exist for this user
+                const allKeys = Object.keys(localStorage);
+                const userKeys = allKeys.filter(key => key.includes(userId));
+                console.log('🔍 [PlanetsAnalysis] Available localStorage keys for user:', userKeys);
+                
+                // Try common alternative key patterns
+                const alternativeKeys = [
+                  `abcd_dates_${userId}`,
+                  `dates_${userId}`,
+                  `user_dates_${userId}`,
+                  `${userId}_dates`
+                ];
+                
+                for (const key of alternativeKeys) {
+                  const value = localStorage.getItem(key);
+                  if (value) {
+                    console.log(`🔍 [PlanetsAnalysis] Found dates in alternative key "${key}":`, JSON.parse(value));
+                    availableDates = JSON.parse(value);
+                    break;
+                  }
+                }
+              }
+            } catch (e) {
+              console.log('❌ [PlanetsAnalysis] Error reading localStorage dates:', e);
+            }
+          }
+          
+          // If still no dates, this is a critical error - don't use fallback
+          if (availableDates.length === 0) {
+            console.log('❌ [PlanetsAnalysis] CRITICAL: No dates found in any source!');
+            console.log('🔍 [PlanetsAnalysis] This suggests a data storage/retrieval issue');
+            setError('No date data available. Please ensure data is properly loaded in the system.');
             setDatabaseLoading(false);
             return;
           }
+
+          // 🔧 PROGRESSIVE CALENDAR FIX: Handle forward-only date progression
+          if (selectedDate && !availableDates.includes(selectedDate)) {
+            console.log(`🔧 [PlanetsAnalysis] Selected date ${selectedDate} not in availableDates`);
+            console.log(`📅 [PlanetsAnalysis] Current availableDates:`, availableDates);
+            
+            // For progressive calendar dates, just add the selected date
+            // The RealTimeRule2AnalysisService will handle finding a suitable sequence
+            const allDates = [...availableDates, selectedDate];
+            availableDates = allDates.sort((a, b) => new Date(a) - new Date(b));
+            
+            console.log(`✅ [PlanetsAnalysis] Added ${selectedDate} to availableDates`);
+            console.log(`📅 [PlanetsAnalysis] Updated availableDates:`, availableDates);
+            console.log(`📍 [PlanetsAnalysis] Selected date ${selectedDate} now at position:`, availableDates.indexOf(selectedDate) + 1);
+          }
           
-          // Process fallback data
-          const analysisData = {
-            source: 'supabase',
-            date: selectedDate,
-            topicNumbers: fallbackData.topic_numbers || {},
-            hrNumber: selectedHour,
-            timestamp: fallbackData.created_at
-          };
+        // Strategy 1: Try to get real hour-specific analysis data using RealTimeRule2AnalysisService
+        if (availableDates && availableDates.length > 0) {
+          setError('');
           
-          setRealAnalysisData(analysisData);
-          // Also set planetsData to display numbers in the grid
-          setPlanetsData({ sets: fallbackData.topic_numbers || {} });
-          setSuccess(`✅ Loaded analysis data from Supabase for ${selectedDate}`);
-          console.log('✅ [PlanetsAnalysis] Supabase data loaded (no expiry filtering):', analysisData);
-          return;
+          try {
+            console.log('🚀 [PlanetsAnalysis] Loading real ABCD/BCD data for each hour using RealTimeRule2AnalysisService...');
+            
+            // Import and use RealTimeRule2AnalysisService directly for multi-HR analysis
+            const { RealTimeRule2AnalysisService } = await import('../services/realTimeRule2AnalysisService.js');
+            
+            // 🎯 STRICT N-1 PATTERN: Always show previous day's data regardless of clicked date availability
+            let dateForAnalysis = selectedDate;
+            let displayDate = selectedDate; // Keep track of what user clicked for display
+            
+            console.log('🔍 [DEBUG] Date selection debug (Simple Previous Date Logic):');
+            console.log('  selectedDate from URL:', selectedDate);
+            console.log('  availableDates:', availableDates);
+            console.log('  availableDates length:', availableDates.length);
+            console.log('  availableDates (sorted):', [...availableDates].sort());
+            console.log('  selectedDate type:', typeof selectedDate);
+            
+            // 🔍 EXTRA DEBUG: Check if July 7th is in available dates when July 8th is clicked
+            if (selectedDate === '2025-07-08') {
+              console.log('🔍 [JULY 8TH DEBUG] Special debug for July 8th click:');
+              console.log('  🔍 Is July 7th (2025-07-07) in availableDates?', availableDates.includes('2025-07-07'));
+              console.log('  🔍 Is July 6th (2025-07-06) in availableDates?', availableDates.includes('2025-07-06'));
+              console.log('  🔍 Is July 5th (2025-07-05) in availableDates?', availableDates.includes('2025-07-05'));
+              console.log('  🔍 All July 2025 dates in availableDates:', availableDates.filter(d => d.startsWith('2025-07')));
+              console.log('  🔍 All June 2025 dates in availableDates:', availableDates.filter(d => d.startsWith('2025-06')));
+            }
+            
+            if (!dateForAnalysis || !selectedDate?.trim()) {
+              // Use the latest date if no specific date selected
+              const sortedDates = [...availableDates].sort((a, b) => new Date(a) - new Date(b));
+              dateForAnalysis = sortedDates[sortedDates.length - 1];
+              displayDate = dateForAnalysis;
+              console.log('  No selectedDate, using latest:', dateForAnalysis);
+            } else {
+              // 🎯 SIMPLIFIED LOGIC: Always find closest previous date with data
+              displayDate = selectedDate.trim(); // What user clicked (for display)
+              
+              console.log('  🎯 SIMPLIFIED PATTERN Applied:');
+              console.log('    Display date (user clicked):', displayDate);
+              console.log('    Available dates:', availableDates);
+              
+              // 🔧 ALWAYS find closest previous date - don't use exact clicked date
+              console.log('  🔍 Finding closest previous date with data...');
+              
+              if (availableDates.length === 0) {
+                console.log('  ❌ DEBUG: No available dates found!');
+                
+                // Try to get dates from CleanSupabaseService as fallback
+                try {
+                  const { default: cleanSupabaseService, PAGE_CONTEXTS } = await import('../services/CleanSupabaseServiceWithSeparateStorage.js');
+                  const supabaseDates = await cleanSupabaseService.getUserDates(userId, PAGE_CONTEXTS.ABCD);
+                  console.log('  📅 DEBUG: Found dates from CleanSupabaseServiceWithSeparateStorage:', supabaseDates);
+                  if (supabaseDates && supabaseDates.length > 0) {
+                    availableDates = supabaseDates;
+                  }
+                } catch (e) {
+                  console.log('  ❌ DEBUG: CleanSupabaseServiceWithSeparateStorage also failed:', e);
+                }
+              }
+              
+              const sortedDates = [...availableDates].sort((a, b) => new Date(a) - new Date(b));
+              console.log('  📅 DEBUG: sortedDates after sorting:', sortedDates);
+              console.log('  📅 DEBUG: selectedDate:', selectedDate);
+              
+              // 🎯 N-1 PATTERN: ALWAYS find closest previous date (never use clicked date itself)
+              const selectedDateObj = new Date(selectedDate);
+              
+              console.log(`  🔍 ALWAYS finding closest previous date before ${selectedDate} (N-1 pattern)...`);
+              console.log(`  📅 Available dates to check:`, sortedDates);
+              console.log(`  🎯 Note: With sparse dates (1,3,7,8), N-1 pattern requires closest previous logic`);
+              
+              // ALWAYS find closest previous date - never use the clicked date itself
+              let closestPreviousDate = null;
+                
+              // Find the closest previous date (no artificial gap limits)
+              for (let i = sortedDates.length - 1; i >= 0; i--) {
+                const availableDate = new Date(sortedDates[i]);
+                const isLess = availableDate < selectedDateObj;
+                const daysDiff = (selectedDateObj.getTime() - availableDate.getTime()) / (1000 * 60 * 60 * 24);
+                
+                console.log(`    📅 Checking: ${sortedDates[i]} < ${selectedDate} = ${isLess}, gap: ${Math.round(daysDiff)} days`);
+                
+                if (isLess) {
+                  closestPreviousDate = sortedDates[i];
+                  console.log(`    ✅ Found closest previous date (${Math.round(daysDiff)} days gap): ${closestPreviousDate}`);
+                  break;
+                }
+              }
+              
+              // If no previous date found, use the latest available date
+              if (!closestPreviousDate) {
+                closestPreviousDate = sortedDates[sortedDates.length - 1];
+                console.log(`    🔄 No previous date found, using latest available: ${closestPreviousDate}`);
+              }
+              
+              dateForAnalysis = closestPreviousDate;
+              console.log(`  🎯 FINAL LOGIC: ${selectedDate} clicked → using ${dateForAnalysis} data`);
+              console.log(`  📅 Analysis will use the closest previous date with actual data`);
+            
+            console.log('  ✅ FINAL: Date selection complete - Analysis will use date:', dateForAnalysis);
+            }
+            
+            console.log(`📅 [PlanetsAnalysis] Using date for analysis: ${dateForAnalysis} (clicked: ${selectedDate || 'none'})`);
+            
+            // Show user-friendly message about date selection
+            if (selectedDate && dateForAnalysis) {
+              setSuccess(`🎯 Clicked ${new Date(selectedDate).toLocaleDateString()} → Using closest previous data from ${new Date(dateForAnalysis).toLocaleDateString()}`);
+            } else if (selectedDate) {
+              setSuccess(`📅 No previous data available for ${new Date(selectedDate).toLocaleDateString()}`);
+            } else {
+              setSuccess(`📅 Analyzing data for ${new Date(dateForAnalysis).toLocaleDateString()} (latest available date)`);
+            }
+            
+            // Perform real analysis that returns hour-specific data
+            const multiHRAnalysisResult = await RealTimeRule2AnalysisService.performRule2Analysis(
+              userId,
+              dateForAnalysis,
+              availableDates
+            );
+            
+            if (multiHRAnalysisResult.success && multiHRAnalysisResult.data.hrResults) {
+              const allHourAnalysisData = {};
+              const hrResults = multiHRAnalysisResult.data.hrResults;
+              
+              console.log(`✅ [PlanetsAnalysis] RealTime analysis successful! Found HR results:`, Object.keys(hrResults));
+              
+              // Process each HR's real analysis data 
+              Object.entries(hrResults).forEach(([hrNumber, hrData]) => {
+                if (hrData && !hrData.error && hrData.topicResults) {
+                  // Convert to the format expected by PlanetsAnalysisPage
+                  const topicNumbers = {};
+                  
+                  hrData.topicResults.forEach(topicResult => {
+                    if (!topicResult.error) {
+                      topicNumbers[topicResult.setName] = {
+                        abcd: topicResult.abcdNumbers || [],
+                        bcd: topicResult.bcdNumbers || []
+                      };
+                    }
+                  });
+                  
+                  allHourAnalysisData[hrNumber] = {
+                    source: 'realTimeRule2Analysis',
+                    analysisDate: dateForAnalysis,  // Use the actual date used for analysis
+                    timestamp: multiHRAnalysisResult.data.timestamp,
+                    hrNumber: parseInt(hrNumber),
+                    topicNumbers: topicNumbers,
+                    overallNumbers: {
+                      abcd: hrData.overallAbcdNumbers || [],
+                      bcd: hrData.overallBcdNumbers || []
+                    },
+                    totalTopics: hrData.topicResults.length,
+                    dataSource: `Real Analysis HR-${hrNumber}`,
+                    realData: true // Mark as real data, not fallback
+                  };
+                  
+                  console.log(`🎯 [PlanetsAnalysis] HR ${hrNumber} real data:`, {
+                    topics: Object.keys(topicNumbers).length,
+                    overallABCD: hrData.overallAbcdNumbers?.length || 0,
+                    overallBCD: hrData.overallBcdNumbers?.length || 0,
+                    sampleTopic: Object.keys(topicNumbers)[0] ? topicNumbers[Object.keys(topicNumbers)[0]] : null
+                  });
+                } else {
+                  console.log(`⚠️ [PlanetsAnalysis] HR ${hrNumber} has error:`, hrData?.error || 'Unknown error');
+                }
+              });
+              
+              if (Object.keys(allHourAnalysisData).length > 0) {
+                setRealAnalysisData(allHourAnalysisData[selectedHour] || allHourAnalysisData[Object.keys(allHourAnalysisData)[0]]);
+                setHourTabsData(allHourAnalysisData);
+                setDataSource('analysis');
+                setSuccess(`✅ Loaded real ABCD/BCD data for ${Object.keys(allHourAnalysisData).length} hours with unique numbers per hour`);
+                
+                // Log verification for the first few hours to show they have different data
+                const hourNumbers = Object.keys(allHourAnalysisData).slice(0, 3);
+                console.log('🔍 [PlanetsAnalysis] Hour-specific data verification:');
+                hourNumbers.forEach(hr => {
+                  const data = allHourAnalysisData[hr];
+                  if (data.topicNumbers['D-1 Set-1 Matrix']) {
+                    const topic = data.topicNumbers['D-1 Set-1 Matrix'];
+                    console.log(`   HR ${hr}: ABCD=[${topic.abcd.join(',')}], BCD=[${topic.bcd.join(',')}]`);
+                  }
+                });
+                
+                setDatabaseLoading(false);
+                return; // Success - use this real hour-specific data
+              }
+            } else {
+              console.log('⚠️ [PlanetsAnalysis] RealTime analysis failed:', multiHRAnalysisResult.error);
+              
+              // If analysis failed and we're using a user-selected date not in availableDates,
+              // try falling back to the latest available date
+              if (selectedDate && !isSelectedDateAvailable) {
+                console.log('🔄 [PlanetsAnalysis] Retrying with latest available date as fallback...');
+                const sortedDates = [...availableDates].sort((a, b) => new Date(a) - new Date(b));
+                const fallbackDate = sortedDates[sortedDates.length - 1];
+                
+                try {
+                  const fallbackResult = await RealTimeRule2AnalysisService.performRule2Analysis(
+                    userId,
+                    fallbackDate,
+                    availableDates
+                  );
+                  
+                  if (fallbackResult.success && fallbackResult.data.hrResults) {
+                    console.log('✅ [PlanetsAnalysis] Fallback analysis successful with date:', fallbackDate);
+                    
+                    // 🔧 FIXED: Process the fallback result properly - same logic as successful analysis above
+                    const allHourAnalysisData = {};
+                    const hrResults = fallbackResult.data.hrResults;
+                    
+                    console.log(`✅ [PlanetsAnalysis] Fallback processing HR results:`, Object.keys(hrResults));
+                    
+                    // Process each HR's real analysis data 
+                    Object.entries(hrResults).forEach(([hrNumber, hrData]) => {
+                      if (!hrData.error) {
+                        allHourAnalysisData[hrNumber] = {
+                          source: 'realTimeRule2Analysis',
+                          date: fallbackDate, // Use fallback date instead of original date
+                          hrNumber: parseInt(hrNumber),
+                          topicNumbers: {},
+                          overallNumbers: {
+                            abcd: hrData.overallAbcdNumbers || [],
+                            bcd: hrData.overallBcdNumbers || []
+                          },
+                          totalTopics: hrData.topicResults?.length || 0,
+                          timestamp: fallbackResult.data.timestamp
+                        };
+
+                        // Convert topic results to expected format
+                        if (hrData.topicResults) {
+                          hrData.topicResults.forEach(topicResult => {
+                            allHourAnalysisData[hrNumber].topicNumbers[topicResult.setName] = {
+                              abcd: topicResult.abcdNumbers || [],
+                              bcd: topicResult.bcdNumbers || []
+                            };
+                          });
+                        }
+                      }
+                    });
+
+                    // Set the processed data
+                    setHourlyAnalysisData(allHourAnalysisData);
+                    setDataSource('realTimeRule2Analysis');
+                    setSelectedDate(fallbackDate); // Update the selected date to reflect fallback
+                    
+                    // Debug log
+                    console.log('📊 [PlanetsAnalysis] Fallback data preview:');
+                    Object.keys(allHourAnalysisData).forEach(hr => {
+                      const data = allHourAnalysisData[hr];
+                      if (data.topicNumbers['D-1 Set-1 Matrix']) {
+                        const topic = data.topicNumbers['D-1 Set-1 Matrix'];
+                        console.log(`   HR ${hr}: ABCD=[${topic.abcd.join(',')}], BCD=[${topic.bcd.join(',')}]`);
+                      }
+                    });
+                    
+                    // Show warning message about fallback but data is working
+                    setError(`⚠️ No data available for ${new Date(selectedDate).toLocaleDateString()}. Showing data for ${new Date(fallbackDate).toLocaleDateString()} instead. Add ${selectedDate} data for direct analysis.`);
+                    setDatabaseLoading(false);
+                    return; // Success - use this fallback data
+                  } else {
+                    setError(`❌ No analysis data available for ${new Date(selectedDate).toLocaleDateString()} or any recent dates.`);
+                  }
+                } catch (fallbackError) {
+                  console.log('❌ [PlanetsAnalysis] Fallback analysis also failed:', fallbackError.message);
+                  setError(`❌ Analysis failed for ${new Date(selectedDate).toLocaleDateString()}. Please try a different date.`);
+                }
+              } else {
+                setError(`❌ Analysis failed: ${multiHRAnalysisResult.error}`);
+              }
+            }
+          } catch (realTimeError) {
+            console.log('⚠️ [PlanetsAnalysis] RealTime analysis error:', realTimeError.message);
+          }
         }
-          
-        if (error || !data) {
-          setError(`No analysis found in Supabase for ${userId} on ${selectedDate}.`);
-          setDatabaseLoading(false);
-          return;
-        }
-        
-        // Process Supabase data
-        const analysisData = {
-          source: 'supabase',
-          date: selectedDate,
-          topicNumbers: data.topic_numbers || {},
-          hrNumber: selectedHour,
-          timestamp: data.created_at
-        };
-        
-        setRealAnalysisData(analysisData);
-        // Also set planetsData to display numbers in the grid
-        setPlanetsData({ sets: data.topic_numbers || {} });
-        setSuccess(`✅ Loaded analysis data from Supabase for ${selectedDate}`);
-        console.log('✅ [PlanetsAnalysis] Supabase data loaded:', analysisData);
-      } else {
-        setError('Missing userId or selectedDate for Supabase query.');
+        } // Close the if (userId) block from line 136
+      } catch (analysisError) {
+        console.log('⚠️ [PlanetsAnalysis] Analysis data not available:', analysisError.message);
       }
       
+      // Strategy 2: Try database
+      console.log('🗄️ [PlanetsAnalysis] Trying database as fallback...');
+      const dbResult = await abcdBcdDatabaseService.getAllTopicNumbers();
+      
+      if (dbResult.success) {
+        setDatabaseTopicNumbers(dbResult.data);
+        setDataSource('database');
+        const summary = abcdBcdDatabaseService.getAnalysisSummary(dbResult);
+        setSuccess(`✅ Loaded ${summary.totalTopics} topics from database`);
+        console.log('✅ [PlanetsAnalysis] Database data loaded:', summary);
+        setDatabaseLoading(false);
+        return; // Success - use database data
+      }
+      
+      // Strategy 3: Use enhanced fallback with all topics
+      console.log('📋 [PlanetsAnalysis] Using enhanced fallback data...');
+      setDataSource('fallback');
+      setSuccess('Using comprehensive fallback ABCD/BCD numbers for all topics');
+      
     } catch (error) {
-      console.error('❌ [PlanetsAnalysis] Supabase error:', error);
-      setError(`Failed to load analysis from Supabase: ${error.message}`);
+      console.error('❌ [PlanetsAnalysis] Error loading data:', error);
+      setError(`Failed to load ABCD/BCD numbers: ${error.message}`);
+      setDataSource('fallback');
     } finally {
       setDatabaseLoading(false);
     }
@@ -438,8 +585,6 @@ function PlanetsAnalysisPage() {
 
   // Load Rule-1 sync data for cross-page number box synchronization
   const loadRule1SyncData = async () => {
-    console.log('🔄 [PlanetsAnalysis] loadRule1SyncData called - SUPABASE-ONLY MODE');
-    
     if (!userId || !syncEnabled) {
       console.log('🔄 [PlanetsAnalysis] Sync disabled or no userId:', { userId, syncEnabled });
       return;
@@ -447,27 +592,87 @@ function PlanetsAnalysisPage() {
 
     try {
       setSyncLoading(true);
-      console.log('🔄 [PlanetsAnalysis] Loading data from Supabase only...');
+      console.log('🔄 [PlanetsAnalysis] Loading Rule-1 sync data...');
 
-      // For Supabase-only implementation, we don't need cross-page sync
-      // Data will be loaded through the main loadAllAvailableData function
-      console.log('📊 [PlanetsAnalysis] Supabase-only mode - skipping cross-page sync');
+      // Get all clicked numbers and analysis results from Rule-1 page
+      const syncData = await crossPageSyncService.getAllClickedNumbers(userId);
+      console.log('📊 [PlanetsAnalysis] Rule-1 sync data loaded:', syncData);
       
-      setRule1SyncData(null); // Clear any previous sync data
-      setLastSyncTime(new Date());
-      console.log('✅ [PlanetsAnalysis] Supabase-only sync completed');
+      // Debug: Check ALL dates to see what we have
+      console.log('🔍 [PlanetsAnalysis] All available dates:', Object.keys(syncData || {}));
+      
+      // Debug: Check specific date data  
+      if (syncData && syncData['2025-08-14']) {
+        console.log('🎯 [PlanetsAnalysis] August 14th data:', syncData['2025-08-14']);
+        if (syncData['2025-08-14']['D-1 Set-1 Matrix']) {
+          const d1Data = syncData['2025-08-14']['D-1 Set-1 Matrix'];
+          console.log('🔢 [PlanetsAnalysis] D-1 Set-1 clicked numbers:', d1Data.clickedNumbers);
+          console.log('📋 [PlanetsAnalysis] Full D-1 Set-1 data:', d1Data);
+        }
+      }
+
+      if (syncData && Object.keys(syncData).length > 0) {
+        setRule1SyncData(syncData);
+        setLastSyncTime(new Date());
+        console.log('✅ [PlanetsAnalysis] Sync data successfully loaded from Rule-1');
+      } else {
+        console.log('ℹ️ [PlanetsAnalysis] No Rule-1 sync data available');
+        setRule1SyncData(null);
+      }
     } catch (error) {
-      console.error('❌ [PlanetsAnalysis] Error in Supabase-only sync:', error);
-      setError(`Supabase-only sync error: ${error.message}`);
+      console.error('❌ [PlanetsAnalysis] Error loading Rule-1 sync data:', error);
+      setError(`Failed to sync with Rule-1: ${error.message}`);
     } finally {
       setSyncLoading(false);
     }
   };
 
+  // Enhanced automatic loading - now handles all data sources automatically
+  // This function automatically loads ABCD/BCD data from all available sources:
+  // 1. Real Rule2 analysis data for all hours using RealTimeRule2AnalysisService (highest priority)
+  // 2. Database data as fallback
+  // 3. Comprehensive fallback data as last resort
+  // ✅ NEW: Each hour gets its own unique real ABCD/BCD numbers based on hour-specific planet selections
+
+  // Topic-specific ABCD/BCD numbers mapping - REAL DYNAMIC DATA 
+  // ⚠️ NOTE: These numbers are updated daily with new Rule-2 analysis results
+  // Last updated: July 6, 2025 - Replace with fresh analysis data as needed
+  const TOPIC_NUMBERS = {
+    'D-1 Set-1 Matrix': { abcd: [1, 2, 4, 7, 9], bcd: [5] },
+    'D-1 Set-2 Matrix': { abcd: [3, 5, 7, 10, 12], bcd: [] },
+    'D-3 Set-1 Matrix': { abcd: [1, 2, 5, 9, 10], bcd: [7] },
+    'D-3 Set-2 Matrix': { abcd: [3, 7, 8, 9, 10], bcd: [5, 6] },
+    'D-4 Set-1 Matrix': { abcd: [2, 3, 4, 8], bcd: [7, 12] },
+    'D-4 Set-2 Matrix': { abcd: [2, 10, 11, 12], bcd: [4] },
+    'D-5 Set-1 Matrix': { abcd: [1, 4, 7, 8, 9, 11, 12], bcd: [] },
+    'D-5 Set-2 Matrix': { abcd: [4, 5, 7, 8, 10], bcd: [2, 3, 12] },
+    'D-7 Set-1 Matrix': { abcd: [5, 6, 8, 9, 11, 12], bcd: [] },
+    'D-7 Set-2 Matrix': { abcd: [4, 5, 6, 7, 8], bcd: [] },
+    'D-9 Set-1 Matrix': { abcd: [7, 8, 10, 12], bcd: [9] },
+    'D-9 Set-2 Matrix': { abcd: [4, 5, 8], bcd: [6, 9] },
+    'D-10 Set-1 Matrix': { abcd: [1, 4, 5, 6, 8], bcd: [2] },
+    'D-10 Set-2 Matrix': { abcd: [2, 5, 6, 7], bcd: [3, 12] },
+    'D-11 Set-1 Matrix': { abcd: [8, 9, 10], bcd: [3] },
+    'D-11 Set-2 Matrix': { abcd: [2, 6, 8], bcd: [1] },
+    'D-12 Set-1 Matrix': { abcd: [1, 3, 12], bcd: [4, 8] },
+    'D-12 Set-2 Matrix': { abcd: [7, 10, 12], bcd: [] },
+    'D-27 Set-1 Matrix': { abcd: [1, 3, 4, 5, 8], bcd: [9, 10] },
+    'D-27 Set-2 Matrix': { abcd: [2, 3, 5, 7, 11, 12], bcd: [] },
+    'D-30 Set-1 Matrix': { abcd: [1, 4, 9, 11], bcd: [2, 7, 8] },
+    'D-30 Set-2 Matrix': { abcd: [2, 3, 4, 7, 8, 11], bcd: [5] },
+    'D-60 Set-1 Matrix': { abcd: [1, 10, 11], bcd: [] },
+    'D-60 Set-2 Matrix': { abcd: [4, 11], bcd: [8, 10] },
+    'D-81 Set-1 Matrix': { abcd: [1, 4, 8, 11], bcd: [7, 12] },
+    'D-81 Set-2 Matrix': { abcd: [2, 5, 6, 7, 10], bcd: [8, 11] },
+    'D-108 Set-1 Matrix': { abcd: [1, 5, 8, 11], bcd: [3] },
+    'D-108 Set-2 Matrix': { abcd: [4, 5, 7], bcd: [11] },
+    'D-144 Set-1 Matrix': { abcd: [1, 11], bcd: [4, 10] },
+    'D-144 Set-2 Matrix': { abcd: [1, 3, 4, 10], bcd: [] }
+  };
+
   // Get ABCD/BCD numbers for a specific topic - prioritize real analysis data
   const getTopicNumbers = (setName) => {
-    // Priority 1: Real analysis data (from Supabase)
-    if (realAnalysisData && realAnalysisData.topicNumbers) {
+    if (realAnalysisData && realAnalysisData.topicNumbers && !realAnalysisData.incomplete) {
       // Try exact match first
       let realNumbers = realAnalysisData.topicNumbers[setName];
       if (realNumbers && (realNumbers.abcd.length > 0 || realNumbers.bcd.length > 0)) {
@@ -643,16 +848,61 @@ function PlanetsAnalysisPage() {
 
   // Render ABCD/BCD badges based on database numbers
   const renderABCDBadges = (rawData, setName) => {
+    console.log('🎯 [PlanetsAnalysis] renderABCDBadges called with:', { rawData, setName });
+    
     const extractedNumber = extractElementNumber(rawData);
+    console.log('🔢 [PlanetsAnalysis] Extracted number:', extractedNumber);
+    
     if (!extractedNumber && extractedNumber !== 0) return null;
     
     // Get numbers from database or fallback WITH NORMALIZATION
     const { abcd, bcd } = getTopicNumbersWithNormalization(setName);
+    console.log('📊 [PlanetsAnalysis] ABCD/BCD arrays:', { abcd, bcd });
+    
+    // Format the raw data to get the house
+    const formattedData = formatPlanetData(rawData);
+    console.log('📝 [PlanetsAnalysis] Formatted data:', formattedData);
+    
+    // Extract house from formatted data (e.g., "as-8-Cp" -> "Cp")
+    const getHouseFromFormattedData = (formattedData) => {
+      if (!formattedData || typeof formattedData !== 'string') return null;
+      // Pattern: as-8-Cp -> Cp
+      const match = formattedData.match(/-([A-Za-z]{2})$/);
+      return match ? match[1] : null;
+    };
+
+    const house = getHouseFromFormattedData(formattedData);
+    console.log('🏠 [PlanetsAnalysis] Extracted house:', house);
+    
+    // Get house group color based on the actual house
+    const getHouseGroupColor = (house) => {
+      if (!house) return "bg-gray-100 text-gray-800";
+      
+      if (houseGroups.group1.includes(house)) {
+        console.log('🎨 [PlanetsAnalysis] Using Ar group color for house:', house);
+        return "bg-[#DCEDC1] text-black"; // Ar group color
+      }
+      if (houseGroups.group2.includes(house)) {
+        console.log('🎨 [PlanetsAnalysis] Using Ta group color for house:', house);
+        return "bg-[#93C5FD] text-black"; // Ta group color (blue)
+      }
+      if (houseGroups.group3.includes(house)) {
+        console.log('🎨 [PlanetsAnalysis] Using Ge group color for house:', house);
+        return "bg-[#FFAAA5] text-black"; // Ge group color
+      }
+      
+      console.log('⚠️ [PlanetsAnalysis] Using fallback color for house:', house);
+      return "bg-gray-100 text-gray-800"; // fallback
+    };
+    
+    const houseColor = getHouseGroupColor(house);
+    console.log('🎨 [PlanetsAnalysis] Final house color:', houseColor);
     
     // Check ABCD first (priority)
     if (abcd.includes(extractedNumber)) {
+      console.log('✅ [PlanetsAnalysis] Rendering ABCD badge with color:', houseColor);
       return (
-        <span className="bg-green-200 text-green-800 px-1 py-0.5 rounded text-xs font-medium">
+        <span className={`px-1 py-0.5 rounded text-xs font-medium ${houseColor}`}>
           A
         </span>
       );
@@ -660,13 +910,15 @@ function PlanetsAnalysisPage() {
     
     // Check BCD
     if (bcd.includes(extractedNumber)) {
+      console.log('✅ [PlanetsAnalysis] Rendering BCD badge with color:', houseColor);
       return (
-        <span className="bg-blue-200 text-blue-800 px-1 py-0.5 rounded text-xs font-medium">
+        <span className={`px-1 py-0.5 rounded text-xs font-medium ${houseColor}`}>
           B
         </span>
       );
     }
     
+    console.log('❌ [PlanetsAnalysis] Number not in ABCD/BCD arrays, no badge rendered');
     return null;
   };
 
@@ -765,19 +1017,9 @@ function PlanetsAnalysisPage() {
             throw new Error('No valid data found in Excel file');
           }
           
-          // Save Excel-parsed numbers to Supabase for 18h persistence
-          const saveSuccess = await saveExcelNumbersToSupabase(processedData.sets);
-          
-          if (saveSuccess) {
-            setPlanetsData(processedData);
-            setSelectedTopics(new Set()); // Reset topic selection
-            setSuccess(`✅ Excel uploaded successfully! Found ${Object.keys(processedData.sets).length} topics. Data saved for 18 hours.`);
-          } else {
-            // Still set the data locally even if save failed
-            setPlanetsData(processedData);
-            setSelectedTopics(new Set());
-            // Error message already set by saveExcelNumbersToSupabase
-          }
+          setPlanetsData(processedData);
+          setSelectedTopics(new Set()); // Reset topic selection
+          setSuccess(`✅ Excel uploaded successfully! Found ${Object.keys(processedData.sets).length} topics.`);
           
         } catch (error) {
           console.error('Excel processing error:', error);
@@ -960,62 +1202,7 @@ function PlanetsAnalysisPage() {
   const handleNumberBoxClick = (topicName, number) => {
     console.log(`🔢 [PlanetsAnalysis] Number ${number} clicked for ${topicName}`);
 
-    // Check if number is a synced (orange) number from Rule-1
-    let isSyncedNumber = false;
-    if (syncEnabled && rule1SyncData && selectedDate) {
-      const dateData = rule1SyncData[selectedDate];
-      if (dateData && dateData[topicName] && dateData[topicName].clickedNumbers) {
-        isSyncedNumber = dateData[topicName].clickedNumbers.includes(number);
-      }
-    }
-
-    if (isSyncedNumber) {
-      // Unclicking a synced number: remove from Rule-1 sync and send message
-      console.log(`🟧 [PlanetsAnalysis] Unclicking synced (orange) number: ${number} for ${topicName}`);
-      // Remove from localClickedNumbers for UI
-      setLocalClickedNumbers(prev => {
-        const newState = { ...prev };
-        if (newState[topicName]) {
-          newState[topicName] = newState[topicName].filter(n => n !== number);
-        }
-        return newState;
-      });
-      // Remove from rule1SyncData for UI (force update)
-      if (rule1SyncData && selectedDate && rule1SyncData[selectedDate] && rule1SyncData[selectedDate][topicName]) {
-        const updatedSyncData = { ...rule1SyncData };
-        updatedSyncData[selectedDate] = { ...updatedSyncData[selectedDate] };
-        updatedSyncData[selectedDate][topicName] = { ...updatedSyncData[selectedDate][topicName] };
-        updatedSyncData[selectedDate][topicName].clickedNumbers = updatedSyncData[selectedDate][topicName].clickedNumbers.filter(n => n !== number);
-        setRule1SyncData(updatedSyncData);
-      }
-      // Send cross-page message to Rule-1 to unclick
-      window.postMessage({
-        type: 'planet-analysis-unclick',
-        clickData: { topicName, number, userId, dateKey: selectedDate, hour: `HR${selectedHour}` }
-      }, '*');
-      // Remove from database and trigger sync refresh
-      if (window.cleanSupabaseService && userId && selectedDate) {
-        window.cleanSupabaseService.deleteTopicClick(
-          userId,
-          topicName,
-          selectedDate,
-          `HR${selectedHour}`,
-          number
-        ).then(() => {
-          if (window.crossPageSyncService) {
-            window.crossPageSyncService.getAllClickedNumbers(userId).then(syncData => {
-              if (window.setRule1SyncData) window.setRule1SyncData(syncData);
-              if (window.forceUpdatePlanetsAnalysis) window.forceUpdatePlanetsAnalysis();
-            });
-          }
-        }).catch(err => {
-          console.error('[Unclick] deleteTopicClick failed:', err);
-        });
-      }
-      return;
-    }
-
-    // Otherwise, handle local click/unclick as before
+    // Check if number is already clicked
     setLocalClickedNumbers(prev => {
       const newState = { ...prev };
       if (!newState[topicName]) newState[topicName] = [];
@@ -1027,24 +1214,23 @@ function PlanetsAnalysisPage() {
         newState[topicName] = currentNumbers.filter(n => n !== number);
         console.log(`➖ [PlanetsAnalysis] Removed click: ${number} from ${topicName}`);
 
-        if (window.cleanSupabaseService && userId && selectedDate) {
+        // Always remove from database and sync, even if originally clicked in Rule-1
+        if (window.cleanSupabaseService && window.selectedUser && window.selectedDate) {
+          const userId = window.selectedUser?.id || window.selectedUser;
+          const dateKey = window.selectedDate;
+          const hour = window.selectedHour ? `HR${window.selectedHour}` : 'HR1';
+          console.log('[Unclick] Attempting deleteTopicClick with:', { userId, topicName, dateKey, hour, number });
           window.cleanSupabaseService.deleteTopicClick(
             userId,
             topicName,
-            selectedDate,
-            `HR${selectedHour}`,
+            dateKey,
+            hour,
             number
-          ).then(() => {
-            window.postMessage({
-              type: 'planet-analysis-unclick',
-              clickData: { topicName, number, userId, dateKey: selectedDate, hour: `HR${selectedHour}` }
-            }, '*');
-            if (window.crossPageSyncService) {
-              window.crossPageSyncService.getAllClickedNumbers(userId).then(syncData => {
-                if (window.setRule1SyncData) window.setRule1SyncData(syncData);
-                if (window.forceUpdatePlanetsAnalysis) window.forceUpdatePlanetsAnalysis();
-              });
-            }
+          ).then((result) => {
+            console.log(`✅ [PlanetsAnalysis] Number ${number} removed from DB and sync (cross-page)`, result);
+            // Force sync refresh and UI update
+            // Global cross-page sync disabled - do not call window.crossPageSyncService
+            console.log('🔕 [PlanetsAnalysis] Global cross-page sync disabled: skipping window.crossPageSyncService after delete');
           }).catch(err => {
             console.error('[Unclick] deleteTopicClick failed:', err);
           });
@@ -1054,24 +1240,19 @@ function PlanetsAnalysisPage() {
         newState[topicName] = [...currentNumbers, number];
         console.log(`➕ [PlanetsAnalysis] Added local click: ${number} to ${topicName}`);
 
-        if (window.cleanSupabaseService && userId && selectedDate) {
+        // Add to database and sync
+        if (window.cleanSupabaseService && window.selectedUser && window.selectedDate) {
           window.cleanSupabaseService.saveTopicClick(
-            userId,
+            window.selectedUser,
             topicName,
-            selectedDate,
-            `HR${selectedHour}`,
+            window.selectedDate,
+            window.selectedHour ? `HR${window.selectedHour}` : 'HR1',
             number,
             true
           ).then(() => {
-            window.postMessage({
-              type: 'planet-analysis-click',
-              clickData: { topicName, number, userId, dateKey: selectedDate, hour: `HR${selectedHour}` }
-            }, '*');
-            if (window.crossPageSyncService) {
-              window.crossPageSyncService.getAllClickedNumbers(userId).then(syncData => {
-                if (window.setRule1SyncData) window.setRule1SyncData(syncData);
-              });
-            }
+            console.log(`✅ [PlanetsAnalysis] Number ${number} added to DB and sync`);
+            // Global cross-page sync disabled - skipping window.crossPageSyncService after save
+            console.log('🔕 [PlanetsAnalysis] Global cross-page sync disabled: skipping window.crossPageSyncService after save');
           });
         }
       }
@@ -1145,95 +1326,21 @@ function PlanetsAnalysisPage() {
   //   );
   // };
 
-  // Check if a number should be displayed (only show clicked numbers from Rule-1)
-  const shouldDisplayNumber = (topicName, rawData) => {
-    if (!rawData) return false;
-    const number = extractElementNumber(rawData);
-    if (!number) return false;
-
-    // 📊 DEBUG: Log display check
-    console.log(`📊 [DisplayCheck] Checking ${topicName} number ${number}:`, {
-      selectedDate,
-      selectedHour,
-      localClicked: localClickedNumbers[topicName]?.includes(number),
-      syncDataExists: !!rule1SyncData?.[selectedDate]?.[topicName],
-      syncClicked: rule1SyncData?.[selectedDate]?.[topicName]?.clickedNumbers?.includes(number)
-    });
-
-    // Check 1: Local clicks (manual clicks on planet page) - always display
-    if (localClickedNumbers[topicName] && localClickedNumbers[topicName].includes(number)) {
-      console.log(`✅ [DisplayCheck] Number ${number} displayed via local click`);
-      return true;
-    }
-
-    // Check 2: Rule-1 sync clicks - only display if clicked in Rule-1
-    if (syncEnabled && rule1SyncData && selectedDate) {
-      const dateData = rule1SyncData[selectedDate];
-      const topicVariations = [
-        topicName,
-        normalizeTopicName(topicName),
-        topicName.replace(' Matrix', ''),
-        topicName + ' Matrix'
-      ];
-      
-      for (const variation of topicVariations) {
-        if (dateData && dateData[variation]) {
-          const syncData = dateData[variation];
-          if (syncData.clickedNumbers && syncData.clickedNumbers.includes(number)) {
-            // Additional check: ensure the hour matches or is compatible
-            const syncHour = syncData.hour || 'HR1';
-            const currentHour = `HR${selectedHour}`;
-            if (syncHour === currentHour || syncHour === selectedHour.toString() || selectedHour === 1) {
-              console.log(`✅ [DisplayCheck] Number ${number} displayed via Rule-1 sync (hour: ${syncHour} -> ${currentHour})`);
-              return true;
-            } else {
-              console.log(`📊 [DisplayCheck] Number ${number} in sync data but hour mismatch: ${syncHour} vs ${currentHour}`);
-            }
-          }
-        }
-      }
-    }
-    
-    console.log(`❌ [DisplayCheck] Number ${number} not displayed - not clicked in Rule-1`);
-    return false;
-  };
-
   // Check if a planet cell should be highlighted (if its number is clicked)
   const shouldHighlightPlanetCell = (topicName, rawData) => {
     if (!rawData) return { highlighted: false };
     const number = extractElementNumber(rawData);
     if (!number) return { highlighted: false };
 
-    // 🔍 DEBUG: Log highlight check details
-    console.log(`🔍 [HighlightCheck] Checking ${topicName} number ${number}:`, {
-      selectedDate,
-      selectedHour,
-      localClicked: localClickedNumbers[topicName]?.includes(number),
-      syncDataExists: !!rule1SyncData?.[selectedDate]?.[topicName],
-      syncClicked: rule1SyncData?.[selectedDate]?.[topicName]?.clickedNumbers?.includes(number)
-    });
-
-    // Only highlight if number is in topic's ABCD or BCD for the current hour
+    // Only highlight if number is in topic's ABCD or BCD (top row)
     const { abcd, bcd } = getTopicNumbersWithNormalization(topicName);
     const isAbcd = abcd.includes(number);
     const isBcd = bcd.includes(number);
     if (!(isAbcd || isBcd)) {
-      console.log(`🔍 [HighlightCheck] Number ${number} not in ABCD/BCD for ${topicName}`);
       return { highlighted: false };
     }
 
-    // Check 1: Local clicks (manual clicks on planet page)
-    if (localClickedNumbers[topicName] && localClickedNumbers[topicName].includes(number)) {
-      console.log(`✅ [HighlightCheck] Number ${number} highlighted via local click`);
-      return {
-        highlighted: true,
-        type: isAbcd ? 'ABCD' : isBcd ? 'BCD' : 'unknown',
-        source: 'local-click',
-        syncSource: 'local'
-      };
-    }
-
-    // Check 2: Rule-1 sync clicks (only if number is clicked in Rule-1 for this topic and hour)
+    // Check synced data from Rule-1 (clickedNumbers, abcdNumbers, bcdNumbers)
     let isSyncedFromRule1 = false;
     let syncSource = null;
     if (syncEnabled && rule1SyncData && selectedDate) {
@@ -1251,20 +1358,21 @@ function PlanetsAnalysisPage() {
           break;
         }
       }
-      if (syncData && syncData.clickedNumbers && syncData.clickedNumbers.includes(number)) {
-        // Additional check: ensure the hour matches or is compatible
-        const syncHour = syncData.hour || 'HR1';
-        const currentHour = `HR${selectedHour}`;
-        if (syncHour === currentHour || syncHour === selectedHour.toString() || selectedHour === 1) {
+      if (syncData) {
+        if (syncData.clickedNumbers && syncData.clickedNumbers.includes(number)) {
           isSyncedFromRule1 = true;
           syncSource = 'clicked';
-          console.log(`✅ [HighlightCheck] Number ${number} highlighted via Rule-1 sync (hour: ${syncHour} -> ${currentHour})`);
-        } else {
-          console.log(`🔍 [HighlightCheck] Number ${number} in sync data but hour mismatch: ${syncHour} vs ${currentHour}`);
+        }
+        if (syncData.abcdNumbers && syncData.abcdNumbers.includes(number)) {
+          isSyncedFromRule1 = true;
+          syncSource = 'analysis';
+        }
+        if (syncData.bcdNumbers && syncData.bcdNumbers.includes(number)) {
+          isSyncedFromRule1 = true;
+          syncSource = 'analysis';
         }
       }
     }
-    
     if (isSyncedFromRule1) {
       return {
         highlighted: true,
@@ -1273,8 +1381,15 @@ function PlanetsAnalysisPage() {
         syncSource
       };
     }
-    
-    console.log(`❌ [HighlightCheck] Number ${number} not highlighted - not clicked anywhere`);
+    // Check local clicks (only if no sync data)
+    if (localClickedNumbers[topicName] && localClickedNumbers[topicName].includes(number)) {
+      return {
+        highlighted: true,
+        type: isAbcd ? 'ABCD' : isBcd ? 'BCD' : 'unknown',
+        source: 'local-click',
+        syncSource: 'local'
+      };
+    }
     return { highlighted: false };
   };
   
@@ -1846,11 +1961,11 @@ function PlanetsAnalysisPage() {
                               onClick={() => handleNumberBoxClick(setName, num)}
                               className={`px-2 py-0.5 rounded text-xs font-mono font-bold border-2 transition-all duration-200 cursor-pointer hover:scale-105 ${
                                 isNumberClicked(setName, num)
-                                  ? 'shadow-md transform scale-105'
-                                  : 'bg-green-200 text-green-900 border-green-300 hover:bg-green-300'
+                                  ? 'shadow-md transform scale-105 text-black'
+                                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                               }`}
                               style={isNumberClicked(setName, num) 
-                                ? { backgroundColor: '#FB923C', borderColor: '#F97316', color: 'white' }
+                                ? { backgroundColor: getNumberBoxHouseColor(num), borderColor: getNumberBoxHouseColor(num), color: 'black' }
                                 : {}
                               }
                             >
@@ -1866,11 +1981,11 @@ function PlanetsAnalysisPage() {
                               onClick={() => handleNumberBoxClick(setName, num)}
                               className={`px-2 py-0.5 rounded text-xs font-mono font-bold border-2 transition-all duration-200 cursor-pointer hover:scale-105 ${
                                 isNumberClicked(setName, num)
-                                  ? 'shadow-md transform scale-105'
-                                  : 'bg-blue-200 text-blue-900 border-blue-300 hover:bg-blue-300'
+                                  ? 'shadow-md transform scale-105 text-black'
+                                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                               }`}
                               style={isNumberClicked(setName, num) 
-                                ? { backgroundColor: '#41B3A2', borderColor: '#359486', color: 'white' }
+                                ? { backgroundColor: getNumberBoxHouseColor(num), borderColor: getNumberBoxHouseColor(num), color: 'black' }
                                 : {}
                               }
                             >
@@ -1978,9 +2093,6 @@ function PlanetsAnalysisPage() {
                                     const rawData = planetData[planet];
                                     const formattedData = formatPlanetData(rawData);
                                     
-                                    // 🎯 FIXED: Only display if number is clicked in Rule-1 or locally
-                                    const shouldDisplay = shouldDisplayNumber(setName, rawData);
-                                    
                                     return (
                                       <td 
                                         key={planet} 
@@ -1991,7 +2103,7 @@ function PlanetsAnalysisPage() {
                                         }`}
                                         style={getPlanetCellHighlightStyle(shouldHighlightPlanetCell(setName, rawData))}
                                       >
-                                        {shouldDisplay && rawData ? (
+                                        {rawData ? (
                                           <div className="flex flex-col items-center gap-0.5">
                                             <span className={`font-mono text-gray-700 text-xs ${
                                               shouldHighlightPlanetCell(setName, rawData).highlighted 

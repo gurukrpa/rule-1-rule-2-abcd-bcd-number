@@ -1,0 +1,142 @@
+[
+  {
+    "name": "Singapore",
+    "country": "Singapore",
+    "lat": 1.3521,
+    "lon": 103.8198,
+    "tz": "Asia/Singapore"
+  },
+  {
+    "name": "London",
+    "country": "United Kingdom",
+    "lat": 51.5074,
+    "lon": -0.1278,
+    "tz": "Europe/London"
+  },
+  {
+    "name": "Delhi",
+    "country": "India",
+    "lat": 28.6139,
+    "lon": 77.2090,
+    "tz": "Asia/Kolkata"
+  },
+  {
+    "name": "Mumbai",
+    "country": "India",
+    "lat": 19.0760,
+    "lon": 72.8777,
+    "tz": "Asia/Kolkata"
+  },
+  {
+    "name": "Bangalore",
+    "country": "India",
+    "lat": 12.9716,
+    "lon": 77.5946,
+    "tz": "Asia/Kolkata"
+  },
+  {
+    "name": "Chennai",
+    "country": "India",
+    "lat": 13.0827,
+    "lon": 80.2707,
+    "tz": "Asia/Kolkata"
+  },
+  {
+    "name": "Kolkata",
+    "country": "India",
+    "lat": 22.5726,
+    "lon": 88.3639,
+    "tz": "Asia/Kolkata"
+  },
+  {
+    "name": "New York",
+    "country": "United States",
+    "lat": 40.7128,
+    "lon": -74.0060,
+    "tz": "America/New_York"
+  },
+  {
+    "name": "Los Angeles",
+    "country": "United States",
+    "lat": 34.0522,
+    "lon": -118.2437,
+    "tz": "America/Los_Angeles"
+  },
+  {
+    "name": "Tokyo",
+    "country": "Japan",
+    "lat": 35.6762,
+    "lon": 139.6503,
+    "tz": "Asia/Tokyo"
+  },
+  {
+    "name": "Sydney",
+    "country": "Australia",
+    "lat": -33.8688,
+    "lon": 151.2093,
+    "tz": "Australia/Sydney"
+  },
+  {
+    "name": "Paris",
+    "country": "France",
+    "lat": 48.8566,
+    "lon": 2.3522,
+    "tz": "Europe/Paris"
+  },
+  {
+    "name": "Dubai",
+    "country": "United Arab Emirates",
+    "lat": 25.2048,
+    "lon": 55.2708,
+    "tz": "Asia/Dubai"
+  },
+  {
+    "name": "Toronto",
+    "country": "Canada",
+    "lat": 43.6532,
+    "lon": -79.3832,
+    "tz": "America/Toronto"
+  },
+  {
+    "name": "Berlin",
+    "country": "Germany",
+    "lat": 52.5200,
+    "lon": 13.4050,
+    "tz": "Europe/Berlin"
+  },
+  {
+    "name": "Moscow",
+    "country": "Russia",
+    "lat": 55.7558,
+    "lon": 37.6176,
+    "tz": "Europe/Moscow"
+  },
+  {
+    "name": "Cairo",
+    "country": "Egypt",
+    "lat": 30.0444,
+    "lon": 31.2357,
+    "tz": "Africa/Cairo"
+  },
+  {
+    "name": "Mexico City",
+    "country": "Mexico",
+    "lat": 19.4326,
+    "lon": -99.1332,
+    "tz": "America/Mexico_City"
+  },
+  {
+    "name": "São Paulo",
+    "country": "Brazil",
+    "lat": -23.5505,
+    "lon": -46.6333,
+    "tz": "America/Sao_Paulo"
+  },
+  {
+    "name": "Bangkok",
+    "country": "Thailand",
+    "lat": 13.7563,
+    "lon": 100.5018,
+    "tz": "Asia/Bangkok"
+  }
+]
